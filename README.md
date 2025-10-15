@@ -40,20 +40,20 @@ All data is stored in `data.xlsx` with multiple sheets corresponding to differen
 
 The directories correspond to the following figures/analyses:
 - `Fig. 2` - Main figures comparing model performance (Jupyter notebook with Plotly)
-- `Fig. S1` - Supplementary figures showing publication trends and document types (R scripts)
-- `Fig. S6` - Supplementary figures with accuracy heatmaps and comparative model performance (Python script)
-- `Fig. S9` - Additional supplementary analyses (Jupyter notebook)
+- `Fig. S16` - Supplementary figures showing publication trends and document types (R scripts)
+- `Fig. S22` - Supplementary figures with accuracy heatmaps and comparative model performance (Python script)
+- `Fig. S23` - Additional supplementary analyses (Jupyter notebook)
 
 ### Running the Code
 
 #### Python Scripts
 ```bash
-cd "Fig. S6" && python plot.py
+cd "Fig. S22" && python plot.py
 ```
 
 #### R Scripts  
 ```bash
-cd "Fig. S1" && Rscript plot_figure_s1AB.R
+cd "Fig. S16" && Rscript plot_figure_s16AB.R
 ```
 
 #### Jupyter Notebooks
@@ -67,7 +67,7 @@ jupyter lab
 Each script generates PDF and PNG figure files:
 - Main figures: `fig.2a.*.pdf`, `fig.2b.*.pdf`, etc.
 - Supplementary figures: `GeneTuring.pdf`, `pangu.pdf`, `other_models.pdf`
-- Publication trends: `figure_s1_A.pdf`, `figure_s1_B.pdf`
+- Publication trends: `figure_s16_A.pdf`, `figure_s16_B.pdf`
 
 ## Model Comparison
 
