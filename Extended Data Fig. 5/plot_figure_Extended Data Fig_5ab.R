@@ -3,7 +3,7 @@ library(scales)
 library(treemapify)
 
 plot_f_s1A <- function(data_path = "./figure_s1/paper_meta_year_counts.csv",
-                       output_path = "./figure_s1/figure_s1_A.pdf") {
+                       output_path = "./figure_s1/figure_Extended_Fig_5a.pdf") {
   
   df_full <- read_csv(data_path) %>%
     right_join(tibble(PY = 1901:2025), by = "PY") %>%
@@ -47,7 +47,7 @@ plot_f_s1A <- function(data_path = "./figure_s1/paper_meta_year_counts.csv",
 }
 
 plot_f_s1B <- function(data_path = "./figure_s1/type_distribution.csv",
-                       output_path = "./figure_s1/figure_s1_B.pdf",
+                       output_path = "./figure_Extended_Fig_5b.pdf",
                        use_col = "SC_first",
                        top_n = 30) {
   
@@ -98,5 +98,3 @@ plot_f_s1B <- function(data_path = "./figure_s1/type_distribution.csv",
 ##################
 plot_f_s1A()
 plot_f_s1B()
-
-
