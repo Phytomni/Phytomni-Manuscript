@@ -2,8 +2,8 @@ library(tidyverse)
 library(scales)
 library(treemapify)
 
-plot_f_s1A <- function(data_path = "./figure_s1/paper_meta_year_counts.csv",
-                       output_path = "./figure_s1/figure_Extended_Fig_5a.pdf") {
+plot_f_s1A <- function(data_path = "./paper_meta_year_counts.csv",
+                       output_path = "./extended_data_fig.5a.pdf") {
   
   df_full <- read_csv(data_path) %>%
     right_join(tibble(PY = 1901:2025), by = "PY") %>%
@@ -46,8 +46,8 @@ plot_f_s1A <- function(data_path = "./figure_s1/paper_meta_year_counts.csv",
   ggsave(output_path, p, width = 8, height = 5, device = cairo_pdf)
 }
 
-plot_f_s1B <- function(data_path = "./figure_s1/type_distribution.csv",
-                       output_path = "./figure_Extended_Fig_5b.pdf",
+plot_f_s1B <- function(data_path = "./type_distribution.csv",
+                       output_path = "./extended_data_fig.5b.pdf",
                        use_col = "SC_first",
                        top_n = 30) {
   

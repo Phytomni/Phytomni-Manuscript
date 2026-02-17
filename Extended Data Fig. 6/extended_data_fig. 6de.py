@@ -21,7 +21,7 @@ plt.ylabel("")
 
 # plt.show()
 plt.tight_layout()
-plt.savefig("GeneTuring.pdf")
+plt.savefig("extended_data_fig.6d.pdf")
 
 
 # %% plot pangu model
@@ -43,7 +43,7 @@ plt.ylabel("")
 
 # plt.show()
 plt.tight_layout()
-plt.savefig("pangu.pdf")
+plt.savefig("extended_data_fig.6e.pdf")
 
 
 # %% plot other models
