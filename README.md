@@ -4,9 +4,9 @@ Phytomni: Reproducibility code and notebooks for "An agentic AI for scientific d
 
 ## Overview
 
-This repository provides the code, scripts, and notebooks to reproduce figures, tables, and quantitative results reported in the manuscript “Phytomni: An agentic AI for scientific discovery and design in plant research.” Phytomni is a domain-specific, LLM-powered multi-agent system built on the Model Context Protocol (MCP) that integrates a plant-focused full-text knowledge base (~4.0M publications plus abstracts and patents), multi-omics data spanning 65 species, and 125 bioinformatics tools. The platform orchestrates hierarchically coordinated agents—Knowledge, Data, Analyst—and composite agents (e.g., In Silico Research Agent, Deep Genome Agent, Gene Network Agent, Digital Design Agent) to automate literature-grounded reasoning, data retrieval, and end-to-end bioinformatic analyses.
+This repository provides the code, scripts, and notebooks to reproduce figures, tables, and quantitative results reported in the manuscript "Phytomni: An agentic AI for scientific discovery and design in plant research." Phytomni is a domain-specific, LLM-powered multi-agent system built on the Model Context Protocol (MCP) that integrates a plant-focused full-text knowledge base (~4.0M publications plus abstracts and patents), multi-omics data spanning 65 species, and 125 bioinformatics tools. The platform orchestrates hierarchically coordinated agents—Knowledge, Data, Analyst—and composite agents (e.g., In Silico Research Agent, Deep Genome Agent, Gene Network Agent, Digital Design Agent) to automate literature-grounded reasoning, data retrieval, and end-to-end bioinformatic analyses.
 
-Code in this repository is organized by figure directory and has been tested with Python 3.8+ and R 4.0+. The shared dataset (data.xlsx) contains multi-sheet inputs for benchmarking and plotting (e.g., PhytoBench-Knowledge-ID/Trace, PhytoBench-Data, PhytoBench-Analysis, PhytoBench-Paper, and model-by-task performance). Executing the provided Python/R scripts and Jupyter notebooks reproduces the main and supplementary figures, including: (i) Knowledge Agent benchmarks (ID and Trace) versus state-of-the-art models (GPT-5, o3, Gemini-2.5-Pro, Claude-Opus-4.1, Grok-3-Beta, DeepSeek-V3, DeepSeek-R1); (ii) Data Agent natural-language-to-SQL performance on plant multi-omics; (iii) Analyst Agent goal-completion across diverse bioinformatics workflows; (iv) In Silico Research Agent paper-replication efficiency relative to a human expert baseline; and (v) Deep Genome Agent functional summarization and confabulation analyses. The outputs include publication-trend summaries and comparative heatmaps used throughout the manuscript.
+Code in this repository is organized by figure directory and has been tested with Python 3.8+ and R 4.0+. Executing the provided Python/R scripts and Jupyter notebooks reproduces the main and supplementary figures, including: (i) Knowledge Agent benchmarks; (ii) Data Agent natural-language-to-SQL performance on plant multi-omics; (iii) Analyst Agent goal-completion across diverse bioinformatics workflows; (iv) In Silico Research Agent paper-replication efficiency; and (v) Deep Genome Agent functional summarization and confabulation analyses.
 
 ## Development Environment
 
@@ -28,54 +28,77 @@ R -e "install.packages(c('IRkernel'))"
 R -e "IRkernel::installspec()"
 ```
 
+## Repository Structure
+
+```
+Phytomni-Manuscript/
+├── Fig. 2/                              # Main figures (Plotly interactive plots)
+├── Fig. 3/                              # Paper replication analysis
+├── Extended Data Fig. 5/                # Extended data figures
+├── Extended Data Fig. 6/                # Extended data figures
+├── Supplementary Fig. 6/                # Supplementary figures (Plotly)
+├── Supplementary Fig. 7-9/              # PhytoBench-Gene analysis
+└── Supplementary Fig. 13/               # Supplementary figures
+```
+
+### Directory Details
+
+| Directory | Content | Type |
+|-----------|---------|------|
+| `Fig. 2/` | Model performance comparisons | Jupyter Notebook |
+| `Fig. 3/` | Paper replication benchmark | Jupyter Notebook + Excel |
+| `Extended Data Fig. 5/` | Publication trends, document types | R Script + Jupyter Notebook |
+| `Extended Data Fig. 6/` | Accuracy heatmaps, model comparisons | Python Script + Jupyter Notebook |
+| `Supplementary Fig. 6/` | Interactive visualizations | Jupyter Notebook |
+| `Supplementary Fig. 7-9/` | PhytoBench-Gene analysis | Jupyter Notebook + TSV Data |
+| `Supplementary Fig. 13/` | Additional analyses | Jupyter Notebook |
+
 ## Data
 
-All data is stored in `data.xlsx` with multiple sheets corresponding to different analyses:
-- `GeneTuring` - Gene Turing test results
-- `pangu` - Pangu model performance data  
-- `other` - Comparative model performance data
-- Model-specific sheets for individual analyses
+Data files are located within their respective figure directories:
 
-## Code for Results/Figures
+- **Fig. 3/**: `PhytoBench-Paper-for_plot.xlsx` — Paper replication benchmark data
+- **Supplementary Fig. 7-9/PhytoBench-Gene-for_plot/**: Gene functional summarization scores
+  - Overall scores: `score.tsv`, `score.uncharacterized.tsv`, `score.well_studied.tsv`
+  - Species-specific scores: `score.arabidopsis.tsv`, `score.maize.tsv`, `score.rice.tsv`, `score.soybean.tsv`, `score.wheat.tsv`
+  - Categorized species scores: `score.uncharacterized.*.tsv`, `score.well_studied.*.tsv`
 
-The directories correspond to the following figures/analyses:
-- `Fig. 2` - Main figures comparing model performance (Jupyter notebook with Plotly)
-- `Fig. S16` - Supplementary figures showing publication trends and document types (R scripts)
-- `Fig. S22` - Supplementary figures with accuracy heatmaps and comparative model performance (Python script)
-- `Fig. S23` - Additional supplementary analyses (Jupyter notebook)
+## Running the Code
 
-### Running the Code
-
-#### Python Scripts
-```bash
-cd "Fig. S22" && python plot.py
-```
-
-#### R Scripts  
-```bash
-cd "Fig. S16" && Rscript plot_figure_s16AB.R
-```
-
-#### Jupyter Notebooks
+### Jupyter Notebooks
 ```bash
 jupyter lab
-# Then open and run cells in notebooks like "Fig. 2/fig. 2.ipynb"
+# Then open and run cells in the desired notebook:
+# - "Fig. 2/fig. 2.ipynb"
+# - "Fig. 3/fig. 3.ipynb"
+# - "Extended Data Fig. 5/extended_data_fig. 5d.ipynb"
+# - "Extended Data Fig. 6/extended_data_fig. 6fg.ipynb"
+# - "Supplementary Fig. 6/supplementary_fig. 6.ipynb"
+# - "Supplementary Fig. 7-9/supplementary_fig. 7-9.ipynb"
+# - "Supplementary Fig. 13/supplementary_fig. 13.ipynb"
+```
+
+### Python Scripts
+```bash
+cd "Extended Data Fig. 6" && python extended_data_fig. 6de.py
+```
+
+### R Scripts
+```bash
+cd "Extended Data Fig. 5" && Rscript extended_data_fig. 5ab.R
 ```
 
 ## Output Files
 
-Each script generates PDF and PNG figure files:
+Each script generates publication-quality figure files (PDF and/or PNG):
 - Main figures: `fig.2a.*.pdf`, `fig.2b.*.pdf`, etc.
-- Supplementary figures: `GeneTuring.pdf`, `pangu.pdf`, `other_models.pdf`
-- Publication trends: `figure_s16_A.pdf`, `figure_s16_B.pdf`
+- Extended data figures: `extended_data_fig.*.pdf`
+- Supplementary figures: `supplementary_fig.*.pdf`
 
 ## Model Comparison
 
-The manuscript compares the following AI models:
-- **Phytomni models**: Phyto-Reasoner, Phyto-Chatbot
-- **General AI models**: GPT-4.1, Claude-3.7-Sonnet, Gemini-2.5-Pro, Grok-3-Beta
-- **Open-source models**: Deepseek-V3, Deepseek-R1, o3
+The manuscript compares Phytomni against state-of-the-art AI models including general-purpose LLMs and specialized systems. Specific model comparisons are documented within each figure's notebook.
 
 ## Help
 
-Please post in the Github issues or contact the authors with any questions about the repository, requests for more data, or additional information about the results.
+Please post in the GitHub issues or contact the authors with any questions about the repository, requests for more data, or additional information about the results.
