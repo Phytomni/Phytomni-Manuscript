@@ -1,0 +1,67 @@
+Species	Group	Genome	Annotation	Variome	Genotype	Epigenome	Transcriptome	Epitranscriptome	Translatome	Proteome	Metabolome	SingleCell	Spatial	Microbiome	Phenome
+Chlamydomonas reinhardtii	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Marchantia polymorpha	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Physcomitrium patens	A	1	1	0	0	1	1	1	0	1	1	0	0	0	0
+Chara braunii	A	1	1	0	0	0	1	0	0	0	1	0	0	0	0
+Selaginella moellendorffii	A	1	1	0	0	0	1	0	0	0	1	0	0	0	0
+Papaver somniferum	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Actinidia chinensis	A	1	1	0	0	1	1	0	0	0	1	0	0	1	0
+Eucalyptus grandis	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Daucus carota	A	1	1	0	0	0	1	0	0	0	1	0	0	0	0
+Citrus clementina	A	1	1	0	0		1	0	0	0	1	0	0	0	0
+Olea europaea	A	1	1	0	0	0	1	0	0	0	1	0	0	0	0
+Musa acuminata	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Asparagus officinalis	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Amborella trichopoda	A	1	1	0	0	0	1	0	0	0	1	0	0	0	0
+Vitis vinifera	A	1	1	0	1	1	1	0	0	1	1	0	0	0	0
+Coffea canephora	A	1	1	0	0	0	1	0	0	0	1	0	0	0	0
+Chenopodium quinoa	A	1	1	0	0	0	1	0	0	0	1	0	0	0	0
+Beta vulgaris	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Populus trichocarpa	A	1	1	0	0	1	1	1	0	0	1	0	0	0	0
+Manihot esculenta	A	1	1	1	0		1	0	0	0	1	1	0	1	0
+Prunus persica	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Rosa chinensis	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Helianthus annuus	A	1	1	0	1	1	1	0	0	0	1	0	0	1	0
+Lactuca sativa	A	1	1	0	0	0	1	0	0	0	1	0	0	0	0
+Corylus avellana	A	1	1	0	0	0	1	0	0	0	1	0	0	1	0
+Quercus lobata	A	1	1	0	0		1	0	0	0	1	0	0	0	0
+Theobroma cacao	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Gossypium hirsutum	A	1	1	1	0	1	1	1	0	1	1	1	0	1	0
+Gossypium raimondii	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Citrullus lanatus	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Cucumis melo	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Cucumis sativus	A	1	1	0	0	1	1	0	0	0	1	0	0	1	0
+Capsicum annuum	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Solanum lycopersicum	A	1	1	0	1	1	1	1	0	1	1	1	0	1	0
+Solanum tuberosum	A	1	1	0	0	1	1	0	0	1	1	0	0	0	0
+Glycine max	A	1	1	1	0	1	1	1	0	1	1	1	1	1	0
+Medicago truncatula	A	1	1	0	0	1	1	0	0	1	1	1	0	0	0
+Phaseolus vulgaris	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Pisum sativum	A	1	1	0	0	0	1	0	0	0	0	0	0	0	0
+Trifolium pratense	A	1	1	0	0	0	1	0	0	0	1	0	0	0	0
+Eutrema salsugineum	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Arabidopsis thaliana	A	1	1	0	1	1	1	1	1	1	1	0	1	1	0
+Arabidopsis lyrata	A	1	1	0	0	1	1	0	0	0	1	0	0	1	0
+Brassica napus	A	1	1	1	0	1	1	1	0	1	1	0	0	0	0
+Brassica rapa	A	1	1	0	0	1	1	1	0	0	1	1	0	0	0
+Brassica oleracea	A	1	1	0	0	1	1	1	0	0	1	0	0	0	0
+Ananas comosus	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Hordeum vulgare	A	1	1	0	1	1	1	0	0	1	1	0	0	0	0
+Lolium perenne	A	1	1	0	0	0	1	0	0	0	0	0	0	0	0
+Secale cereale	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Sorghum bicolor	A	1	1	1	1	1	1	1	0	0	1	0	0	0	0
+Zea mays	A	1	1	1	1	1	1	1	1	1	1	1	1	0	1
+Brachypodium distachyon	A	1	1	0	1	1	1	0	0	0	1	0	0	1	0
+Aegilops tauschii	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Eragrostis curvula	A	1	1	0	0	0	1	0	0	0	1	0	0	0	0
+Saccharum spontaneum	A	1	1	0	0	0	1	0	0	0	1	0	0	0	0
+Panicum hallii	A	1	1	0	0		1	0	0	0	1	0	0	0	0
+Digitaria exilis	A	1	1	0	0	0		0	0	0	1	0	0	0	0
+Oryza sativa	A	1	1	1	1	1	1	1	1	1	1	1	1	0	1
+Oryza brachyantha	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Setaria italica	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Setaria viridis	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+Triticum aestivum	A	1	1	1	1	1	1	1	0	1	1	1	0	0	0
+Triticum turgidum	A	1	1	0	1	1	1	0	0	0	1	0	0	1	0
+Triticum dicoccoides	A	1	1	0	0	1	1	0	0	0	1	0	0	0	0
+placeholder	A	0	0	0	0	0	0	0	0	0	0	0	0	0	0
