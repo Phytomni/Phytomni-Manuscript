@@ -47,7 +47,7 @@ pip install "pandas>=2.1" matplotlib seaborn numpy openpyxl \
 
 ### R Dependencies
 ```bash
-R -e "install.packages(c('tidyverse', 'scales', 'treemapify'))"
+R -e "install.packages(c('tidyverse', 'scales', 'treemapify', 'viridis', 'readxl', 'RColorBrewer'))"
 ```
 
 ### Jupyter Notebook Support
