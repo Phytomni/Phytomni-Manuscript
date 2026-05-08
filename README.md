@@ -12,27 +12,22 @@ Code in this repository is organized by figure directory and has been tested wit
 
 ### Recommended setup
 
-We strongly recommend creating an isolated environment with [`uv`](https://docs.astral.sh/uv/) or `conda` rather than installing packages globally. Both options below produce the same final environment.
+The repo ships a [`pyproject.toml`](pyproject.toml) (for [`uv`](https://docs.astral.sh/uv/)) and an [`environment.yml`](environment.yml) (for `conda`). Pick one — each installs all top-level dependencies in a single command.
 
-**Option A — `uv` (fastest):**
+**Option A — `uv` (Python only, fastest):**
 ```bash
-uv venv --python 3.11 .venv
+uv sync          # creates .venv and installs every Python dep from pyproject.toml
 source .venv/bin/activate
-uv pip install "pandas>=2.1" matplotlib seaborn numpy openpyxl \
-    "plotly==6.0.1" "kaleido==0.2.1" "nbformat>=4.2.0" ipywidgets \
-    colorlover scipy jupyterlab
 ```
+For the R script and R-language notebooks, additionally run the R install line under [R Dependencies](#r-dependencies).
 
-**Option B — `conda`:**
+**Option B — `conda` (Python + R in one env):**
 ```bash
-conda create -y -n phytomni-fig python=3.11
+conda env create -f environment.yml
 conda activate phytomni-fig
-pip install "pandas>=2.1" matplotlib seaborn numpy openpyxl \
-    "plotly==6.0.1" "kaleido==0.2.1" "nbformat>=4.2.0" ipywidgets \
-    colorlover scipy jupyterlab
 ```
 
-> **Note:** `kaleido==0.2.1` is mandatory — the notebooks use `pio.kaleido.scope.default_format`, which kaleido v1.x removed. Python 3.12 is supported; do **not** pin `pandas<2.0` (no Python 3.12 wheels).
+> **Note:** Both manifests pin `plotly==6.0.1` and `kaleido==0.2.1` (conda: `python-kaleido=0.2.1`). The notebooks use `pio.kaleido.scope.default_format`, which kaleido v1.x removed, so these pins are mandatory.
 
 The remainder of this section describes the individual dependencies in case you prefer to manage them manually.
 
