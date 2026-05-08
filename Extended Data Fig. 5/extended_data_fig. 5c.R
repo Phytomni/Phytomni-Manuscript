@@ -2,7 +2,7 @@ library(tidyverse)
 library(viridis)
 
 # import data
-data <- read.table("data_stat-for_plot.txt", header = TRUE, sep = "\t")
+data <- read.table("Phytomni-Multiomics-for_plot.txt", header = TRUE, sep = "\t")
 # omics_level <- colnames(data)[-c(1,2)]
 omics_level <- rev(colnames(data)[-c(1,2)])
 species_level <- data$Species
