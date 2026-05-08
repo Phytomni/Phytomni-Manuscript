@@ -1,0 +1,30 @@
+name: phytomni-fig
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.12
+  # Python deps (mirrors pyproject.toml; pinned versions match the kaleido v0 API)
+  - pandas>=2.1
+  - matplotlib
+  - seaborn
+  - numpy
+  - openpyxl
+  - plotly=6.0.1
+  - python-kaleido=0.2.1
+  - nbformat>=4.2.0
+  - ipywidgets
+  - scipy
+  - jupyterlab
+  # R deps for the .R script and R-language notebooks
+  - r-base>=4.0
+  - r-tidyverse
+  - r-scales
+  - r-treemapify
+  - r-viridis
+  - r-readxl
+  - r-rcolorbrewer
+  - r-irkernel
+  # PyPI-only fallback (not on conda-forge)
+  - pip
+  - pip:
+      - colorlover
