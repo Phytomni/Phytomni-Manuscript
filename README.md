@@ -58,6 +58,19 @@ R -e "install.packages(c('IRkernel'))"
 R -e "IRkernel::installspec()"
 ```
 
+### Troubleshooting
+
+If you skipped the `### Recommended setup` block above and ran into one of these, here is the fix.
+
+| Symptom | Root cause | Fix |
+|---|---|---|
+| `AttributeError: 'DataFrame' object has no attribute 'applymap'` | pandas ≥ 3.0 removed `.applymap`. | Use the pinned install above (`pandas>=2.1` works after the in-repo `.map` patch). For other code, replace `.applymap(f)` with `.map(f)`. |
+| `AttributeError: 'NoneType' object has no attribute 'default_format'` | kaleido v1.x removed `pio.kaleido.scope`. | `pip install "kaleido==0.2.1"`. |
+| `ValueError: Mime type rendering requires nbformat>=4.2.0 but it is not installed` | `offline.init_notebook_mode` needs nbformat. | `pip install "nbformat>=4.2.0" ipywidgets`. |
+| `ModuleNotFoundError: No module named 'colorlover'` / `'scipy'` | Not in the previous install line. | Use the install line above (both included). |
+| Axis labels render as `?` / boxes (e.g. p-value labels) | Notebooks contained U+2013 `–` and U+2212 `−`. | Pull `main` — we replaced these with ASCII `-`. If you must keep them, install a Unicode font (DejaVu Sans, bundled with matplotlib). |
+| `does not exist in current working directory: ... paper_meta_year_counts.csv` | Outdated download. | Re-pull `main`; current repo reads `Phytomni-PaperYear-for_plot.csv`. |
+
 ## Repository Structure
 
 ```
