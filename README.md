@@ -38,8 +38,12 @@ The remainder of this section describes the individual dependencies in case you 
 
 ### Python Dependencies
 ```bash
-pip install matplotlib pandas seaborn plotly numpy openpyxl
+pip install "pandas>=2.1" matplotlib seaborn numpy openpyxl \
+    "plotly==6.0.1" "kaleido==0.2.1" "nbformat>=4.2.0" ipywidgets \
+    colorlover scipy
 ```
+
+> Python ≥ 3.10 is recommended (3.12 fully supported). The `kaleido==0.2.1` and `plotly==6.0.1` pins are required because the notebooks use the kaleido v0 `pio.kaleido.scope` API; v1.x removed it.
 
 ### R Dependencies
 ```bash
