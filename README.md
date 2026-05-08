@@ -10,6 +10,32 @@ Code in this repository is organized by figure directory and has been tested wit
 
 ## Development Environment
 
+### Recommended setup
+
+We strongly recommend creating an isolated environment with [`uv`](https://docs.astral.sh/uv/) or `conda` rather than installing packages globally. Both options below produce the same final environment.
+
+**Option A — `uv` (fastest):**
+```bash
+uv venv --python 3.11 .venv
+source .venv/bin/activate
+uv pip install "pandas>=2.1" matplotlib seaborn numpy openpyxl \
+    "plotly==6.0.1" "kaleido==0.2.1" "nbformat>=4.2.0" ipywidgets \
+    colorlover scipy jupyterlab
+```
+
+**Option B — `conda`:**
+```bash
+conda create -y -n phytomni-fig python=3.11
+conda activate phytomni-fig
+pip install "pandas>=2.1" matplotlib seaborn numpy openpyxl \
+    "plotly==6.0.1" "kaleido==0.2.1" "nbformat>=4.2.0" ipywidgets \
+    colorlover scipy jupyterlab
+```
+
+> **Note:** `kaleido==0.2.1` is mandatory — the notebooks use `pio.kaleido.scope.default_format`, which kaleido v1.x removed. Python 3.12 is supported; do **not** pin `pandas<2.0` (no Python 3.12 wheels).
+
+The remainder of this section describes the individual dependencies in case you prefer to manage them manually.
+
 ### Python Dependencies
 ```bash
 pip install matplotlib pandas seaborn plotly numpy openpyxl
