@@ -6,7 +6,7 @@ Phytomni: Reproducibility code and notebooks for "An agentic AI for scientific d
 
 This repository provides the code, scripts, and notebooks to reproduce figures, tables, and quantitative results reported in the manuscript "Phytomni: An agentic AI for scientific discovery and design in plant research." Phytomni is a domain-specific, LLM-powered multi-agent system built on the Model Context Protocol (MCP) that integrates a plant-focused full-text knowledge base (~4.0M publications plus abstracts and patents), multi-omics data spanning 65 species, and 125 bioinformatics tools. The platform orchestrates hierarchically coordinated agents—Knowledge, Data, Analyst—and composite agents (e.g., In Silico Research Agent, Deep Genome Agent, Gene Network Agent, Digital Design Agent) to automate literature-grounded reasoning, data retrieval, and end-to-end bioinformatic analyses.
 
-Code in this repository is organized by figure directory and has been tested with Python 3.8+ and R 4.0+. Executing the provided Python/R scripts and Jupyter notebooks reproduces the main and supplementary figures, including: (i) Knowledge Agent benchmarks; (ii) Data Agent natural-language-to-SQL performance on plant multi-omics; (iii) Analyst Agent goal-completion across diverse bioinformatics workflows; (iv) In Silico Research Agent paper-replication efficiency; and (v) Deep Genome Agent functional summarization and confabulation analyses.
+Code in this repository is organized by figure directory and has been tested with Python 3.12+ and R 4.0+. Executing the provided Python/R scripts and Jupyter notebooks reproduces the main and supplementary figures, including: (i) Knowledge Agent benchmarks; (ii) Data Agent natural-language-to-SQL performance on plant multi-omics; (iii) Analyst Agent goal-completion across diverse bioinformatics workflows; (iv) In Silico Research Agent paper-replication efficiency; and (v) Deep Genome Agent functional summarization and confabulation analyses.
 
 ## Development Environment
 
@@ -38,7 +38,7 @@ pip install "pandas>=2.1" matplotlib seaborn numpy openpyxl \
     colorlover scipy
 ```
 
-> Python ≥ 3.10 is recommended (3.12 fully supported). The `kaleido==0.2.1` and `plotly==6.0.1` pins are required because the notebooks use the kaleido v0 `pio.kaleido.scope` API; v1.x removed it.
+> Python ≥ 3.12 is required (matches the pinned manifests). The `kaleido==0.2.1` and `plotly==6.0.1` pins are required because the notebooks use the kaleido v0 `pio.kaleido.scope` API; v1.x removed it.
 
 ### R Dependencies
 ```bash
