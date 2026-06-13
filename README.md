@@ -6,9 +6,9 @@ Phytomni: Reproducibility code and notebooks for "An agentic AI for scientific d
 
 This repository provides the code, scripts, and notebooks to reproduce figures, tables, and quantitative results reported in the manuscript "Phytomni: An agentic AI for scientific discovery and design in plant research." Phytomni is a domain-specific, LLM-powered multi-agent system built on the Model Context Protocol (MCP) that integrates a plant-focused full-text knowledge base (~4.0M publications plus abstracts and patents), multi-omics data spanning 65 species, and 125 bioinformatics tools. The platform orchestrates hierarchically coordinated agents—Knowledge, Data, Analyst—and composite agents (e.g., In Silico Research Agent, Deep Genome Agent, Gene Network Agent, Digital Design Agent) to automate literature-grounded reasoning, data retrieval, and end-to-end bioinformatic analyses.
 
-Code in this repository is organized by figure directory and has been tested with Python 3.12+ and R 4.0+. Executing the provided Python/R scripts and Jupyter notebooks reproduces the main and supplementary figures, including: (i) Knowledge Agent benchmarks; (ii) Data Agent natural-language-to-SQL performance on plant multi-omics; (iii) Analyst Agent goal-completion across diverse bioinformatics workflows; (iv) In Silico Research Agent paper-replication efficiency; and (v) Deep Genome Agent functional summarization and confabulation analyses.
+Code in this repository is organized by figure directory and has been tested with Python 3.12+ and R 4.0+. Each top-level directory corresponds to one figure or panel set in the paper and is self-contained.
 
-## Development Environment
+## Environment setup
 
 ### Recommended setup
 
@@ -38,7 +38,7 @@ pip install "pandas>=2.1" matplotlib seaborn numpy openpyxl \
     colorlover scipy
 ```
 
-> Python ≥ 3.12 is required (matches the pinned manifests). The `kaleido==0.2.1` and `plotly==6.0.1` pins are required because the notebooks use the kaleido v0 `pio.kaleido.scope` API; v1.x removed it.
+> Python ≥ 3.12 is required (matches the pinned manifests). The `kaleido==0.2.1` and `plotly==6.0.1` pins are required because the notebooks use the kaleido v0 `pio.kaleido.scope` API; v1.x removed it. `pandas>=2.1` is the true minimum (the notebooks use `DataFrame.map`, added in 2.1); the environment is verified on pandas 3.0.2.
 
 ### R Dependencies
 ```bash
@@ -48,7 +48,7 @@ R -e "install.packages(c('tidyverse', 'scales', 'treemapify', 'viridis', 'readxl
 ### Jupyter Notebook Support
 ```bash
 pip install jupyterlab
-# For R kernel in Jupyter (optional)
+# R kernel in Jupyter (required for the two R notebooks; installs a kernel named "ir")
 R -e "install.packages(c('IRkernel'))"
 R -e "IRkernel::installspec()"
 ```
@@ -63,79 +63,53 @@ If you skipped the `### Recommended setup` block above and ran into one of these
 | `AttributeError: 'NoneType' object has no attribute 'default_format'` | kaleido v1.x removed `pio.kaleido.scope`. | `pip install "kaleido==0.2.1"`. |
 | `ValueError: Mime type rendering requires nbformat>=4.2.0 but it is not installed` | `offline.init_notebook_mode` needs nbformat. | `pip install "nbformat>=4.2.0" ipywidgets`. |
 | `ModuleNotFoundError: No module named 'colorlover'` / `'scipy'` | Not in the previous install line. | Use the install line above (both included). |
+| `No such kernel named ir_r_env` / R notebook won't open | The R notebooks now declare the standard `ir` kernel. | Install it: `R -e "IRkernel::installspec()"` (creates kernel `ir`). |
 | Axis labels render as `?` / boxes (e.g. p-value labels) | Notebooks contained U+2013 `–` and U+2212 `−`. | Pull `main` — we replaced these with ASCII `-`. If you must keep them, install a Unicode font (DejaVu Sans, bundled with matplotlib). |
 | `does not exist in current working directory: ... paper_meta_year_counts.csv` | Outdated download. | Re-pull `main`; current repo reads `Phytomni-PaperYear-for_plot.csv`. |
 
-## Repository Structure
+## Reproducing the figures
 
-```
-Phytomni-Manuscript/
-├── Fig. 2/                              # Main figures (Plotly interactive plots)
-├── Fig. 3/                              # Paper replication analysis
-├── Extended Data Fig. 5/                # Extended data figures
-├── Extended Data Fig. 6/                # Extended data figures
-├── Supplementary Fig. 6/                # Supplementary figures (Plotly)
-├── Supplementary Fig. 7-9/              # PhytoBench-Gene analysis
-└── Supplementary Fig. 13/               # Supplementary figures
-```
+Each figure directory is self-contained and reads its data via relative paths, so notebooks run from a fresh clone. **Run everything from the repository root.**
 
-### Directory Details
-
-| Directory | Content | Type |
-|-----------|---------|------|
-| `Fig. 2/` | Model performance comparisons | Jupyter Notebook |
-| `Fig. 3/` | Paper replication benchmark | Jupyter Notebook + Excel |
-| `Extended Data Fig. 5/` | Publication trends, document types | R Script + Jupyter Notebook |
-| `Extended Data Fig. 6/` | Accuracy heatmaps, model comparisons | Python Script + Jupyter Notebook |
-| `Supplementary Fig. 6/` | Interactive visualizations | Jupyter Notebook |
-| `Supplementary Fig. 7-9/` | PhytoBench-Gene analysis | Jupyter Notebook + TSV Data |
-| `Supplementary Fig. 13/` | Additional analyses | Jupyter Notebook |
-
-## Data
-
-Data files are located within their respective figure directories:
-
-- **Fig. 3/**: `PhytoBench-Paper-for_plot.xlsx` — Paper replication benchmark data
-- **Supplementary Fig. 7-9/PhytoBench-Gene-for_plot/**: Gene functional summarization scores
-  - Overall scores: `score.tsv`, `score.uncharacterized.tsv`, `score.well_studied.tsv`
-  - Species-specific scores: `score.arabidopsis.tsv`, `score.maize.tsv`, `score.rice.tsv`, `score.soybean.tsv`, `score.wheat.tsv`
-  - Categorized species scores: `score.uncharacterized.*.tsv`, `score.well_studied.*.tsv`
-
-## Running the Code
-
-### Jupyter Notebooks
+The headless run command is identical for every notebook; define it once:
 ```bash
-jupyter lab
-# Then open and run cells in the desired notebook:
-# - "Fig. 2/fig. 2.ipynb"
-# - "Fig. 3/fig. 3.ipynb"
-# - "Extended Data Fig. 5/extended_data_fig. 5d.ipynb"
-# - "Extended Data Fig. 6/extended_data_fig. 6fg.ipynb"
-# - "Supplementary Fig. 6/supplementary_fig. 6.ipynb"
-# - "Supplementary Fig. 7-9/supplementary_fig. 7-9.ipynb"
-# - "Supplementary Fig. 13/supplementary_fig. 13.ipynb"
+NBX='jupyter nbconvert --to notebook --execute --inplace'
 ```
+(Interactive alternative: launch `jupyter lab`, open the file named in the table, and run all cells.)
 
-### Python Scripts
-```bash
-cd "Extended Data Fig. 6" && python extended_data_fig. 6de.py
-```
+### Reproduction matrix
 
-### R Scripts
-```bash
-cd "Extended Data Fig. 5" && Rscript extended_data_fig. 5ab.R
-```
+This table is the single source of truth: which file produces each figure, the kernel it needs, the data it reads, how to run it, and what it writes. Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) · *inline* = data is hardcoded in the notebook.
 
-## Output Files
+| Figure | File | Kernel | Input data | Run command | Emits (uncomment save line to write) |
+|---|---|---|---|---|---|
+| Fig. 2 | `Fig. 2/fig. 2.ipynb` | `python3` | *inline* | `$NBX "Fig. 2/fig. 2.ipynb"` | `fig.2*.pdf` / `fig.2*.png` |
+| Fig. 3 | `Fig. 3/fig. 3.ipynb` | `python3` | `PhytoBench-Paper-for_plot.xlsx` ✓ | `$NBX "Fig. 3/fig. 3.ipynb"` | `fig.3*.pdf` / `fig.3*.png` |
+| Ext. Data Fig. 5a | `Extended Data Fig. 5/extended_data_fig. 5ab.ipynb` | `ir` (R) | `Phytomni-PaperYear-for_plot.csv` ✓ | `$NBX "Extended Data Fig. 5/extended_data_fig. 5ab.ipynb"` | inline display only |
+| Ext. Data Fig. 5b | *(same notebook)* | `ir` (R) | `Phytomni-DocType-for_plot.csv` ⚠ | *(same as 5a)* | inline display only |
+| Ext. Data Fig. 5c | `Extended Data Fig. 5/extended_data_fig. 5c.R` | Rscript | `Phytomni-Multiomics-for_plot.txt` ✓ | `cd "Extended Data Fig. 5" && Rscript "extended_data_fig. 5c.R"` | `extended_data_fig.5c.png` (saved automatically) |
+| Ext. Data Fig. 5d | `Extended Data Fig. 5/extended_data_fig. 5d.ipynb` | `python3` | *inline* | `$NBX "Extended Data Fig. 5/extended_data_fig. 5d.ipynb"` | `extended_data_fig.5d.pdf` |
+| Ext. Data Fig. 6a–c | `Extended Data Fig. 6/extended_data_fig. 6abc.ipynb` | `ir` (R) | `PhytoBench-Knowledge-for_plot.xlsx` ✓ | `$NBX "Extended Data Fig. 6/extended_data_fig. 6abc.ipynb"` | inline display only |
+| Ext. Data Fig. 6d,e | `Extended Data Fig. 6/extended_data_fig. 6de.ipynb` | `python3` | *inline* | `$NBX "Extended Data Fig. 6/extended_data_fig. 6de.ipynb"` | inline display only |
+| Ext. Data Fig. 6f,g | `Extended Data Fig. 6/extended_data_fig. 6fg.ipynb` | `python3` | *inline* | `$NBX "Extended Data Fig. 6/extended_data_fig. 6fg.ipynb"` | `model_compare_agent_total*.pdf` |
+| Supp. Fig. 6 | `Supplementary Fig. 6/supplementary_fig. 6.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 6/supplementary_fig. 6.ipynb"` | `*.pdf` / `*.png` |
+| Supp. Fig. 7–9 | `Supplementary Fig. 7-9/supplementary_fig. 7-9.ipynb` | `python3` | `PhytoBench-Gene-for_plot/score*.tsv` ✓ (15 files) | `$NBX "Supplementary Fig. 7-9/supplementary_fig. 7-9.ipynb"` | `*.pdf` / `*.png`; also writes `pl_elo_results.csv`, `pl_pairwise_probs.csv` |
+| Supp. Fig. 9.5 | `Supplementary Fig. 9.5/Supplementary Fig. 9.5.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 9.5/Supplementary Fig. 9.5.ipynb"` | `model_compare_agent_split.pdf` |
+| Supp. Fig. 13 | `Supplementary Fig. 13/supplementary_fig. 13.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 13/supplementary_fig. 13.ipynb"` | `*.pdf` / `*.png` |
+| Supp. Fig. 14 | `Supplementary Fig. 14/Supplementary Fig. 14.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 14/Supplementary Fig. 14.ipynb"` | `model_compare_agent_split_across_speciesv1.pdf` |
+| Supp. Fig. 15 | `Supplementary Fig. 15/Supplementary Fig. 15.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 15/Supplementary Fig. 15.ipynb"` | matplotlib + plotly figures |
 
-Each script generates publication-quality figure files (PDF and/or PNG):
-- Main figures: `fig.2a.*.pdf`, `fig.2b.*.pdf`, etc.
-- Extended data figures: `extended_data_fig.*.pdf`
-- Supplementary figures: `supplementary_fig.*.pdf`
+### How to run
 
-## Model Comparison
+- **Python notebooks** need only the Python environment from [Environment setup](#environment-setup). Run headlessly with `$NBX "<file>"`, or open the file in `jupyter lab` and run all cells.
+- **R notebooks** (`5ab`, `6abc`) need the `ir` kernel — install it once with `R -e "IRkernel::installspec()"`. Without it, `nbconvert` reports `No such kernel`.
+- **The R script** (`5c.R`) runs standalone with `Rscript`; it is the only file that saves its figure automatically (`ggsave`).
+- **Figure-saving is commented out by default in every notebook.** Running a notebook renders the figure inline but writes no file. To emit a PDF/PNG, uncomment the `fig.write_image(...)` / `plt.savefig(...)` line(s) in that notebook (output filenames follow `<figure>.<panel>.pdf`/`.png` and land beside the notebook).
 
-The manuscript compares Phytomni against state-of-the-art AI models including general-purpose LLMs and specialized systems. Specific model comparisons are documented within each figure's notebook.
+## Known limitations / pending data
+
+- **Ext. Data Fig. 5b** requires `Extended Data Fig. 5/Phytomni-DocType-for_plot.csv` (document-type distribution), which is **not yet in the repository**. Panel 5a and the other figures reproduce without it; 5b reproduces once the file is added (the notebook already reads it by that relative name).
+- **Ext. Data Fig. 5c** received a `group` → `Group` column-name fix; confirm the circular bar chart shows gaps between groups when you run it in your R environment.
 
 ## Help
 
