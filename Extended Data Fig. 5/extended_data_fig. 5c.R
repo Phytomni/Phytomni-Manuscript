@@ -12,9 +12,9 @@ data$Species <- factor(data$Species, levels = species_level)
 # Add empty space at the end of each group
 empty_bar <- 2
 nObsType <- nlevels(as.factor(data$observation))
-to_add <- data.frame( matrix(NA, empty_bar*nlevels(data$group)*nObsType, ncol(data)) )
+to_add <- data.frame( matrix(NA, empty_bar*nlevels(data$Group)*nObsType, ncol(data)) )
 colnames(to_add) <- colnames(data)
-to_add$group <- rep(levels(data$group), each=empty_bar*nObsType )
+to_add$Group <- rep(levels(data$Group), each=empty_bar*nObsType )
 data <- rbind(data, to_add)
 data <- data %>% arrange(Group, Species)
 data$id <- rep( seq(1, nrow(data)/nObsType) , each=nObsType)
