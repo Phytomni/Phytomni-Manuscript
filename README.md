@@ -69,7 +69,7 @@ If you skipped the `### Recommended setup` block above and ran into one of these
 
 ## Reproducing the figures
 
-Each figure directory is self-contained and reads its data via relative paths, so notebooks run from a fresh clone. **Run everything from the repository root.**
+Each figure directory is self-contained and reads its data via relative paths, so notebooks run from a fresh clone. **Run everything from the repository root.** (This applies to the figure directories; `AnalystAgent_evaluation/` is an agent-evaluation harness, not a figure — see [Agent evaluation](#agent-evaluation-not-a-figure) below.)
 
 The headless run command is identical for every notebook; define it once:
 ```bash
@@ -111,6 +111,16 @@ This table is the single source of truth: which file produces each figure, the k
 
 - **Ext. Data Fig. 5b** requires `Extended Data Fig. 5/Phytomni-DocType-for_plot.csv` (document-type distribution), which is **not yet in the repository**. Panel 5a and the other figures reproduce without it; 5b reproduces once the file is added (the notebook already reads it by that relative name).
 - **Ext. Data Fig. 5c** received a `group` → `Group` column-name fix; confirm the circular bar chart shows gaps between groups when you run it in your R environment.
+
+## Agent evaluation (not a figure)
+
+`AnalystAgent_evaluation/evaluation_scripts.ipynb` is **not a figure-reproduction notebook** — it benchmarks the Phytomni analyst agent over 10 bioinformatics tasks and writes JSON run-logs to `submit_log/` (no PDF/PNG). It requires, beyond the figure environment:
+
+- **`mcp_server_phytomni`** — install manually from <https://github.com/Phytomni/Phytomni-Bot> (not on PyPI; not in this repo's manifests).
+- **`huggingface_hub`** — `pip install huggingface_hub`. On first run the notebook auto-downloads the benchmark data from <https://huggingface.co/datasets/Phytomni/PhytoBench-Analysis> into `AnalystAgent_evaluation/PhytoBench-Analysis/`.
+- **A live Phytomni agent backend** the notebook submits tasks to (`retrieve_plan_submit`).
+
+The downloaded data and `submit_log/` are gitignored. This harness cannot run from a clone with the figure environment alone.
 
 ## Help
 
