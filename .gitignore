@@ -208,3 +208,11 @@ __marimo__/
 # Claude Code
 CLAUDE.md
 .claude
+
+# Codex
+AGENTS.md
+.codex
+
+# AnalystAgent evaluation: downloaded data + run logs (not committed)
+AnalystAgent_evaluation/PhytoBench-Analysis/
+AnalystAgent_evaluation/submit_log/

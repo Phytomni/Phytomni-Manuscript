@@ -20,7 +20,7 @@ library(ggradar)
 library(scales)
 
 # -------------------- 1. 读取数据并重命名 --------------------
-data <- read.csv("/data/work/work_bigModel/RAG/check_l1/A_v2/trace/results/merge_chat_r_results/v4/merge/aggregated_results.csv")
+data <- read.csv("PhytoBench-RAG-for_plot.csv")
 
 ```
 
