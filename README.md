@@ -50,7 +50,7 @@ R -e "install.packages('remotes'); remotes::install_github('ricardo-bion/ggradar
 ### Jupyter Notebook Support
 ```bash
 pip install jupyterlab
-# R kernel in Jupyter (required for the two R notebooks; installs a kernel named "ir")
+# R kernel in Jupyter (required for the R notebooks; installs a kernel named "ir")
 R -e "install.packages(c('IRkernel'))"
 R -e "IRkernel::installspec()"
 ```
@@ -108,7 +108,7 @@ This table is the single source of truth: which file produces each figure, the k
 ### How to run
 
 - **Python notebooks** need only the Python environment from [Environment setup](#environment-setup). Run headlessly with `$NBX "<file>"`, or open the file in `jupyter lab` and run all cells.
-- **R notebooks** (`5ab`, `6abc`) need the `ir` kernel — install it once with `R -e "IRkernel::installspec()"`. Without it, `nbconvert` reports `No such kernel`.
+- **R notebooks** (`5ab`, `6abc`, `9.5 id`; plus the `6abc.Rmd` R Markdown) need the `ir` kernel / an R install — install the kernel once with `R -e "IRkernel::installspec()"`. Without it, `nbconvert` reports `No such kernel`.
 - **The R script** (`5c.R`) runs standalone with `Rscript`; it is the only file that saves its figure automatically (`ggsave`).
 - **Figure-saving is commented out by default in every notebook.** Running a notebook renders the figure inline but writes no file. To emit a PDF/PNG, uncomment the `fig.write_image(...)` / `plt.savefig(...)` line(s) in that notebook (output filenames follow `<figure>.<panel>.pdf`/`.png` and land beside the notebook).
 
