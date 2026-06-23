@@ -95,6 +95,7 @@ This table is the single source of truth: which file produces each figure, the k
 | Supp. Fig. 6 | `Supplementary Fig. 6/supplementary_fig. 6.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 6/supplementary_fig. 6.ipynb"` | `*.pdf` / `*.png` |
 | Supp. Fig. 7–9 | `Supplementary Fig. 7-9/supplementary_fig. 7-9.ipynb` | `python3` | `PhytoBench-Gene-for_plot/score*.tsv` ✓ (15 files) | `$NBX "Supplementary Fig. 7-9/supplementary_fig. 7-9.ipynb"` | `*.pdf` / `*.png`; also writes `pl_elo_results.csv`, `pl_pairwise_probs.csv` |
 | Supp. Fig. 9.5 | `Supplementary Fig. 9.5/Supplementary Fig. 9.5.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 9.5/Supplementary Fig. 9.5.ipynb"` | `model_compare_agent_split.pdf` |
+| Supp. Fig. 9.5 id | `Supplementary Fig. 9.5/Supplementary Fig. 9.5 id.ipynb` | `ir` (R) | *inline* | `$NBX "Supplementary Fig. 9.5/Supplementary Fig. 9.5 id.ipynb"` | inline display only |
 | Supp. Fig. 13 | `Supplementary Fig. 13/supplementary_fig. 13.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 13/supplementary_fig. 13.ipynb"` | `*.pdf` / `*.png` |
 | Supp. Fig. 14 | `Supplementary Fig. 14/Supplementary Fig. 14.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 14/Supplementary Fig. 14.ipynb"` | `model_compare_agent_split_across_speciesv1.pdf` |
 | Supp. Fig. 15 | `Supplementary Fig. 15/Supplementary Fig. 15.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 15/Supplementary Fig. 15.ipynb"` | matplotlib + plotly figures |
