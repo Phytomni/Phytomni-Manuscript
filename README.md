@@ -43,6 +43,8 @@ pip install "pandas>=2.1" matplotlib seaborn numpy openpyxl \
 ### R Dependencies
 ```bash
 R -e "install.packages(c('tidyverse', 'scales', 'treemapify', 'viridis', 'readxl', 'RColorBrewer'))"
+# ggradar is GitHub-only (not on CRAN), required by extended_data_fig_6abc.Rmd:
+R -e "install.packages('remotes'); remotes::install_github('ricardo-bion/ggradar')"
 ```
 
 ### Jupyter Notebook Support
@@ -90,6 +92,7 @@ This table is the single source of truth: which file produces each figure, the k
 | Ext. Data Fig. 5c | `Extended Data Fig. 5/extended_data_fig. 5c.R` | Rscript | `Phytomni-Multiomics-for_plot.txt` ✓ | `cd "Extended Data Fig. 5" && Rscript "extended_data_fig. 5c.R"` | `extended_data_fig.5c.png` (saved automatically) |
 | Ext. Data Fig. 5d | `Extended Data Fig. 5/extended_data_fig. 5d.ipynb` | `python3` | *inline* | `$NBX "Extended Data Fig. 5/extended_data_fig. 5d.ipynb"` | `extended_data_fig.5d.pdf` |
 | Ext. Data Fig. 6a–c | `Extended Data Fig. 6/extended_data_fig. 6abc.ipynb` | `ir` (R) | `PhytoBench-Knowledge-for_plot.xlsx` ✓ | `$NBX "Extended Data Fig. 6/extended_data_fig. 6abc.ipynb"` | inline display only |
+| Ext. Data Fig. 6 (radar, provisional) | `Extended Data Fig. 6/extended_data_fig_6abc.Rmd` | R / `rmarkdown::render` | `PhytoBench-RAG-for_plot.csv` ⚠ | `R -e 'rmarkdown::render("Extended Data Fig. 6/extended_data_fig_6abc.Rmd")'` | 4 radar charts (inline HTML) |
 | Ext. Data Fig. 6d,e | `Extended Data Fig. 6/extended_data_fig. 6de.ipynb` | `python3` | *inline* | `$NBX "Extended Data Fig. 6/extended_data_fig. 6de.ipynb"` | inline display only |
 | Ext. Data Fig. 6f,g | `Extended Data Fig. 6/extended_data_fig. 6fg.ipynb` | `python3` | *inline* | `$NBX "Extended Data Fig. 6/extended_data_fig. 6fg.ipynb"` | `model_compare_agent_total*.pdf` |
 | Supp. Fig. 6 | `Supplementary Fig. 6/supplementary_fig. 6.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 6/supplementary_fig. 6.ipynb"` | `*.pdf` / `*.png` |
@@ -99,6 +102,8 @@ This table is the single source of truth: which file produces each figure, the k
 | Supp. Fig. 13 | `Supplementary Fig. 13/supplementary_fig. 13.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 13/supplementary_fig. 13.ipynb"` | `*.pdf` / `*.png` |
 | Supp. Fig. 14 | `Supplementary Fig. 14/Supplementary Fig. 14.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 14/Supplementary Fig. 14.ipynb"` | `model_compare_agent_split_across_speciesv1.pdf` |
 | Supp. Fig. 15 | `Supplementary Fig. 15/Supplementary Fig. 15.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 15/Supplementary Fig. 15.ipynb"` | matplotlib + plotly figures |
+
+> Note: `extended_data_fig_6abc.Rmd` provisionally sits under Ext. Data Fig. 6 (RAG/rerank radar charts) alongside `extended_data_fig. 6abc.ipynb` (knowledge bar charts, the panel 6a–c source); the final panel label for the radar figure is set by the authors.
 
 ### How to run
 
@@ -111,6 +116,7 @@ This table is the single source of truth: which file produces each figure, the k
 
 - **Ext. Data Fig. 5b** requires `Extended Data Fig. 5/Phytomni-DocType-for_plot.csv` (document-type distribution), which is **not yet in the repository**. Panel 5a and the other figures reproduce without it; 5b reproduces once the file is added (the notebook already reads it by that relative name).
 - **Ext. Data Fig. 5c** received a `group` → `Group` column-name fix; confirm the circular bar chart shows gaps between groups when you run it in your R environment.
+- **Ext. Data Fig. 6 (radar)** requires `Extended Data Fig. 6/PhytoBench-RAG-for_plot.csv` (RAG/rerank aggregated metrics), **not yet in the repository**. `extended_data_fig_6abc.Rmd` already reads it by that relative name; supply the file to reproduce. Also needs `ggradar` (see [R Dependencies](#r-dependencies)).
 
 ## Agent evaluation (not a figure)
 
