@@ -1,0 +1,210 @@
+---
+title: "extended_data_fig.6abc"
+output: html_document
+date: "2026-06-23"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+library(tidyverse)
+library(ggradar)
+library(scales)
+
+# -------------------- 1. 读取数据并重命名 --------------------
+data <- read.csv("/data/work/work_bigModel/RAG/check_l1/A_v2/trace/results/merge_chat_r_results/v4/merge/aggregated_results.csv")
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+
+# 修改为新的带括号格式
+rename_map <- c(
+  "chat_L0_ragkeyword"   = "Pangu-NLP-N2-128K (keyword)",
+  "chat_L0_ragsearch"    = "Pangu-NLP-N2-128K (semantic)",
+  "chat_L0_ragrank"      = "Pangu-NLP-N2-128K (hybrid)",
+  "chat_L1_ragkeyword"   = "Phyto-Chatbot (keyword)",
+  "chat_L1_ragsearch"    = "Phyto-Chatbot (semantic)",
+  "chat_L1_ragrank"      = "Phyto-Chatbot (hybrid)",
+  "R_L0_ragkeyword"      = "Pangu-NLP-N2-Reasoner-128K (keyword)",
+  "R_L0_ragsearch"       = "Pangu-NLP-N2-Reasoner-128K (semantic)",
+  "R_L0_ragrank"         = "Pangu-NLP-N2-Reasoner-128K (hybrid)",
+  "R_L1_ragkeyword"      = "Phyto-Reasoner (keyword)",
+  "R_L1_ragsearch"       = "Phyto-Reasoner (semantic)",
+  "R_L1_ragrank"         = "Phyto-Reasoner (hybrid)",
+  "deepseek_v3"          = "DeepSeek-V3",
+  "deepseek_r1"          = "DeepSeek-R1",
+  "grok_3_beta"          = "Grok-3-Beta",
+  "claude_opus_4_1"      = "Claude-4.1-Opus",
+  "gpt_5"                = "GPT-5",
+  "o3"                   = "O3",
+  "gemini_2_5_pro"       = "Gemini-2.5-Pro",
+  "l0_rerankoff"         = "Pangu-NLP-N2-128K (without rerank)",
+  "chat_L1_rerankoff"    = "Phyto-Chatbot (without rerank)",
+  "R_L1_rerankoff"       = "Phyto-Reasoner (without rerank)"
+)
+data_selected <- data %>%
+  select(model_name, model_type, RAG, rank, figure1, figure2, figure3, figure4,
+         bleu.bleu.1, bleu.bleu.2, bleu.bleu.3, bleu.bleu.4,
+         rouge.rouge.1.f, rouge.rouge.2.f, rouge.rouge.l.f,
+         bert_score.precision, bert_score.f1, bert_score.recall) %>%
+  mutate(model_name = recode(model_name, !!!rename_map)) %>%
+  rename(
+    `BLEU-1`           = bleu.bleu.1,
+    `BLEU-2`           = bleu.bleu.2,
+    `BLEU-3`           = bleu.bleu.3,
+    `BLEU-4`           = bleu.bleu.4,
+    `ROUGE-1 F1`       = rouge.rouge.1.f,
+    `ROUGE-2 F1`       = rouge.rouge.2.f,
+    `ROUGE-L F1`       = rouge.rouge.l.f,
+    `BERTScore Precision` = bert_score.precision,
+    `BERTScore F1`     = bert_score.f1,
+    `BERTScore Recall` = bert_score.recall
+  )
+data_selected$model_name <- as.character(data_selected$model_name)
+# -------------------- 2. 固定颜色映射字典 --------------------
+# 全局字典的名称同步更新为新的括号格式
+global_color_map <- c(
+  # 1. 全局固定核心模型
+  "Phyto-Chatbot (hybrid)"             = "#fd8527",
+  "Phyto-Reasoner (hybrid)"            = "#1F578A",
+  # 2. Figure2 专属渐变色 (严格按 keyword, semantic, hybrid 顺序对应)
+  "Pangu-NLP-N2-128K (keyword)"        = "#D6E5D9",
+  "Pangu-NLP-N2-128K (semantic)"       = "#A5C7B2",
+  "Pangu-NLP-N2-128K (hybrid)"         = "#82aa95",
+  "Phyto-Chatbot (keyword)"            = "#FCE1C8",
+  "Phyto-Chatbot (semantic)"           = "#FCAE6B",
+  # "Phyto-Chatbot (hybrid)"           = "#fd8527", # 已在全局固定
+  "Pangu-NLP-N2-Reasoner-128K (keyword)"  = "#F5D6E4",
+  "Pangu-NLP-N2-Reasoner-128K (semantic)" = "#ECA1C1",
+  "Pangu-NLP-N2-Reasoner-128K (hybrid)"   = "#db6a99",
+  "Phyto-Reasoner (keyword)"           = "#9ED8E8",
+  "Phyto-Reasoner (semantic)"          = "#4fc0dd",
+  # "Phyto-Reasoner (hybrid)"          = "#1F578A", # 已在全局固定
+  # 3. Figure1 和 Figure4 竞品模型固定色
+  "DeepSeek-V3"                        = "#53A85F",
+  "DeepSeek-R1"                        = "#E63863",
+  "Gemini-2.5-Pro"                     = "#57C3F3",
+  "GPT-5"                              = "#AB3282",
+  "Claude-4.1-Opus"                    = "#BD956A",
+  "Grok-3-Beta"                        = "#E59CC4",
+  "O3"                                 = "#6778AE",
+  # 4. Figure3 RerankOff 模型固定色
+  "Pangu-NLP-N2-128K (without rerank)"      = "#F1BB72",
+  "Phyto-Chatbot (without rerank)"          = "#5F3D69",
+  "Phyto-Reasoner (without rerank)"         = "#91D0BE"
+)
+# -------------------- 3. 绘图函数 --------------------
+plot_radar <- function(fig_col) {
+  # 筛选该列为 "yes" 的行
+  df_sub <- data_selected %>% filter(!!sym(fig_col) == "yes")
+  if (nrow(df_sub) == 0) {
+    message(paste("No data for", fig_col))
+    return(NULL)
+  }
+  # 准备绘图数据：group 列 + 10 个指标
+  plot_data <- df_sub %>%
+    rename(group = model_name) %>%
+    select(group, `BLEU-1`, `BLEU-2`, `BLEU-3`, `BLEU-4`,
+           `ROUGE-1 F1`, `ROUGE-2 F1`, `ROUGE-L F1`,
+           `BERTScore Precision`, `BERTScore F1`, `BERTScore Recall`)
+  # 固定 group 为字符向量
+  plot_data$group <- as.character(plot_data$group)
+  # 计算原始范围（用于轴标签）
+  range_labels <- plot_data %>%
+    select(-group) %>%
+    summarise(across(everything(), list(min = ~min(.), max = ~max(.)))) %>%
+    pivot_longer(everything(), names_to = c("metric", ".value"), names_sep = "_") %>%
+    mutate(label = paste0(metric, " (", round(min, 3), "-", round(max, 3), ")"))
+  # 获取当前指标列顺序
+  metric_names <- colnames(plot_data)[-1]
+  new_names <- setNames(range_labels$label, range_labels$metric)
+  new_colnames <- new_names[metric_names]
+  # 重命名数据框的列
+  plot_data_renamed <- plot_data
+  colnames(plot_data_renamed)[-1] <- new_colnames
+  # 独立 Min-Max 归一化
+  plot_data_norm <- plot_data_renamed %>%
+    mutate(across(-group, ~ rescale(.)))
+  # 从全局字典获取颜色，彻底避免动态匹配错误
+  group_levels <- unique(plot_data_norm$group)
+  colors_sub <- global_color_map[group_levels]
+  colors_sub[is.na(colors_sub)] <- "#999999" # 防御性兜底
+  # 绘制雷达图
+  p <- ggradar(
+    plot_data_norm,
+    group.line.width = 0.8,
+    group.point.size = 1.5,
+    grid.line.width = 0.4,
+    grid.min = 0,
+    grid.mid = 0.5,
+    grid.max = 1,
+    background.circle.colour = "white",
+    gridline.min.colour = "gray80",
+    gridline.mid.colour = "gray80",
+    gridline.max.colour = "gray80",
+    axis.label.size = 4,
+    legend.text.size = 12,           # 图例字体变大
+    values.radar = c("", "", "")     # 去掉图中的 0% 50% 100%
+  )
+  # 安全地关闭极坐标裁剪限制
+  p$coordinates$clip <- "off"
+  p <- p +
+    scale_color_manual(values = setNames(colors_sub, group_levels)) +
+    scale_fill_manual(values = setNames(colors_sub, group_levels)) +
+    theme(
+      panel.background = element_rect(fill = "white", colour = NA),
+      plot.background = element_rect(fill = "white", colour = NA),
+      panel.border = element_blank(),
+      axis.line = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks.y = element_blank(),
+      axis.title = element_blank(),
+      legend.position = "right",
+      legend.text = element_text(size = 12),      # 图例字体变大
+      legend.title = element_blank(),
+      legend.key.size = unit(0.5, "cm"),
+      legend.key.height = unit(0.5, "cm"),
+      legend.key.width = unit(0.5, "cm"),
+      legend.margin = margin(0, 0, 0, 0),
+      legend.box.margin = margin(0, 0, 0, 0),
+      legend.spacing.y = unit(0.2, "cm"),
+      legend.direction = "vertical",
+      plot.margin = margin(1, 3, 1, 3, "cm")
+    )
+  print(p)
+}
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+plot_radar("figure1")
+```
+
+
+```{r}
+plot_radar("figure2")
+```
+
+
+```{r}
+plot_radar("figure3")
+```
+
+
+```{r}
+plot_radar("figure4")
+```
+
