@@ -55,20 +55,6 @@ R -e "install.packages(c('IRkernel'))"
 R -e "IRkernel::installspec()"
 ```
 
-### Troubleshooting
-
-If you skipped the `### Recommended setup` block above and ran into one of these, here is the fix.
-
-| Symptom | Root cause | Fix |
-|---|---|---|
-| `AttributeError: 'DataFrame' object has no attribute 'applymap'` | pandas ≥ 3.0 removed `.applymap`. | Use the pinned install above (`pandas>=2.1` works after the in-repo `.map` patch). For other code, replace `.applymap(f)` with `.map(f)`. |
-| `AttributeError: 'NoneType' object has no attribute 'default_format'` | kaleido v1.x removed `pio.kaleido.scope`. | `pip install "kaleido==0.2.1"`. |
-| `ValueError: Mime type rendering requires nbformat>=4.2.0 but it is not installed` | `offline.init_notebook_mode` needs nbformat. | `pip install "nbformat>=4.2.0" ipywidgets`. |
-| `ModuleNotFoundError: No module named 'colorlover'` / `'scipy'` | Not in the previous install line. | Use the install line above (both included). |
-| `No such kernel named ir_r_env` / R notebook won't open | The R notebooks now declare the standard `ir` kernel. | Install it: `R -e "IRkernel::installspec()"` (creates kernel `ir`). |
-| Axis labels render as `?` / boxes (e.g. p-value labels) | Notebooks contained U+2013 `–` and U+2212 `−`. | Pull `main` — we replaced these with ASCII `-`. If you must keep them, install a Unicode font (DejaVu Sans, bundled with matplotlib). |
-| `does not exist in current working directory: ... paper_meta_year_counts.csv` | Outdated download. | Re-pull `main`; current repo reads `Phytomni-PaperYear-for_plot.csv`. |
-
 ## Reproducing the figures
 
 Each figure directory is self-contained and reads its data via relative paths, so notebooks run from a fresh clone. **Run everything from the repository root.** (This applies to the figure directories; `AnalystAgent_evaluation/` is an agent-evaluation harness, not a figure — see [Agent evaluation](#agent-evaluation-not-a-figure) below.)
@@ -111,12 +97,6 @@ This table is the single source of truth: which file produces each figure, the k
 - **R notebooks** (`5ab`, `6abc`, `9.5 id`; plus the `6abc.Rmd` R Markdown) need the `ir` kernel / an R install — install the kernel once with `R -e "IRkernel::installspec()"`. Without it, `nbconvert` reports `No such kernel`.
 - **The R script** (`5c.R`) runs standalone with `Rscript`; it is the only file that saves its figure automatically (`ggsave`).
 - **Figure-saving is commented out by default in every notebook.** Running a notebook renders the figure inline but writes no file. To emit a PDF/PNG, uncomment the `fig.write_image(...)` / `plt.savefig(...)` line(s) in that notebook (output filenames follow `<figure>.<panel>.pdf`/`.png` and land beside the notebook).
-
-## Known limitations / pending data
-
-- **Ext. Data Fig. 5b** requires `Extended Data Fig. 5/Phytomni-DocType-for_plot.csv` (document-type distribution), which is **not yet in the repository**. Panel 5a and the other figures reproduce without it; 5b reproduces once the file is added (the notebook already reads it by that relative name).
-- **Ext. Data Fig. 5c** received a `group` → `Group` column-name fix; confirm the circular bar chart shows gaps between groups when you run it in your R environment.
-- **Ext. Data Fig. 6 (radar)** requires `Extended Data Fig. 6/PhytoBench-RAG-for_plot.csv` (RAG/rerank aggregated metrics), **not yet in the repository**. `extended_data_fig_6abc.Rmd` already reads it by that relative name; supply the file to reproduce. Also needs `ggradar` (see [R Dependencies](#r-dependencies)).
 
 ## Agent evaluation (not a figure)
 
