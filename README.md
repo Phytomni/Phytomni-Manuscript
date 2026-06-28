@@ -88,14 +88,17 @@ This table is the single source of truth: which file produces each figure, the k
 | Supp. Fig. 13 | `Supplementary Fig. 13/supplementary_fig. 13.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 13/supplementary_fig. 13.ipynb"` | `*.pdf` / `*.png` |
 | Supp. Fig. 14 | `Supplementary Fig. 14/Supplementary Fig. 14.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 14/Supplementary Fig. 14.ipynb"` | `model_compare_agent_split_across_speciesv1.pdf` |
 | Supp. Fig. 15 | `Supplementary Fig. 15/Supplementary Fig. 15.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 15/Supplementary Fig. 15.ipynb"` | matplotlib + plotly figures |
+| Multi-species accuracy (panel TBD) | `DataAgent Multi-species/plot.py` | `python3` (script, not notebook) | `data.xlsx` ✓ | `cd "DataAgent Multi-species" && python3 plot.py` | `model_accuracy_by_species.pdf` |
 
 > Note: `extended_data_fig_6abc.Rmd` provisionally sits under Ext. Data Fig. 6 (RAG/rerank radar charts) alongside `extended_data_fig. 6abc.ipynb` (knowledge bar charts, the panel 6a–c source); the final panel label for the radar figure is set by the authors.
+> Note: `DataAgent Multi-species/plot.py` (multi-species model-accuracy bar chart) is a standalone Python script; its panel label is provisional and will be set by the authors. Like the notebooks, its save line is commented out by default.
 
 ### How to run
 
 - **Python notebooks** need only the Python environment from [Environment setup](#environment-setup). Run headlessly with `$NBX "<file>"`, or open the file in `jupyter lab` and run all cells.
 - **R notebooks** (`5ab`, `6abc`, `9.5 id`; plus the `6abc.Rmd` R Markdown) need the `ir` kernel / an R install — install the kernel once with `R -e "IRkernel::installspec()"`. Without it, `nbconvert` reports `No such kernel`.
 - **The R script** (`5c.R`) runs standalone with `Rscript`; it is the only file that saves its figure automatically (`ggsave`).
+- **The Python script** (`DataAgent Multi-species/plot.py`) also runs standalone with `python3` (not via `$NBX` — it is a script, not a notebook). It reads `data.xlsx` by a bare relative path, so run it from inside its directory: `cd "DataAgent Multi-species" && python3 plot.py`. Its save line is commented out by default, like the notebooks.
 - **Figure-saving is commented out by default in every notebook.** Running a notebook renders the figure inline but writes no file. To emit a PDF/PNG, uncomment the `fig.write_image(...)` / `plt.savefig(...)` line(s) in that notebook (output filenames follow `<figure>.<panel>.pdf`/`.png` and land beside the notebook).
 
 ## Agent evaluation (not a figure)
