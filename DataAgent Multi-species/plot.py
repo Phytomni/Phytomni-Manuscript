@@ -70,5 +70,6 @@ fig.supylabel("Accuracy")
 
 plt.tight_layout(rect=[0, 0, 1, 0.97])
 
-plt.savefig("model_accuracy_by_species.pdf", format="pdf", bbox_inches="tight")
+# Uncomment to write the figure (output lands beside this script):
+# plt.savefig("model_accuracy_by_species.pdf", format="pdf", bbox_inches="tight")
 plt.show()
