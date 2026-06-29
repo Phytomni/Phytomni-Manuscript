@@ -1,19 +1,15 @@
 import concurrent.futures
-from enum import Enum
-from functools import partial
-
 import pandas as pd
 import requests
 
-from model.pangu_L1 import fetch_content_pangu_l1_reasoner
-from model.pangu_L1 import fetch_content_pangu_l1_chat
-from model.pangu_L1 import fetch_content_pangu_l0
+from enum import Enum
+from functools import partial
+
+from model.config import fetch_content
 
 
 class FunctionModel(Enum):
-    PANGU_L1_R = partial(fetch_content_pangu_l1_reasoner)
-    PANGU_L1_C = partial(fetch_content_pangu_l1_chat)
-    PANGU_L0 = partial(fetch_content_pangu_l0)
+    MODEL = partial(fetch_content)
 
 
 def single_request(i, model_name, query, proxy):
