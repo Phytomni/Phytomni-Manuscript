@@ -34,7 +34,7 @@ custom_colors = {
     "DeepSeek-R1": "#96CDA0",
 }
 
-species_per_row = 12
+species_per_row = 11
 n_species = len(species_order)
 n_rows = math.ceil(n_species / species_per_row)
 
