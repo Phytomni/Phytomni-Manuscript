@@ -214,5 +214,9 @@ AGENTS.md
 .codex
 
 # AnalystAgent evaluation: downloaded data + run logs (not committed)
-AnalystAgent_evaluation/PhytoBench-Analysis/
-AnalystAgent_evaluation/submit_log/
+AnalystAgent Evaluation/PhytoBench-Analysis/
+AnalystAgent Evaluation/submit_log/
+
+# DataAgent evaluation: runtime rewrite/nl2sql outputs (not committed)
+DataAgent Evaluation/output/
+DataAgent Evaluation/result/
