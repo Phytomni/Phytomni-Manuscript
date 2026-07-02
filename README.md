@@ -43,7 +43,7 @@ pip install "pandas>=2.1" matplotlib seaborn numpy openpyxl \
 ### R Dependencies
 ```bash
 R -e "install.packages(c('tidyverse', 'scales', 'treemapify', 'viridis', 'readxl', 'RColorBrewer'))"
-# ggradar is GitHub-only (not on CRAN), required by extended_data_fig_6abc.Rmd:
+# ggradar is GitHub-only (not on CRAN), required by extended_data_fig. 6abc.Rmd:
 R -e "install.packages('remotes'); remotes::install_github('ricardo-bion/ggradar')"
 ```
 
@@ -57,7 +57,7 @@ R -e "IRkernel::installspec()"
 
 ## Reproducing the figures
 
-Each figure directory is self-contained and reads its data via relative paths, so notebooks run from a fresh clone. **Run everything from the repository root.** (This applies to the figure directories; `AnalystAgent_evaluation/` is an agent-evaluation harness, not a figure — see [Agent evaluation](#agent-evaluation-not-a-figure) below.)
+Each figure directory is self-contained and reads its data via relative paths, so notebooks run from a fresh clone. **Run everything from the repository root.** (This applies to the figure directories; `AnalystAgent Evaluation/` is an agent-evaluation harness, not a figure — see [Agent evaluation](#agent-evaluation-not-a-figure) below.)
 
 The headless run command is identical for every notebook; define it once:
 ```bash
@@ -78,38 +78,46 @@ This table is the single source of truth: which file produces each figure, the k
 | Ext. Data Fig. 5c | `Extended Data Fig. 5/extended_data_fig. 5c.R` | Rscript | `Phytomni-Multiomics-for_plot.txt` ✓ | `cd "Extended Data Fig. 5" && Rscript "extended_data_fig. 5c.R"` | `extended_data_fig.5c.png` (saved automatically) |
 | Ext. Data Fig. 5d | `Extended Data Fig. 5/extended_data_fig. 5d.ipynb` | `python3` | *inline* | `$NBX "Extended Data Fig. 5/extended_data_fig. 5d.ipynb"` | `extended_data_fig.5d.pdf` |
 | Ext. Data Fig. 6a–c | `Extended Data Fig. 6/extended_data_fig. 6abc.ipynb` | `ir` (R) | `PhytoBench-Knowledge-for_plot.xlsx` ✓ | `$NBX "Extended Data Fig. 6/extended_data_fig. 6abc.ipynb"` | inline display only |
-| Ext. Data Fig. 6 (radar, provisional) | `Extended Data Fig. 6/extended_data_fig_6abc.Rmd` | R / `rmarkdown::render` | `PhytoBench-RAG-for_plot.csv` ⚠ | `R -e 'rmarkdown::render("Extended Data Fig. 6/extended_data_fig_6abc.Rmd")'` | 4 radar charts (inline HTML) |
+| Ext. Data Fig. 6 (radar, provisional) | `Extended Data Fig. 6/extended_data_fig. 6abc.Rmd` | R / `rmarkdown::render` | `PhytoBench-RAG-for_plot.csv` ⚠ | `R -e 'rmarkdown::render("Extended Data Fig. 6/extended_data_fig. 6abc.Rmd")'` | 4 radar charts (inline HTML) |
 | Ext. Data Fig. 6d,e | `Extended Data Fig. 6/extended_data_fig. 6de.ipynb` | `python3` | *inline* | `$NBX "Extended Data Fig. 6/extended_data_fig. 6de.ipynb"` | inline display only |
 | Ext. Data Fig. 6f,g | `Extended Data Fig. 6/extended_data_fig. 6fg.ipynb` | `python3` | *inline* | `$NBX "Extended Data Fig. 6/extended_data_fig. 6fg.ipynb"` | `model_compare_agent_total*.pdf` |
-| Supp. Fig. 6 | `Supplementary Fig. 6/supplementary_fig. 6.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 6/supplementary_fig. 6.ipynb"` | `*.pdf` / `*.png` |
-| Supp. Fig. 7–9 | `Supplementary Fig. 7-9/supplementary_fig. 7-9.ipynb` | `python3` | `PhytoBench-Gene-for_plot/score*.tsv` ✓ (15 files) | `$NBX "Supplementary Fig. 7-9/supplementary_fig. 7-9.ipynb"` | `*.pdf` / `*.png`; also writes `pl_elo_results.csv`, `pl_pairwise_probs.csv` |
-| Supp. Fig. 9.5 | `Supplementary Fig. 9.5/Supplementary Fig. 9.5.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 9.5/Supplementary Fig. 9.5.ipynb"` | `model_compare_agent_split.pdf` |
-| Supp. Fig. 9.5 id | `Supplementary Fig. 9.5/Supplementary Fig. 9.5 id.ipynb` | `ir` (R) | *inline* | `$NBX "Supplementary Fig. 9.5/Supplementary Fig. 9.5 id.ipynb"` | inline display only |
-| Supp. Fig. 13 | `Supplementary Fig. 13/supplementary_fig. 13.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 13/supplementary_fig. 13.ipynb"` | `*.pdf` / `*.png` |
-| Supp. Fig. 14 | `Supplementary Fig. 14/Supplementary Fig. 14.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 14/Supplementary Fig. 14.ipynb"` | `model_compare_agent_split_across_speciesv1.pdf` |
-| Supp. Fig. 15 | `Supplementary Fig. 15/Supplementary Fig. 15.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 15/Supplementary Fig. 15.ipynb"` | matplotlib + plotly figures |
-| Multi-species accuracy (panel TBD) | `DataAgent Multi-species/plot.py` | `python3` (script, not notebook) | `data.xlsx` ✓ | `cd "DataAgent Multi-species" && python3 plot.py` | `model_accuracy_by_species.pdf` |
+| Ext. Data Fig. 7 | `Extended Data Fig. 7/extended_data_fig. 7.ipynb` | `ir` (R) | *inline* | `$NBX "Extended Data Fig. 7/extended_data_fig. 7.ipynb"` | inline display only |
+| Supp. Fig. 7 | `Supplementary Fig. 7/plot.py` | `python3` (script, not notebook) | `data.xlsx` ✓ | `cd "Supplementary Fig. 7" && python3 plot.py` | `model_accuracy_by_species.pdf` |
+| Supp. Fig. 8 | `Supplementary Fig. 8/supplementary_fig. 8.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 8/supplementary_fig. 8.ipynb"` | `model_compare_agent_split.pdf` |
+| Supp. Fig. 9 | `Supplementary Fig. 9/supplementary_fig. 9.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 9/supplementary_fig. 9.ipynb"` | `model_compare_agent_split_across_speciesv1.pdf` |
+| Supp. Fig. 10–13 | `Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb` | `python3` | `PhytoBench-Gene-for_plot/score*.tsv` ✓ (15 files) | `$NBX "Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb"` | `*.pdf` / `*.png`; also writes `pl_elo_results.csv`, `pl_pairwise_probs.csv` |
+| Supp. Fig. 14 | `Supplementary Fig. 14/supplementary_fig. 14.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 14/supplementary_fig. 14.ipynb"` | `*.pdf` / `*.png` |
+| Supp. Fig. 19 | `Supplementary Fig. 19/supplementary_fig. 19.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 19/supplementary_fig. 19.ipynb"` | matplotlib + plotly figures |
+| Supp. Fig. 24 | `Supplementary Fig. 24/supplementary_fig. 24.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 24/supplementary_fig. 24.ipynb"` | `*.pdf` / `*.png` |
 
-> Note: `extended_data_fig_6abc.Rmd` provisionally sits under Ext. Data Fig. 6 (RAG/rerank radar charts) alongside `extended_data_fig. 6abc.ipynb` (knowledge bar charts, the panel 6a–c source); the final panel label for the radar figure is set by the authors.
-> Note: `DataAgent Multi-species/plot.py` (multi-species model-accuracy bar chart) is a standalone Python script; its panel label is provisional and will be set by the authors. Like the notebooks, its save line is commented out by default.
+> Note: `extended_data_fig. 6abc.Rmd` provisionally sits under Ext. Data Fig. 6 (RAG/rerank radar charts) alongside `extended_data_fig. 6abc.ipynb` (knowledge bar charts, the panel 6a–c source); the final panel label for the radar figure is set by the authors.
+> Note: `Supplementary Fig. 7/plot.py` (multi-species model-accuracy bar chart) is a standalone Python script, not a notebook — run with `python3`, not `$NBX`. Like the notebooks, its save line is commented out by default.
 
 ### How to run
 
 - **Python notebooks** need only the Python environment from [Environment setup](#environment-setup). Run headlessly with `$NBX "<file>"`, or open the file in `jupyter lab` and run all cells.
-- **R notebooks** (`5ab`, `6abc`, `9.5 id`; plus the `6abc.Rmd` R Markdown) need the `ir` kernel / an R install — install the kernel once with `R -e "IRkernel::installspec()"`. Without it, `nbconvert` reports `No such kernel`.
+- **R notebooks** (`5ab`, `6abc`, `7`; plus the `6abc.Rmd` R Markdown) need the `ir` kernel / an R install — install the kernel once with `R -e "IRkernel::installspec()"`. Without it, `nbconvert` reports `No such kernel`.
 - **The R script** (`5c.R`) runs standalone with `Rscript`; it is the only file that saves its figure automatically (`ggsave`).
-- **The Python script** (`DataAgent Multi-species/plot.py`) also runs standalone with `python3` (not via `$NBX` — it is a script, not a notebook). It reads `data.xlsx` by a bare relative path, so run it from inside its directory: `cd "DataAgent Multi-species" && python3 plot.py`. Its save line is commented out by default, like the notebooks.
+- **The Python script** (`Supplementary Fig. 7/plot.py`) also runs standalone with `python3` (not via `$NBX` — it is a script, not a notebook). It reads `data.xlsx` by a bare relative path, so run it from inside its directory: `cd "Supplementary Fig. 7" && python3 plot.py`. Its save line is commented out by default, like the notebooks.
 - **Figure-saving is commented out by default in every notebook.** Running a notebook renders the figure inline but writes no file. To emit a PDF/PNG, uncomment the `fig.write_image(...)` / `plt.savefig(...)` line(s) in that notebook (output filenames follow `<figure>.<panel>.pdf`/`.png` and land beside the notebook).
 
 ## Agent evaluation (not a figure)
 
-`AnalystAgent_evaluation/evaluation_scripts.ipynb` is **not a figure-reproduction notebook** — it benchmarks the Phytomni analyst agent over 10 bioinformatics tasks and writes JSON run-logs to `submit_log/` (no PDF/PNG). It requires, beyond the figure environment:
+`AnalystAgent Evaluation/evaluation_scripts.ipynb` is **not a figure-reproduction notebook** — it benchmarks the Phytomni analyst agent over 10 bioinformatics tasks and writes JSON run-logs to `submit_log/` (no PDF/PNG). It requires, beyond the figure environment:
 
 - **`mcp_server_phytomni`** — install manually from <https://github.com/Phytomni/Phytomni-Bot> (not on PyPI; not in this repo's manifests).
-- **`huggingface_hub`** — `pip install huggingface_hub`. On first run the notebook auto-downloads the benchmark data from <https://huggingface.co/datasets/Phytomni/PhytoBench-Analysis> into `AnalystAgent_evaluation/PhytoBench-Analysis/`.
+- **`huggingface_hub`** — `pip install huggingface_hub`. On first run the notebook auto-downloads the benchmark data from <https://huggingface.co/datasets/Phytomni/PhytoBench-Analysis> into `AnalystAgent Evaluation/PhytoBench-Analysis/`.
 - **A live Phytomni agent backend** the notebook submits tasks to (`retrieve_plan_submit`).
 
 The downloaded data and `submit_log/` are gitignored. This harness cannot run from a clone with the figure environment alone.
+
+`DataAgent Evaluation/` is a second, separate evaluation harness (a rewrite → NL2SQL pipeline for the Data agent) — also **not a figure**. Its scripts read `../data`, `../output`, `../result` by bare relative paths, so run them from inside `DataAgent Evaluation/src/`: `exp_rewrite.py` rewrites questions from `../data/PhytoBench-Data.xlsx` into `../output/`, then `exp_nl2sql.py` runs those through a NL2SQL service into `../result/`. Beyond the figure environment it requires:
+
+- **`langchain`, `openai`, `httpx`, `tqdm`, `pyyaml`, `requests`** — none are in this repo's manifests; `pip install` them separately.
+- **A `prompt_template.yaml` in `src/`** — not shipped in the repo; `rewrite.py` loads it at import time, so the scripts fail immediately without it. Supply your own.
+- **Private backends** — the LLM endpoint, IAM token service, NL2SQL service URL, and RAG knowledge-search URL are all `Change_to_your_*` placeholders you must fill in.
+
+The `output/` and `result/` directories it creates are gitignored. Like the AnalystAgent harness, this cannot run from a clone with the figure environment alone.
 
 ## Help
 
