@@ -3,7 +3,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-df = pd.read_excel("data.xlsx")
+df = pd.read_excel("PhytoBench-Data-for_plot.xlsx")
 long_df = df.melt(id_vars="species", var_name="model", value_name="result")
 long_df["result"] = long_df["result"].astype(str).str.upper() == "TRUE"
 

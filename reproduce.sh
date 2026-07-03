@@ -49,8 +49,8 @@ nb "Extended Data Fig. 6/extended_data_fig. 6abc.ipynb"    "Ext. Data 6a-c"    i
 nb "Extended Data Fig. 7/extended_data_fig. 7.ipynb"       "Ext. Data 7"       ir
 
 # --- standalone Python script (runs from its own dir) ---
-if ( cd "Supplementary Fig. 7" && python3 plot.py ) >/dev/null 2>&1; then
-  record OK "Supp. 7 (plot.py)"; else record XX "Supp. 7 (plot.py)"; fi
+if ( cd "Supplementary Fig. 7" && python3 "supplementary_fig. 7.py" ) >/dev/null 2>&1; then
+  record OK "Supp. 7 (supplementary_fig. 7.py)"; else record XX "Supp. 7 (supplementary_fig. 7.py)"; fi
 
 # --- standalone R script ---
 if [[ $have_r -eq 0 ]]; then
