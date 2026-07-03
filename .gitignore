@@ -95,9 +95,8 @@ ipython_config.py
 #Pipfile.lock
 
 # UV
-#   uv.lock is intentionally excluded — figure-reproduction repo, not a deployable package.
-#   Users regenerate via `uv sync` against their own preferred index.
-uv.lock
+#   uv.lock IS committed — this is a reproducibility repo; the lock pins exact
+#   transitive versions so `uv sync --frozen` reproduces the environment bit-for-bit.
 
 # poetry
 #   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
@@ -220,3 +219,6 @@ AnalystAgent Evaluation/submit_log/
 # DataAgent evaluation: runtime rewrite/nl2sql outputs (not committed)
 DataAgent Evaluation/output/
 DataAgent Evaluation/result/
+
+# Figure artifacts emitted when PHYTOMNI_SAVE=1 (per-figure-dir output/)
+output/
