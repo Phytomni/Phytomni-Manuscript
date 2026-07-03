@@ -24,6 +24,8 @@ dependencies:
   - r-readxl
   - r-rcolorbrewer
   - r-irkernel
+  - r-rmarkdown
+  - r-remotes
   # PyPI-only fallback (not on conda-forge)
   - pip
   - pip:
