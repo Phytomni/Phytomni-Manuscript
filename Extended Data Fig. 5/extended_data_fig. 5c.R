@@ -76,4 +76,8 @@ p <- ggplot(data) +
 # geom_text(data=base_data, aes(x = title, y = -18, label=group), hjust=c(1,1,0,0), colour = "black", alpha=0.8, size=4, fontface="bold", inherit.aes = FALSE)
 
 p
-ggsave(p, file="extended_data_fig.5c.png", width=12, height=12)
+save_figs <- Sys.getenv("PHYTOMNI_SAVE") == "1"
+if (save_figs) {
+  dir.create("output", showWarnings = FALSE)
+  ggsave(p, file="output/extended_data_fig.5c.png", width=12, height=12)
+}

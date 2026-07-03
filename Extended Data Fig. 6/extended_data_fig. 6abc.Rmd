@@ -19,6 +19,8 @@ library(tidyverse)
 library(ggradar)
 library(scales)
 
+save_figs <- Sys.getenv("PHYTOMNI_SAVE") == "1"
+
 # -------------------- 1. 读取数据并重命名 --------------------
 data <- read.csv("PhytoBench-RAG-for_plot.csv")
 
@@ -185,6 +187,10 @@ plot_radar <- function(fig_col) {
       plot.margin = margin(1, 3, 1, 3, "cm")
     )
   print(p)
+  if (save_figs) {
+    dir.create("output", showWarnings = FALSE)
+    ggsave(sprintf("output/extended_data_fig.6-radar-%s.pdf", fig_col), plot = p, width = 8, height = 8)
+  }
 }
 ```
 
