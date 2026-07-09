@@ -222,3 +222,6 @@ DataAgent Evaluation/result/
 
 # Figure artifacts emitted when PHYTOMNI_SAVE=1 (per-figure-dir output/)
 output/
+
+# git worktrees (local)
+.worktrees/
