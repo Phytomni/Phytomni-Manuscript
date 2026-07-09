@@ -225,3 +225,6 @@ output/
 
 # git worktrees (local)
 .worktrees/
+
+# reproduce.sh per-target logs
+/logs/
