@@ -94,6 +94,17 @@ def test_skip_deprecated_status(tmp_path: Path):
     assert reason == "deprecated: not executed"
 
 
+def test_real_manifest_loads():
+    root = Path(__file__).resolve().parents[1]
+    m = load_manifest(root / "reproduce.manifest.yaml")
+    ids = [t["id"] for t in iter_targets(m)]
+    assert "fig-2" in ids
+    assert "ext-data-5a" in ids
+    assert "ext-data-5b" in ids
+    five_b = next(t for t in m["targets"] if t["id"] == "ext-data-5b")
+    assert five_b["status"] == "skip_until_data"
+
+
 def test_validate_artifacts_missing_and_empty(tmp_path: Path):
     out = tmp_path / "Fig. 2" / "output"
     out.mkdir(parents=True)
