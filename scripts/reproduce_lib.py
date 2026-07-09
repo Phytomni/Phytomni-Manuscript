@@ -42,3 +42,40 @@ def iter_targets(manifest: dict[str, Any], phase: str | None = None) -> list[dic
             continue
         out.append(t)
     return out
+
+
+def check_skip(
+    target: dict[str, Any],
+    repo_root: Path,
+    *,
+    have_ir: bool,
+    have_rscript: bool,
+    have_ggradar: bool,
+) -> str | None:
+    status = target.get("status", "run")
+    if status == "deprecated":
+        return "deprecated: not executed"
+    if status == "skip_until_data":
+        return "skip_until_data (pending author data)"
+    for rel in target.get("requires_data", []):
+        if not (repo_root / rel).is_file():
+            return f"data missing: {rel}"
+    tools = set(target.get("requires_toolchain", []))
+    if "ir" in tools and not have_ir:
+        return 'ir kernel missing: R -e "IRkernel::installspec()"'
+    if "Rscript" in tools and not have_rscript:
+        return "Rscript not found"
+    if "ggradar" in tools and not have_ggradar:
+        return "ggradar missing: remotes::install_github('ricardo-bion/ggradar')"
+    return None
+
+
+def validate_artifacts(target: dict[str, Any], repo_root: Path) -> list[str]:
+    problems: list[str] = []
+    for rel in target.get("expected_artifacts", []):
+        path = repo_root / rel
+        if not path.is_file():
+            problems.append(f"missing artifact: {rel}")
+        elif path.stat().st_size <= 0:
+            problems.append(f"empty artifact: {rel}")
+    return problems
