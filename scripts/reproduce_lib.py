@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -79,3 +82,166 @@ def validate_artifacts(target: dict[str, Any], repo_root: Path) -> list[str]:
         elif path.stat().st_size <= 0:
             problems.append(f"empty artifact: {rel}")
     return problems
+
+
+def detect_toolchain() -> dict[str, bool]:
+    have_rscript = shutil.which("Rscript") is not None
+    have_ir = False
+    try:
+        out = subprocess.check_output(
+            ["jupyter", "kernelspec", "list"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+        have_ir = any(
+            line.split()[0] == "ir" for line in out.splitlines() if line.strip()
+        )
+    except (OSError, subprocess.CalledProcessError):
+        have_ir = False
+    have_ggradar = False
+    if have_rscript:
+        have_ggradar = (
+            subprocess.call(
+                [
+                    "Rscript",
+                    "-e",
+                    "if(!requireNamespace('ggradar', quietly=TRUE)) quit(status=1)",
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            == 0
+        )
+    return {"have_ir": have_ir, "have_rscript": have_rscript, "have_ggradar": have_ggradar}
+
+
+def run_figure_target(target: dict[str, Any], repo_root: Path, log_path: Path) -> int:
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    kind = target["kind"]
+    path = target["path"]
+    workdir = target.get("workdir")
+    with log_path.open("w", encoding="utf-8") as log:
+        if kind == "notebook":
+            cmd = [
+                "jupyter",
+                "nbconvert",
+                "--to",
+                "notebook",
+                "--execute",
+                "--inplace",
+                str(repo_root / path),
+            ]
+            cwd = repo_root
+        elif kind == "rscript":
+            cwd = repo_root / workdir
+            cmd = ["Rscript", Path(path).name]
+        elif kind == "py_script":
+            cwd = repo_root / workdir
+            cmd = ["python3", Path(path).name]
+        elif kind == "rmd":
+            cwd = repo_root
+            render = f'rmarkdown::render("{path}")'
+            cmd = ["Rscript", "-e", render]
+        else:
+            log.write(f"unknown kind: {kind}\n")
+            return 2
+        log.write(f"+ {' '.join(cmd)}\n")
+        proc = subprocess.run(cmd, cwd=cwd, stdout=log, stderr=subprocess.STDOUT)
+        return proc.returncode
+
+
+def _notebook_key(target: dict[str, Any]) -> tuple[str, str] | None:
+    if target.get("kind") != "notebook":
+        return None
+    path = target.get("path")
+    if not path:
+        return None
+    return ("notebook", path)
+
+
+def _write_skip_log(log_path: Path, reason: str) -> None:
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_path.write_text(f"skipped: {reason}\n", encoding="utf-8")
+
+
+def _format_line(mark: str, label: str, note: str | None = None) -> str:
+    if note:
+        return f"{mark} {label}  ({note})"
+    return f"{mark} {label}"
+
+
+def reproduce_main(argv: list[str], repo_root: Path) -> int:
+    os.environ["PHYTOMNI_SAVE"] = "1"
+    check_mode = "--check" in argv
+
+    manifest = load_manifest(repo_root / "reproduce.manifest.yaml")
+    toolchain = detect_toolchain()
+    have_ir = toolchain["have_ir"]
+    have_rscript = toolchain["have_rscript"]
+    have_ggradar = toolchain["have_ggradar"]
+
+    targets = iter_targets(manifest, phase="figure")
+    logs_dir = repo_root / "logs"
+
+    lines: list[str] = []
+    pass_count = 0
+    fail_count = 0
+    skip_count = 0
+
+    notebook_runs: dict[tuple[str, str], tuple[int, Path]] = {}
+
+    for target in targets:
+        tid = target["id"]
+        label = target["label"]
+        skip_reason = check_skip(
+            target,
+            repo_root,
+            have_ir=have_ir,
+            have_rscript=have_rscript,
+            have_ggradar=have_ggradar,
+        )
+
+        if skip_reason:
+            _write_skip_log(logs_dir / f"{tid}.log", skip_reason)
+            lines.append(_format_line("⊘", label, skip_reason))
+            skip_count += 1
+            continue
+
+        kind = target["kind"]
+        log_path = logs_dir / f"{tid}.log"
+        nb_key = _notebook_key(target)
+
+        if nb_key is not None and nb_key in notebook_runs:
+            run_rc, primary_log = notebook_runs[nb_key]
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            log_path.write_text(
+                f"shared execution; see {primary_log.relative_to(repo_root)}\n",
+                encoding="utf-8",
+            )
+        elif nb_key is not None:
+            run_rc = run_figure_target(target, repo_root, log_path)
+            notebook_runs[nb_key] = (run_rc, log_path)
+        else:
+            run_rc = run_figure_target(target, repo_root, log_path)
+
+        artifact_problems = validate_artifacts(target, repo_root)
+
+        if run_rc != 0:
+            lines.append(_format_line("✘", label, f"exit {run_rc}"))
+            fail_count += 1
+        elif artifact_problems:
+            lines.append(_format_line("✘", label, artifact_problems[0]))
+            fail_count += 1
+        else:
+            lines.append(_format_line("✓", label))
+            pass_count += 1
+
+    for line in lines:
+        print(line)
+    total = pass_count + fail_count + skip_count
+    print("————————————————————————————————————————————")
+    print(f"{total} targets / {pass_count} ok / {fail_count} failed / {skip_count} skipped")
+
+    if check_mode and fail_count > 0:
+        return 1
+    return 0
