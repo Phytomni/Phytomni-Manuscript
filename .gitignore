@@ -209,7 +209,6 @@ CLAUDE.md
 .claude
 
 # Codex
-AGENTS.md
 .codex
 
 # AnalystAgent evaluation: downloaded data + run logs (not committed)
@@ -222,3 +221,9 @@ DataAgent Evaluation/result/
 
 # Figure artifacts emitted when PHYTOMNI_SAVE=1 (per-figure-dir output/)
 output/
+
+# git worktrees (local)
+.worktrees/
+
+# reproduce.sh per-target logs
+/logs/

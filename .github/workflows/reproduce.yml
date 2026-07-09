@@ -19,6 +19,15 @@ jobs:
         run: |
           Rscript -e 'remotes::install_github("ricardo-bion/ggradar", upgrade="never")'
           Rscript -e 'IRkernel::installspec(user = TRUE)'
+      # renv::restore() may conflict with conda R library paths; fail-open fingerprint only.
+      - name: Attempt renv restore (optional fingerprint)
+        continue-on-error: true
+        run: |
+          Rscript -e 'if (requireNamespace("renv", quietly=TRUE)) renv::restore(prompt=FALSE)'
+      - name: Check README matrix matches manifest
+        run: |
+          python -m scripts.render_reproduce_matrix --write-readme README.md
+          git diff --exit-code README.md
       - name: Reproduce all figures (smoke)
         run: bash reproduce.sh --check
       - uses: actions/upload-artifact@v4
@@ -36,6 +45,11 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - name: Sync Python env from committed lock
         run: uv sync --frozen
+      - name: Check README matrix matches manifest
+        run: |
+          source .venv/bin/activate
+          python -m scripts.render_reproduce_matrix --write-readme README.md
+          git diff --exit-code README.md
       - uses: r-lib/actions/setup-r@v2
         with:
           r-version: 'release'

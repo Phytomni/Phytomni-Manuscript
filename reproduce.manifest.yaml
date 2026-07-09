@@ -1,0 +1,320 @@
+version: 1
+targets:
+  - id: fig-2
+    label: Fig. 2
+    phase: figure
+    kind: notebook
+    path: "Fig. 2/fig. 2.ipynb"
+    kernel: py
+    status: run
+    expected_artifacts:
+      - "Fig. 2/output/fig.2a.phytobench-knowledge.bar.pdf"
+      - "Fig. 2/output/fig.2b.phytobench-data.bar.pdf"
+      - "Fig. 2/output/fig.2c.phytobench-analysis.violin.pdf"
+      - "Fig. 2/output/fig.2g.phytobench-gene.well_studied.bar.pdf"
+      - "Fig. 2/output/fig.2h.phytobench-gene.uncharacterized.bar.pdf"
+
+  - id: fig-3
+    label: Fig. 3
+    phase: figure
+    kind: notebook
+    path: "Fig. 3/fig. 3.ipynb"
+    kernel: py
+    status: run
+    requires_data:
+      - "Fig. 3/PhytoBench-Paper-for_plot.xlsx"
+    expected_artifacts:
+      - "Fig. 3/output/fig.3d.phytobench-paper.line.pdf"
+      - "Fig. 3/output/fig.3e.phytobench-paper.heatmap.pdf"
+
+  - id: ext-data-5a
+    label: Ext. Data 5a
+    phase: figure
+    kind: notebook
+    path: "Extended Data Fig. 5/extended_data_fig. 5ab.ipynb"
+    kernel: ir
+    status: run
+    requires_data:
+      - "Extended Data Fig. 5/Phytomni-PaperYear-for_plot.csv"
+    requires_toolchain:
+      - ir
+    expected_artifacts:
+      - "Extended Data Fig. 5/output/extended_data_fig.5a.pdf"
+
+  - id: ext-data-5b
+    label: Ext. Data 5b
+    phase: figure
+    kind: notebook
+    path: "Extended Data Fig. 5/extended_data_fig. 5ab.ipynb"
+    kernel: ir
+    status: skip_until_data
+    requires_data:
+      - "Extended Data Fig. 5/Phytomni-DocType-for_plot.csv"
+    requires_toolchain:
+      - ir
+    expected_artifacts:
+      - "Extended Data Fig. 5/output/extended_data_fig.5b.pdf"
+
+  - id: ext-data-5c
+    label: Ext. Data 5c
+    phase: figure
+    kind: rscript
+    path: "Extended Data Fig. 5/extended_data_fig. 5c.R"
+    workdir: "Extended Data Fig. 5"
+    kernel: none
+    status: run
+    requires_data:
+      - "Extended Data Fig. 5/Phytomni-Multiomics-for_plot.txt"
+    requires_toolchain:
+      - Rscript
+    expected_artifacts:
+      - "Extended Data Fig. 5/output/extended_data_fig.5c.png"
+
+  - id: ext-data-5d
+    label: Ext. Data 5d
+    phase: figure
+    kind: notebook
+    path: "Extended Data Fig. 5/extended_data_fig. 5d.ipynb"
+    kernel: py
+    status: run
+    expected_artifacts:
+      - "Extended Data Fig. 5/output/extended_data_fig.5d.pdf"
+
+  - id: ext-data-6abc
+    label: Ext. Data 6a-c
+    phase: figure
+    kind: notebook
+    path: "Extended Data Fig. 6/extended_data_fig. 6abc.ipynb"
+    kernel: ir
+    status: run
+    requires_data:
+      - "Extended Data Fig. 6/PhytoBench-Knowledge-for_plot.xlsx"
+    requires_toolchain:
+      - ir
+    expected_artifacts:
+      - "Extended Data Fig. 6/output/extended_data_fig.6a.pdf"
+      - "Extended Data Fig. 6/output/extended_data_fig.6b.pdf"
+
+  - id: ext-data-6-radar
+    label: Ext. Data 6 radar
+    phase: figure
+    kind: rmd
+    path: "Extended Data Fig. 6/extended_data_fig. 6abc.Rmd"
+    kernel: none
+    status: skip_until_data
+    requires_data:
+      - "Extended Data Fig. 6/PhytoBench-RAG-for_plot.csv"
+    requires_toolchain:
+      - Rscript
+      - ggradar
+    expected_artifacts:
+      - "Extended Data Fig. 6/output/extended_data_fig.6-radar-figure1.pdf"
+      - "Extended Data Fig. 6/output/extended_data_fig.6-radar-figure2.pdf"
+      - "Extended Data Fig. 6/output/extended_data_fig.6-radar-figure3.pdf"
+      - "Extended Data Fig. 6/output/extended_data_fig.6-radar-figure4.pdf"
+
+  - id: ext-data-6de
+    label: Ext. Data 6d,e
+    phase: figure
+    kind: notebook
+    path: "Extended Data Fig. 6/extended_data_fig. 6de.ipynb"
+    kernel: py
+    status: run
+    expected_artifacts:
+      - "Extended Data Fig. 6/output/extended_data_fig.6d.pdf"
+      - "Extended Data Fig. 6/output/extended_data_fig.6e.pdf"
+
+  - id: ext-data-6fg
+    label: Ext. Data 6f,g
+    phase: figure
+    kind: notebook
+    path: "Extended Data Fig. 6/extended_data_fig. 6fg.ipynb"
+    kernel: py
+    status: run
+    expected_artifacts:
+      - "Extended Data Fig. 6/output/model_compare_agent_total.pdf"
+      - "Extended Data Fig. 6/output/model_compare_agent_total_across_speciesv1.pdf"
+
+  - id: ext-data-7
+    label: Ext. Data 7
+    phase: figure
+    kind: notebook
+    path: "Extended Data Fig. 7/extended_data_fig. 7.ipynb"
+    kernel: ir
+    status: run
+    requires_toolchain:
+      - ir
+    expected_artifacts:
+      - "Extended Data Fig. 7/output/extended_data_fig.7.pdf"
+
+  - id: supp-1
+    label: Supp. 1
+    phase: figure
+    kind: notebook
+    path: "Supplementary Fig. 1/supplementary_fig. 1.ipynb"
+    kernel: py
+    status: run
+    requires_data:
+      - "Supplementary Fig. 1/Model-Loss-for_plot/Phyto-Chatbot-Pretrain.loss.json"
+      - "Supplementary Fig. 1/Model-Loss-for_plot/Phyto-Chatbot-SFT.loss.json"
+      - "Supplementary Fig. 1/Model-Loss-for_plot/Phyto-Reasoner-Pretrain.loss.json"
+      - "Supplementary Fig. 1/Model-Loss-for_plot/Phyto-Reasoner-SFT.loss.json"
+    expected_artifacts:
+      - "Supplementary Fig. 1/output/supplementary_fig.1a.chatbot_pretrain_loss.line.pdf"
+      - "Supplementary Fig. 1/output/supplementary_fig.1b.reasoner_pretrain_loss.line.pdf"
+      - "Supplementary Fig. 1/output/supplementary_fig.1c.chatbot_sft_loss.line.pdf"
+      - "Supplementary Fig. 1/output/supplementary_fig.1d.reasoner_sft_loss.line.pdf"
+
+  - id: supp-6
+    label: Supp. 6
+    phase: figure
+    kind: notebook
+    path: "Supplementary Fig. 6/supplementary_fig.6.ipynb"
+    kernel: ir
+    requires_toolchain: [ir, ggradar]
+    status: run
+    expected_artifacts:
+      - "Supplementary Fig. 6/output/supplementary_fig.6a.pdf"
+      - "Supplementary Fig. 6/output/supplementary_fig.6b.pdf"
+
+  - id: supp-17
+    label: Supp. 17
+    phase: figure
+    kind: notebook
+    path: "Supplementary Fig. 17/supplementary_fig.17.ipynb"
+    kernel: ir
+    requires_toolchain: [ir]
+    status: run
+    expected_artifacts:
+      - "Supplementary Fig. 17/output/supplementary_fig.17.pdf"
+
+  - id: ext-data-6ab-deprecated
+    label: Ext. Data 6ab (deprecated notebook)
+    phase: figure
+    kind: notebook
+    path: "Extended Data Fig. 6/extended_data_fig.6ab.ipynb"
+    status: deprecated
+    expected_artifacts: []
+
+  - id: supp-7
+    label: Supp. 7
+    phase: figure
+    kind: py_script
+    path: "Supplementary Fig. 7/supplementary_fig. 7.py"
+    workdir: "Supplementary Fig. 7"
+    kernel: none
+    status: run
+    requires_data:
+      - "Supplementary Fig. 7/PhytoBench-Data-for_plot.xlsx"
+    expected_artifacts:
+      - "Supplementary Fig. 7/output/model_accuracy_by_species.pdf"
+
+  - id: supp-8
+    label: Supp. 8
+    phase: figure
+    kind: notebook
+    path: "Supplementary Fig. 8/supplementary_fig. 8.ipynb"
+    kernel: py
+    status: run
+    expected_artifacts:
+      - "Supplementary Fig. 8/output/model_compare_agent_split.pdf"
+
+  - id: supp-9
+    label: Supp. 9
+    phase: figure
+    kind: notebook
+    path: "Supplementary Fig. 9/supplementary_fig. 9.ipynb"
+    kernel: py
+    status: run
+    expected_artifacts:
+      - "Supplementary Fig. 9/output/model_compare_agent_split_across_speciesv1.pdf"
+
+  - id: supp-10-13
+    label: Supp. 10-13
+    phase: figure
+    kind: notebook
+    path: "Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb"
+    kernel: py
+    status: run
+    requires_data:
+      - "Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/score.tsv"
+      - "Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/score.well_studied.tsv"
+      - "Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/score.uncharacterized.tsv"
+    # Minimum artifact bar: 3 non-loop panels (fig.2d/e/f) plus aggregate
+    # well_studied and uncharacterized percent bars only (not full 17×3 loop).
+    expected_artifacts:
+      - "Supplementary Fig. 10-13/output/fig.2d.phytobench-gene.percent.bar.pdf"
+      - "Supplementary Fig. 10-13/output/fig.2e.phytobench-gene.prob.heatmap.pdf"
+      - "Supplementary Fig. 10-13/output/fig.2f.phytobench-gene.score.bar.pdf"
+      - "Supplementary Fig. 10-13/output/supplementary_fig.7.phytobench-gene.well_studied.percent.bar.pdf"
+      - "Supplementary Fig. 10-13/output/supplementary_fig.7.phytobench-gene.uncharacterized.percent.bar.pdf"
+
+  - id: supp-14
+    label: Supp. 14
+    phase: figure
+    kind: notebook
+    path: "Supplementary Fig. 14/supplementary_fig. 14.ipynb"
+    kernel: py
+    status: run
+    expected_artifacts:
+      - "Supplementary Fig. 14/output/supplementary_fig.6a.model.paperbench-mp.line.pdf"
+      - "Supplementary Fig. 14/output/supplementary_fig.6b.model.paperbench-as.line.pdf"
+      - "Supplementary Fig. 14/output/supplementary_fig.6c.model.paperbench-cr.line.pdf"
+      - "Supplementary Fig. 14/output/supplementary_fig.6d.model.paperbench-ng.line.pdf"
+      - "Supplementary Fig. 14/output/supplementary_fig.6e.model.paperbench-pc.line.pdf"
+
+  - id: supp-19
+    label: Supp. 19
+    phase: figure
+    kind: notebook
+    path: "Supplementary Fig. 19/supplementary_fig. 19.ipynb"
+    kernel: py
+    status: run
+    expected_artifacts:
+      - "Supplementary Fig. 19/output/supplementary_fig.19.pdf"
+
+  - id: supp-24
+    label: Supp. 24
+    phase: figure
+    kind: notebook
+    path: "Supplementary Fig. 24/supplementary_fig. 24.ipynb"
+    kernel: py
+    status: run
+    expected_artifacts:
+      - "Supplementary Fig. 24/output/supplementary_fig.13.phytobench-review.polar.pdf"
+
+  - id: eval-analyst
+    label: AnalystAgent Evaluation
+    phase: eval
+    kind: eval_probe
+    status: run
+    probes:
+      - { type: can_import, module: mcp_server_phytomni }
+      - { type: can_import, module: huggingface_hub }
+
+  - id: eval-data
+    label: DataAgent Evaluation
+    phase: eval
+    kind: eval_probe
+    status: run
+    probes:
+      - { type: file_exists, path: "DataAgent Evaluation/src/prompt_template.yaml" }
+      - { type: can_import, module: langchain }
+      - { type: file_contains_none, path: "DataAgent Evaluation/src/model/config.py", substring: "change_to_your_" }
+
+  - id: eval-knowledge
+    label: KnowledgeAgent Evaluation
+    phase: eval
+    kind: eval_probe
+    status: run
+    probes:
+      - { type: file_exists, path: "KnowledgeAgent Evaluation/evaluation_id.py" }
+      - { type: note_requires, message: "CLI requires --input dataset not shipped in this repo" }
+
+  - id: eval-expert
+    label: Expert Evaluation
+    phase: eval
+    kind: eval_probe
+    status: run
+    probes:
+      - { type: file_exists, path: "Expert Evaluation/score.tsv" }
