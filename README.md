@@ -99,6 +99,7 @@ This table is the single source of truth: which file produces each figure, the k
 | Supp. Fig. 24 | `Supplementary Fig. 24/supplementary_fig. 24.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 24/supplementary_fig. 24.ipynb"` | `*.pdf` / `*.png` |
 
 > Note: `extended_data_fig. 6abc.Rmd` provisionally sits under Ext. Data Fig. 6 (RAG/rerank radar charts) alongside `extended_data_fig. 6abc.ipynb` (knowledge bar charts, the panel 6a–c source); the final panel label for the radar figure is set by the authors.
+> Note: `Extended Data Fig. 6/extended_data_fig.6ab.ipynb` is a deprecated orphan notebook — it is listed in `reproduce.manifest.yaml` as `ext-data-6ab-deprecated` and is **not executed** by `reproduce.sh`.
 > Note: `Supplementary Fig. 7/supplementary_fig. 7.py` (multi-species model-accuracy bar chart) is a standalone Python script, not a notebook — run with `python3`, not `$NBX`. Its save is gated behind `PHYTOMNI_SAVE` and writes to `output/` only when `PHYTOMNI_SAVE=1`, like every other file.
 
 ### How to run
