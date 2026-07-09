@@ -87,7 +87,7 @@ NBX='jupyter nbconvert --to notebook --execute --inplace'
 PHYTOMNI_SAVE=1 ./reproduce.sh     # run every figure; artifacts land in each figure's output/
 ./reproduce.sh --check             # smoke: run all, print ✓/✘/⊘ summary, non-zero exit on failure
 ```
-The ED Fig. 6 radar target has an explicit data/toolchain pre-check, so it is reported `⊘` (with the reason) and never fails the run when `PhytoBench-RAG-for_plot.csv`, `ggradar`, or R is missing. ED Fig. 5b shares one notebook with 5a: when `Phytomni-DocType-for_plot.csv` is absent the notebook's internal guard skips only the 5b panel (5a still renders), so the bundled `Ext. Data 5a,b` target still reports `✓` — check for `extended_data_fig.5b.pdf` in `output/` to confirm 5b actually emitted. Every push is exercised end-to-end by GitHub Actions (see `.github/workflows/reproduce.yml`).
+The ED Fig. 6 radar target has an explicit data/toolchain pre-check, so it is reported `⊘` (with the reason) and never fails the run when `PhytoBench-RAG-for_plot.csv`, `ggradar`, or R is missing. Ext. Data 5a and 5b share one notebook but are separate manifest targets: 5a (`run`) can report `✓` because `Phytomni-PaperYear-for_plot.csv` ships in the repo; 5b is `skip_until_data` and reports `⊘` until `Phytomni-DocType-for_plot.csv` lands. The notebook's `have_5b` guard only prevents the shared notebook from aborting when that CSV is absent (5a still renders); runner status is authoritative — check for `extended_data_fig.5b.pdf` in `output/` to confirm 5b actually emitted. Every push is exercised end-to-end by GitHub Actions (see `.github/workflows/reproduce.yml`).
 
 ### Reproduction matrix
 
@@ -123,7 +123,7 @@ Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) 
 ### How to run
 
 - **Python notebooks** need only the Python environment from [Environment setup](#environment-setup). Run headlessly with `$NBX "<file>"`, or open the file in `jupyter lab` and run all cells.
-- **R notebooks** (`5ab`, `6abc`, `7`; plus the `6abc.Rmd` R Markdown) need the `ir` kernel / an R install — install the kernel once with `R -e "IRkernel::installspec()"`. Without it, `nbconvert` reports `No such kernel`.
+- **R notebooks** (`5ab`, `6abc`, `7`, Supp. 6, Supp. 17; plus the `6abc.Rmd` R Markdown) need the `ir` kernel / an R install — install the kernel once with `R -e "IRkernel::installspec()"`. Without it, `nbconvert` reports `No such kernel`.
 - **The R script** (`5c.R`) runs standalone with `Rscript`; its save (`ggsave`) is gated behind `PHYTOMNI_SAVE` like every other file.
 - **The Python script** (`Supplementary Fig. 7/supplementary_fig. 7.py`) also runs standalone with `python3` (not via `$NBX` — it is a script, not a notebook). It reads `PhytoBench-Data-for_plot.xlsx` by a bare relative path, so run it from inside its directory: `cd "Supplementary Fig. 7" && python3 "supplementary_fig. 7.py"`.
 - **Figure-saving is gated behind `PHYTOMNI_SAVE`.** A default run renders each figure inline and writes nothing. Set `PHYTOMNI_SAVE=1` to emit every figure into that directory's `output/` (gitignored; filenames follow `<figure>.<panel>.pdf`/`.png`). `reproduce.sh` does this for you — see [One command](#one-command) above.
