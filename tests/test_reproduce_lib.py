@@ -17,7 +17,9 @@ from scripts.reproduce_lib import (
     iter_targets,
     load_manifest,
     reproduce_main,
+    run_eval_probes,
     run_figure_target,
+    run_probe,
     validate_artifacts,
 )
 
@@ -155,6 +157,17 @@ def test_real_manifest_loads():
     assert "ext-data-5b" in ids
     five_b = next(t for t in m["targets"] if t["id"] == "ext-data-5b")
     assert five_b["status"] == "skip_until_data"
+    eval_ids = [t["id"] for t in iter_targets(m, phase="eval")]
+    assert eval_ids == ["eval-analyst", "eval-data", "eval-knowledge", "eval-expert"]
+
+
+def test_real_manifest_eval_targets_probe_skip_on_bare_clone():
+    root = Path(__file__).resolve().parents[1]
+    m = load_manifest(root / "reproduce.manifest.yaml")
+    for target in iter_targets(m, phase="eval"):
+        ok, note = run_eval_probes(target, root, root / "logs" / f"{target['id']}.log")
+        assert not ok
+        assert note
 
 
 def test_notebook_run_key_returns_path_for_notebooks():
@@ -292,6 +305,127 @@ def test_reproduce_main_check_exit_without_failures(tmp_path: Path, capsys):
     out = capsys.readouterr().out
     assert rc == 0
     assert "✓ Fig. 2" in out
+
+
+def test_run_probe_file_exists_passes_and_fails(tmp_path: Path):
+    present = tmp_path / "present.txt"
+    present.write_text("ok", encoding="utf-8")
+    assert run_probe({"type": "file_exists", "path": "present.txt"}, tmp_path) is None
+    reason = run_probe({"type": "file_exists", "path": "missing.txt"}, tmp_path)
+    assert reason is not None
+    assert "missing.txt" in reason
+
+
+def test_run_probe_file_missing(tmp_path: Path):
+    present = tmp_path / "present.txt"
+    present.write_text("ok", encoding="utf-8")
+    assert run_probe({"type": "file_missing", "path": "absent.txt"}, tmp_path) is None
+    reason = run_probe({"type": "file_missing", "path": "present.txt"}, tmp_path)
+    assert reason is not None
+    assert "present.txt" in reason
+
+
+def test_run_probe_can_import(tmp_path: Path):
+    assert run_probe({"type": "can_import", "module": "pathlib"}, tmp_path) is None
+    reason = run_probe(
+        {"type": "can_import", "module": "definitely_not_a_real_module_xyz"}, tmp_path
+    )
+    assert reason is not None
+    assert "definitely_not_a_real_module_xyz" in reason
+
+
+def test_run_probe_file_contains_fails_when_substring_present(tmp_path: Path):
+    cfg = tmp_path / "config.py"
+    cfg.write_text('api_key = "change_to_your_api_key"\n', encoding="utf-8")
+    for probe_type in ("file_contains", "file_contains_none"):
+        reason = run_probe(
+            {"type": probe_type, "path": "config.py", "substring": "Change_to_your_"},
+            tmp_path,
+        )
+        assert reason is not None, probe_type
+        assert "placeholder present" in reason
+    cleaned = tmp_path / "clean.py"
+    cleaned.write_text("api_key = 'real'\n", encoding="utf-8")
+    assert (
+        run_probe(
+            {"type": "file_contains_none", "path": "clean.py", "substring": "Change_to_your_"},
+            tmp_path,
+        )
+        is None
+    )
+
+
+def test_run_probe_note_requires_always_fails():
+    reason = run_probe(
+        {"type": "note_requires", "message": "CLI requires --input dataset not shipped in this repo"},
+        Path("/unused"),
+    )
+    assert reason == "CLI requires --input dataset not shipped in this repo"
+
+
+def test_run_eval_probes_concatenates_failures(tmp_path: Path):
+    target = {
+        "probes": [
+            {"type": "file_exists", "path": "missing.yaml"},
+            {"type": "can_import", "module": "definitely_not_a_real_module_xyz"},
+        ]
+    }
+    log_path = tmp_path / "logs" / "eval-test.log"
+    ok, note = run_eval_probes(target, tmp_path, log_path)
+    assert not ok
+    assert "missing.yaml" in note
+    assert "definitely_not_a_real_module_xyz" in note
+    assert log_path.read_text(encoding="utf-8").startswith("skipped:")
+
+
+def test_run_eval_probes_all_pass(tmp_path: Path):
+    (tmp_path / "ok.txt").write_text("configured\n", encoding="utf-8")
+    target = {
+        "probes": [
+            {"type": "file_exists", "path": "ok.txt"},
+            {"type": "can_import", "module": "pathlib"},
+        ]
+    }
+    log_path = tmp_path / "logs" / "eval-test.log"
+    ok, note = run_eval_probes(target, tmp_path, log_path)
+    assert ok
+    assert note == ""
+    assert log_path.read_text(encoding="utf-8") == "all probes passed\n"
+
+
+def test_reproduce_main_eval_skips_do_not_fail_check(tmp_path: Path, capsys):
+    manifest = tmp_path / "reproduce.manifest.yaml"
+    manifest.write_text(
+        _mini_manifest_yaml(
+            """  - id: fig-2
+    label: Fig. 2
+    phase: figure
+    kind: notebook
+    path: "Fig. 2/fig. 2.ipynb"
+    status: run
+    requires_data: []
+    requires_toolchain: []
+    expected_artifacts: []
+  - id: eval-analyst
+    label: AnalystAgent Evaluation
+    phase: eval
+    kind: eval_probe
+    status: run
+    probes:
+      - { type: can_import, module: definitely_not_a_real_module_xyz }"""
+        ),
+        encoding="utf-8",
+    )
+    with patch(
+        "scripts.reproduce_lib.detect_toolchain",
+        return_value={"have_ir": True, "have_rscript": True, "have_ggradar": True},
+    ), patch("scripts.reproduce_lib.run_figure_target", return_value=0):
+        rc = reproduce_main(["--check"], tmp_path)
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "—— Eval probes ——" in out
+    assert "⊘ AnalystAgent Evaluation" in out
+    assert (tmp_path / "logs" / "eval-analyst.log").exists()
 
 
 def test_reproduce_main_shared_notebook_runs_once(tmp_path: Path):

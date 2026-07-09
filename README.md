@@ -120,21 +120,35 @@ Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) 
 
 ## Agent evaluation (not a figure)
 
-`AnalystAgent Evaluation/evaluation_scripts.ipynb` is **not a figure-reproduction notebook** — it benchmarks the Phytomni analyst agent over 10 bioinformatics tasks and writes JSON run-logs to `submit_log/` (no PDF/PNG). It requires, beyond the figure environment:
+Four agent-evaluation harnesses live in this repo. They are **not** manuscript figure reproduction — `./reproduce.sh` runs lightweight **probes only** for them (see the `—— Eval probes ——` block at the end of a normal run). On a bare clone all four probes are expected to show **⊘** with reasons; eval ⊘ never fails `--check`. None of these harnesses runs from the figure environment alone.
+
+### AnalystAgent Evaluation
+
+`AnalystAgent Evaluation/evaluation_scripts.ipynb` benchmarks the Phytomni analyst agent over 10 bioinformatics tasks and writes JSON run-logs to `submit_log/` (no PDF/PNG). Beyond the figure environment it requires:
 
 - **`mcp_server_phytomni`** — install manually from <https://github.com/Phytomni/Phytomni-Bot> (not on PyPI; not in this repo's manifests).
-- **`huggingface_hub`** — `pip install huggingface_hub`. On first run the notebook auto-downloads the benchmark data from <https://huggingface.co/datasets/Phytomni/PhytoBench-Analysis> into `AnalystAgent Evaluation/PhytoBench-Analysis/`.
+- **`huggingface_hub`** — `pip install huggingface_hub`. On first run the notebook auto-downloads benchmark data from <https://huggingface.co/datasets/Phytomni/PhytoBench-Analysis> into `AnalystAgent Evaluation/PhytoBench-Analysis/`.
 - **A live Phytomni agent backend** the notebook submits tasks to (`retrieve_plan_submit`).
 
-The downloaded data and `submit_log/` are gitignored. This harness cannot run from a clone with the figure environment alone.
+Downloaded data and `submit_log/` are gitignored.
 
-`DataAgent Evaluation/` is a second, separate evaluation harness (a rewrite → NL2SQL pipeline for the Data agent) — also **not a figure**. Its scripts read `../data`, `../output`, `../result` by bare relative paths, so run them from inside `DataAgent Evaluation/src/`: `exp_rewrite.py` rewrites questions from `../data/PhytoBench-Data.xlsx` into `../output/`, then `exp_nl2sql.py` runs those through a NL2SQL service into `../result/`. Beyond the figure environment it requires:
+### DataAgent Evaluation
+
+`DataAgent Evaluation/` is a rewrite → NL2SQL pipeline for the Data agent. Scripts read `../data`, `../output`, `../result` by bare relative paths — run them from inside `DataAgent Evaluation/src/`: `exp_rewrite.py` rewrites questions from `../data/PhytoBench-Data.xlsx` into `../output/`, then `exp_nl2sql.py` runs those through an NL2SQL service into `../result/`. Beyond the figure environment it requires:
 
 - **`langchain`, `openai`, `httpx`, `tqdm`, `pyyaml`, `requests`** — none are in this repo's manifests; `pip install` them separately.
 - **A `prompt_template.yaml` in `src/`** — not shipped in the repo; `rewrite.py` loads it at import time, so the scripts fail immediately without it. Supply your own.
-- **Private backends** — the LLM endpoint, IAM token service, NL2SQL service URL, and RAG knowledge-search URL are all `Change_to_your_*` placeholders you must fill in.
+- **Private backends** — LLM endpoint, IAM token service, NL2SQL service URL, and RAG knowledge-search URL are `Change_to_your_*` / `change_to_your_*` placeholders you must fill in (`src/model/config.py`, `src/utils.py`, `src/exp_nl2sql.py`, `src/rag/rag_run.py`, etc.).
 
-The `output/` and `result/` directories it creates are gitignored. Like the AnalystAgent harness, this cannot run from a clone with the figure environment alone.
+The `output/` and `result/` directories it creates are gitignored.
+
+### KnowledgeAgent Evaluation
+
+`KnowledgeAgent Evaluation/` contains CLI evaluators (`evaluation_id.py`, `evaluation_trace.py`) for gene-ID and trace-QA benchmarks. Both require a **`--input` dataset** (`.xlsx`/`.csv`) that is **not shipped in this repo** — supply your own benchmark file. They use pandas/matplotlib (available in the figure Python env) but cannot produce manuscript figures without your input data and model outputs.
+
+### Expert Evaluation
+
+`Expert Evaluation/` plots expert-rating distributions from `score.tsv` (`plot.py`, `statistics.ipynb`). The **`score.tsv` file is not in the repo** — it contains proprietary expert ratings. Supply your own TSV with columns `Species`, model names, and rating columns `R1`–`R5`.
 
 ## Help
 

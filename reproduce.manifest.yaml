@@ -290,3 +290,38 @@ targets:
     status: run
     expected_artifacts:
       - "Supplementary Fig. 24/output/supplementary_fig.13.phytobench-review.polar.pdf"
+
+  - id: eval-analyst
+    label: AnalystAgent Evaluation
+    phase: eval
+    kind: eval_probe
+    status: run
+    probes:
+      - { type: can_import, module: mcp_server_phytomni }
+      - { type: can_import, module: huggingface_hub }
+
+  - id: eval-data
+    label: DataAgent Evaluation
+    phase: eval
+    kind: eval_probe
+    status: run
+    probes:
+      - { type: file_exists, path: "DataAgent Evaluation/src/prompt_template.yaml" }
+      - { type: can_import, module: langchain }
+      - { type: file_contains_none, path: "DataAgent Evaluation/src/model/config.py", substring: "Change_to_your_" }
+
+  - id: eval-knowledge
+    label: KnowledgeAgent Evaluation
+    phase: eval
+    kind: eval_probe
+    status: run
+    probes:
+      - { type: note_requires, message: "CLI requires --input dataset not shipped in this repo" }
+
+  - id: eval-expert
+    label: Expert Evaluation
+    phase: eval
+    kind: eval_probe
+    status: run
+    probes:
+      - { type: file_exists, path: "Expert Evaluation/score.tsv" }

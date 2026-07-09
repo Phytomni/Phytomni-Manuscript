@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import os
 import shutil
 import subprocess
@@ -170,6 +171,57 @@ def _format_line(mark: str, label: str, note: str | None = None) -> str:
     return f"{mark} {label}"
 
 
+def run_probe(probe: dict[str, Any], repo_root: Path) -> str | None:
+    probe_type = probe.get("type")
+    if probe_type == "can_import":
+        module = probe["module"]
+        try:
+            importlib.import_module(module)
+        except ImportError:
+            return f"import failed: {module}"
+        return None
+    if probe_type == "file_exists":
+        rel = probe["path"]
+        if not (repo_root / rel).is_file():
+            return f"file missing: {rel}"
+        return None
+    if probe_type == "file_missing":
+        rel = probe["path"]
+        if (repo_root / rel).is_file():
+            return f"file present: {rel}"
+        return None
+    if probe_type in ("file_contains", "file_contains_none"):
+        rel = probe["path"]
+        path = repo_root / rel
+        if not path.is_file():
+            return f"file missing: {rel}"
+        text = path.read_text(encoding="utf-8", errors="replace")
+        substring = probe["substring"]
+        if substring.lower() in text.lower():
+            return f"placeholder present: {rel}"
+        return None
+    if probe_type == "note_requires":
+        return probe["message"]
+    return f"unknown probe type: {probe_type}"
+
+
+def run_eval_probes(
+    target: dict[str, Any], repo_root: Path, log_path: Path
+) -> tuple[bool, str]:
+    reasons: list[str] = []
+    for probe in target.get("probes", []):
+        reason = run_probe(probe, repo_root)
+        if reason:
+            reasons.append(reason)
+    note = "; ".join(reasons)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    if reasons:
+        log_path.write_text(f"skipped: {note}\n", encoding="utf-8")
+        return False, note
+    log_path.write_text("all probes passed\n", encoding="utf-8")
+    return True, ""
+
+
 def reproduce_main(argv: list[str], repo_root: Path) -> int:
     os.environ["PHYTOMNI_SAVE"] = "1"
     check_mode = "--check" in argv
@@ -240,6 +292,25 @@ def reproduce_main(argv: list[str], repo_root: Path) -> int:
     total = pass_count + fail_count + skip_count
     print("————————————————————————————————————————————")
     print(f"{total} targets / {pass_count} ok / {fail_count} failed / {skip_count} skipped")
+
+    eval_targets = iter_targets(manifest, phase="eval")
+    if eval_targets:
+        print("—— Eval probes ——")
+        eval_pass = 0
+        eval_skip = 0
+        for target in eval_targets:
+            tid = target["id"]
+            label = target["label"]
+            log_path = logs_dir / f"{tid}.log"
+            ok, note = run_eval_probes(target, repo_root, log_path)
+            if ok:
+                print(_format_line("✓", label))
+                eval_pass += 1
+            else:
+                print(_format_line("⊘", label, note))
+                eval_skip += 1
+        print("————————————————————————————————————————————")
+        print(f"{len(eval_targets)} eval targets / {eval_pass} ok / {eval_skip} skipped")
 
     if check_mode and fail_count > 0:
         return 1
