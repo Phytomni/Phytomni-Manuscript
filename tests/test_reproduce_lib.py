@@ -378,7 +378,7 @@ def test_reproduce_main_eval_skips_do_not_fail_check(tmp_path: Path, capsys):
     assert rc == 0
     assert "Agent evaluation" in out
     assert "⊘ AnalystAgent Evaluation" in out
-    assert (tmp_path / "logs" / "eval-eval-analyst.log").exists()
+    assert (tmp_path / "logs" / "eval-analyst.log").exists()
 
 
 def test_reproduce_main_shared_notebook_runs_once(tmp_path: Path):

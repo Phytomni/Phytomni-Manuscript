@@ -296,7 +296,7 @@ def reproduce_main(argv: list[str], repo_root: Path) -> int:
         for target in eval_targets:
             tid = target["id"]
             label = target["label"]
-            log_path = logs_dir / f"eval-{tid}.log"
+            log_path = logs_dir / f"{tid}.log"
             skip_reason = run_eval_probes(target, repo_root)
             if skip_reason:
                 _write_skip_log(log_path, skip_reason)
