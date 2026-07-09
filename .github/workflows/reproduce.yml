@@ -15,6 +15,11 @@ jobs:
         with:
           environment-file: environment.yml
           activate-environment: phytomni-fig
+      # renv.lock fingerprints R package versions; conda supplies r-base + R libs.
+      # Optional restore (best-effort — conda env may already satisfy renv.lock):
+      - name: Restore R library from renv.lock (optional)
+        continue-on-error: true
+        run: Rscript -e 'if (requireNamespace("renv", quietly=TRUE)) renv::restore(prompt=FALSE)'
       - name: Install ggradar (GitHub-only) + register R kernel
         run: |
           Rscript -e 'remotes::install_github("ricardo-bion/ggradar", upgrade="never")'
@@ -44,9 +49,14 @@ jobs:
       - uses: r-lib/actions/setup-r@v2
         with:
           r-version: 'release'
+      # renv.lock fingerprints R package versions for the uv CI leg.
+      - name: Restore R library from renv.lock (optional)
+        continue-on-error: true
+        run: Rscript -e 'if (requireNamespace("renv", quietly=TRUE)) renv::restore(prompt=FALSE)'
       - name: Install R packages + kernel + ggradar
         run: |
-          Rscript -e 'install.packages(c("tidyverse","scales","treemapify","viridis","readxl","RColorBrewer","rmarkdown","remotes","IRkernel"), repos="https://cloud.r-project.org")'
+          Rscript -e 'install.packages(c("renv"), repos="https://cloud.r-project.org")'
+          Rscript -e 'if (!requireNamespace("tidyverse", quietly=TRUE)) install.packages(c("tidyverse","scales","treemapify","viridis","readxl","RColorBrewer","rmarkdown","remotes","IRkernel"), repos="https://cloud.r-project.org")'
           Rscript -e 'remotes::install_github("ricardo-bion/ggradar", upgrade="never")'
           Rscript -e 'IRkernel::installspec(user = TRUE)'
       - name: Reproduce all figures (smoke) in uv env

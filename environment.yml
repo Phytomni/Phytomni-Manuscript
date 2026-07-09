@@ -3,17 +3,17 @@ channels:
   - conda-forge
 dependencies:
   - python>=3.12
-  # Python deps (mirrors pyproject.toml; pinned versions match the kaleido v0 API)
-  - pandas>=2.1
-  - matplotlib
-  - seaborn
-  - numpy
-  - openpyxl
+  # Python deps (pinned to match uv.lock where possible)
+  - pandas=3.0.2
+  - matplotlib=3.10.9
+  - seaborn=0.13.2
+  - numpy=2.4.4
+  - openpyxl=3.1.5
   - plotly=6.0.1
   - python-kaleido=0.2.1
   - nbformat>=4.2.0
   - ipywidgets
-  - scipy
+  - scipy=1.17.1
   - jupyterlab
   # R deps for the .R script and R-language notebooks
   - r-base>=4.0
@@ -30,3 +30,4 @@ dependencies:
   - pip
   - pip:
       - colorlover
+      - pyyaml>=6.0

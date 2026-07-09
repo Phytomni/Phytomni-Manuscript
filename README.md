@@ -55,6 +55,21 @@ R -e "install.packages(c('IRkernel'))"
 R -e "IRkernel::installspec()"
 ```
 
+### R version locking (renv)
+
+R dependencies are fingerprinted with [`renv`](https://rstudio.github.io/renv/). The committed `renv.lock`, `.Rprofile`, and `renv/` directory record the exact package versions used for figure reproduction (tidyverse, readxl, treemapify, RColorBrewer, rmarkdown, remotes, IRkernel, ggradar, and their transitive deps).
+
+After cloning, restore the locked R library with:
+```bash
+Rscript -e 'renv::restore()'
+```
+Then install **ggradar** (GitHub-only, not in `renv.lock` as a CRAN package):
+```bash
+Rscript -e 'remotes::install_github("ricardo-bion/ggradar", upgrade="never")'
+```
+
+> **No Docker image is provided.** Reproduce figures with the committed `environment.yml` (conda) or `uv.lock` (Python) plus `renv.lock` (R fingerprint). CI uses conda/uv system installs rather than a container.
+
 ## Reproducing the figures
 
 > **Authoritative target list:** [`reproduce.manifest.yaml`](reproduce.manifest.yaml). The table below is generated; CI fails if it drifts.
