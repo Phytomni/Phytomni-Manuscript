@@ -4,6 +4,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 export PHYTOMNI_SAVE=1
 export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
+
 if command -v uv >/dev/null 2>&1 && [[ -x "$ROOT/.venv/bin/python" ]]; then
   exec uv run python -m scripts.reproduce_cli "$@"
 fi

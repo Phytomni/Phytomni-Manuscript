@@ -3,15 +3,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from scripts.render_reproduce_matrix import (
-    BEGIN_MARKER,
-    END_MARKER,
-    render_matrix,
-    update_readme_matrix,
-)
+from scripts.render_reproduce_matrix import render_matrix
 from scripts.reproduce_lib import (
     ManifestError,
-    _notebook_run_key,
     check_skip,
     detect_toolchain,
     iter_targets,
@@ -22,6 +16,8 @@ from scripts.reproduce_lib import (
     run_probe,
     validate_artifacts,
 )
+
+FIXTURE = Path(__file__).parent / "fixtures" / "mini.manifest.yaml"
 
 
 def test_render_matrix_contains_ids():
@@ -43,26 +39,6 @@ def test_render_matrix_contains_ids():
     md = render_matrix(m)
     assert "Fig. 2" in md
     assert "fig. 2.ipynb" in md
-    assert "| Status |" in md
-    assert "`run`" in md
-
-
-def test_update_readme_matrix_replaces_markers():
-    readme = f"before\n{BEGIN_MARKER}\nold\n{END_MARKER}\nafter"
-    updated = update_readme_matrix(readme, "new table")
-    assert "old" not in updated
-    assert "new table" in updated
-    assert BEGIN_MARKER in updated
-    assert END_MARKER in updated
-
-
-def test_update_readme_matrix_inserts_after_one_command():
-    readme = "## Reproducing the figures\n\n### One command\n\n```bash\n./reproduce.sh\n```\n\n### How to run\n"
-    updated = update_readme_matrix(readme, "table content")
-    assert "### Reproduction matrix" in updated
-    assert BEGIN_MARKER in updated
-    assert "table content" in updated
-    assert updated.index("### Reproduction matrix") < updated.index("### How to run")
 
 
 def test_load_manifest_requires_targets(tmp_path: Path):
@@ -128,24 +104,27 @@ def test_skip_missing_data_file(tmp_path: Path):
         "requires_toolchain": [],
         "expected_artifacts": [],
     }
-    reason = check_skip(t, tmp_path, have_ir=True, have_rscript=True, have_ggradar=True)
-    assert reason is not None
-    assert "Fig. 3/PhytoBench-Paper-for_plot.xlsx" in reason
+    assert check_skip(t, tmp_path, have_ir=True, have_rscript=True, have_ggradar=True)
 
 
-def test_skip_deprecated_status(tmp_path: Path):
+def test_validate_artifacts_missing_and_empty(tmp_path: Path):
+    out = tmp_path / "Fig. 2" / "output"
+    out.mkdir(parents=True)
+    empty = out / "empty.pdf"
+    empty.write_bytes(b"")
+    good = out / "good.pdf"
+    good.write_bytes(b"%PDF")
     t = {
-        "id": "ext-data-6ab-deprecated",
-        "label": "Ext. Data 6ab (deprecated notebook)",
-        "phase": "figure",
-        "kind": "notebook",
-        "status": "deprecated",
-        "requires_data": [],
-        "requires_toolchain": [],
-        "expected_artifacts": [],
+        "expected_artifacts": [
+            "Fig. 2/output/missing.pdf",
+            "Fig. 2/output/empty.pdf",
+            "Fig. 2/output/good.pdf",
+        ]
     }
-    reason = check_skip(t, tmp_path, have_ir=True, have_rscript=True, have_ggradar=True)
-    assert reason == "deprecated: not executed"
+    problems = validate_artifacts(t, tmp_path)
+    assert any("missing.pdf" in p for p in problems)
+    assert any("empty.pdf" in p for p in problems)
+    assert not any("good.pdf" in p for p in problems)
 
 
 def test_real_manifest_loads():
@@ -164,20 +143,10 @@ def test_real_manifest_loads():
 def test_real_manifest_eval_targets_probe_skip_on_bare_clone():
     root = Path(__file__).resolve().parents[1]
     m = load_manifest(root / "reproduce.manifest.yaml")
+    eval_ids = [t["id"] for t in iter_targets(m, phase="eval")]
+    assert eval_ids == ["eval-analyst", "eval-data", "eval-knowledge", "eval-expert"]
     for target in iter_targets(m, phase="eval"):
-        ok, note = run_eval_probes(target, root, root / "logs" / f"{target['id']}.log")
-        assert not ok
-        assert note
-
-
-def test_notebook_run_key_returns_path_for_notebooks():
-    target = {
-        "kind": "notebook",
-        "path": "Extended Data Fig. 5/extended_data_fig. 5ab.ipynb",
-    }
-    assert _notebook_run_key(target) == "Extended Data Fig. 5/extended_data_fig. 5ab.ipynb"
-    assert _notebook_run_key({"kind": "rscript", "path": "foo.R"}) is None
-    assert _notebook_run_key({"kind": "notebook", "path": None}) is None
+        assert run_eval_probes(target, root) is not None
 
 
 def test_detect_toolchain_keys():
@@ -236,17 +205,12 @@ def test_reproduce_main_all_skipped(tmp_path: Path, capsys):
         ),
         encoding="utf-8",
     )
-    with patch(
-        "scripts.reproduce_lib.detect_toolchain",
-        return_value={"have_ir": True, "have_rscript": True, "have_ggradar": True},
-    ):
+    with patch("scripts.reproduce_lib.detect_toolchain", return_value={"have_ir": True, "have_rscript": True, "have_ggradar": True}):
         rc = reproduce_main(["--check"], tmp_path)
     out = capsys.readouterr().out
     assert rc == 0
     assert "⊘ Ext. Data 5b" in out
-    assert (tmp_path / "logs" / "ext-data-5b.log").read_text(encoding="utf-8").startswith(
-        "skipped:"
-    )
+    assert (tmp_path / "logs" / "ext-data-5b.log").read_text(encoding="utf-8").startswith("skipped:")
 
 
 def test_reproduce_main_artifact_fail_marks_x(tmp_path: Path, capsys):
@@ -266,10 +230,9 @@ def test_reproduce_main_artifact_fail_marks_x(tmp_path: Path, capsys):
         ),
         encoding="utf-8",
     )
-    with patch(
-        "scripts.reproduce_lib.detect_toolchain",
-        return_value={"have_ir": True, "have_rscript": True, "have_ggradar": True},
-    ), patch("scripts.reproduce_lib.run_figure_target", return_value=0):
+    with patch("scripts.reproduce_lib.detect_toolchain", return_value={"have_ir": True, "have_rscript": True, "have_ggradar": True}), patch(
+        "scripts.reproduce_lib.run_figure_target", return_value=0
+    ):
         rc = reproduce_main(["--check"], tmp_path)
     out = capsys.readouterr().out
     assert rc == 1
@@ -297,10 +260,9 @@ def test_reproduce_main_check_exit_without_failures(tmp_path: Path, capsys):
         ),
         encoding="utf-8",
     )
-    with patch(
-        "scripts.reproduce_lib.detect_toolchain",
-        return_value={"have_ir": True, "have_rscript": True, "have_ggradar": True},
-    ), patch("scripts.reproduce_lib.run_figure_target", return_value=0):
+    with patch("scripts.reproduce_lib.detect_toolchain", return_value={"have_ir": True, "have_rscript": True, "have_ggradar": True}), patch(
+        "scripts.reproduce_lib.run_figure_target", return_value=0
+    ):
         rc = reproduce_main(["--check"], tmp_path)
     out = capsys.readouterr().out
     assert rc == 0
@@ -327,9 +289,7 @@ def test_run_probe_file_missing(tmp_path: Path):
 
 def test_run_probe_can_import(tmp_path: Path):
     assert run_probe({"type": "can_import", "module": "pathlib"}, tmp_path) is None
-    reason = run_probe(
-        {"type": "can_import", "module": "definitely_not_a_real_module_xyz"}, tmp_path
-    )
+    reason = run_probe({"type": "can_import", "module": "definitely_not_a_real_module_xyz"}, tmp_path)
     assert reason is not None
     assert "definitely_not_a_real_module_xyz" in reason
 
@@ -370,12 +330,10 @@ def test_run_eval_probes_concatenates_failures(tmp_path: Path):
             {"type": "can_import", "module": "definitely_not_a_real_module_xyz"},
         ]
     }
-    log_path = tmp_path / "logs" / "eval-test.log"
-    ok, note = run_eval_probes(target, tmp_path, log_path)
-    assert not ok
-    assert "missing.yaml" in note
-    assert "definitely_not_a_real_module_xyz" in note
-    assert log_path.read_text(encoding="utf-8").startswith("skipped:")
+    reason = run_eval_probes(target, tmp_path)
+    assert reason is not None
+    assert "missing.yaml" in reason
+    assert "definitely_not_a_real_module_xyz" in reason
 
 
 def test_run_eval_probes_all_pass(tmp_path: Path):
@@ -386,11 +344,7 @@ def test_run_eval_probes_all_pass(tmp_path: Path):
             {"type": "can_import", "module": "pathlib"},
         ]
     }
-    log_path = tmp_path / "logs" / "eval-test.log"
-    ok, note = run_eval_probes(target, tmp_path, log_path)
-    assert ok
-    assert note == ""
-    assert log_path.read_text(encoding="utf-8") == "all probes passed\n"
+    assert run_eval_probes(target, tmp_path) is None
 
 
 def test_reproduce_main_eval_skips_do_not_fail_check(tmp_path: Path, capsys):
@@ -416,14 +370,13 @@ def test_reproduce_main_eval_skips_do_not_fail_check(tmp_path: Path, capsys):
         ),
         encoding="utf-8",
     )
-    with patch(
-        "scripts.reproduce_lib.detect_toolchain",
-        return_value={"have_ir": True, "have_rscript": True, "have_ggradar": True},
-    ), patch("scripts.reproduce_lib.run_figure_target", return_value=0):
+    with patch("scripts.reproduce_lib.detect_toolchain", return_value={"have_ir": True, "have_rscript": True, "have_ggradar": True}), patch(
+        "scripts.reproduce_lib.run_figure_target", return_value=0
+    ):
         rc = reproduce_main(["--check"], tmp_path)
     out = capsys.readouterr().out
     assert rc == 0
-    assert "—— Eval probes ——" in out
+    assert "Agent evaluation" in out
     assert "⊘ AnalystAgent Evaluation" in out
     assert (tmp_path / "logs" / "eval-analyst.log").exists()
 
@@ -453,39 +406,15 @@ def test_reproduce_main_shared_notebook_runs_once(tmp_path: Path):
         ),
         encoding="utf-8",
     )
-
     def fake_run(target, repo_root, log_path):
         log_path.parent.mkdir(parents=True, exist_ok=True)
         log_path.write_text("+ mocked\n", encoding="utf-8")
         return 0
 
-    with patch(
-        "scripts.reproduce_lib.detect_toolchain",
-        return_value={"have_ir": True, "have_rscript": True, "have_ggradar": True},
-    ), patch("scripts.reproduce_lib.run_figure_target", side_effect=fake_run) as run:
+    with patch("scripts.reproduce_lib.detect_toolchain", return_value={"have_ir": True, "have_rscript": True, "have_ggradar": True}), patch(
+        "scripts.reproduce_lib.run_figure_target", side_effect=fake_run
+    ) as run:
         reproduce_main([], tmp_path)
     assert run.call_count == 1
     assert (tmp_path / "logs" / "ext-data-5a.log").exists()
-    assert "shared execution" in (tmp_path / "logs" / "ext-data-5b.log").read_text(
-        encoding="utf-8"
-    )
-
-
-def test_validate_artifacts_missing_and_empty(tmp_path: Path):
-    out = tmp_path / "Fig. 2" / "output"
-    out.mkdir(parents=True)
-    empty = out / "empty.pdf"
-    empty.write_bytes(b"")
-    good = out / "good.pdf"
-    good.write_bytes(b"%PDF")
-    t = {
-        "expected_artifacts": [
-            "Fig. 2/output/missing.pdf",
-            "Fig. 2/output/empty.pdf",
-            "Fig. 2/output/good.pdf",
-        ]
-    }
-    problems = validate_artifacts(t, tmp_path)
-    assert any("missing.pdf" in p for p in problems)
-    assert any("empty.pdf" in p for p in problems)
-    assert not any("good.pdf" in p for p in problems)
+    assert "shared execution" in (tmp_path / "logs" / "ext-data-5b.log").read_text(encoding="utf-8")

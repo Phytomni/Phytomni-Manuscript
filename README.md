@@ -57,18 +57,17 @@ R -e "IRkernel::installspec()"
 
 ### R version locking (renv)
 
-R dependencies are fingerprinted with [`renv`](https://rstudio.github.io/renv/). The committed `renv.lock`, `.Rprofile`, and `renv/` directory record the exact package versions used for figure reproduction (tidyverse, readxl, treemapify, RColorBrewer, rmarkdown, remotes, IRkernel, ggradar, and their transitive deps).
+`environment.yml` installs R packages via conda-forge. `renv.lock` records the exact versions used when figures were validated (including GitHub `ggradar`). After creating the conda (or system R) environment:
 
-After cloning, restore the locked R library with:
-```bash
-Rscript -e 'renv::restore()'
-```
-Then install **ggradar** (GitHub-only, not in `renv.lock` as a CRAN package):
-```bash
-Rscript -e 'remotes::install_github("ricardo-bion/ggradar", upgrade="never")'
+```r
+renv::restore()
 ```
 
-> **No Docker image is provided.** Reproduce figures with the committed `environment.yml` (conda) or `uv.lock` (Python) plus `renv.lock` (R fingerprint). CI uses conda/uv system installs rather than a container.
+Under conda, `renv::restore()` may conflict with the conda R library path — treat it as best-effort (it may fail). When restore is awkward, rely on `environment.yml` for installation; **`renv.lock` remains the authoritative R package fingerprint for reviewers.** The lockfile was snapshotted on R 4.3.3 while `environment.yml` keeps `r-base>=4.0`, so minor R-version drift is possible.
+
+This repo does not ship a Docker image.
+
+> **Conda vs `uv.lock`:** `environment.yml` pins the same major Python package versions as `uv.lock` (pandas 3.0.2, numpy 2.4.4, etc.). Conda may resolve different build strings per platform/Python minor; use `uv sync --frozen` when you need bit-for-bit parity with the committed Python lockfile.
 
 ## Reproducing the figures
 
@@ -88,7 +87,7 @@ NBX='jupyter nbconvert --to notebook --execute --inplace'
 PHYTOMNI_SAVE=1 ./reproduce.sh     # run every figure; artifacts land in each figure's output/
 ./reproduce.sh --check             # smoke: run all, print ✓/✘/⊘ summary, non-zero exit on failure
 ```
-The ED Fig. 6 radar target has an explicit data/toolchain pre-check, so it is reported `⊘` (with the reason) and never fails the run when `PhytoBench-RAG-for_plot.csv`, `ggradar`, or R is missing. ED Fig. 5b shares one notebook with 5a: when `Phytomni-DocType-for_plot.csv` is absent the notebook's internal guard skips only the 5b panel (5a still renders), so the bundled `Ext. Data 5a,b` target still reports `✓` — check for `extended_data_fig.5b.pdf` in `output/` to confirm 5b actually emitted. Every push is exercised end-to-end by GitHub Actions (see `.github/workflows/reproduce.yml`).
+The ED Fig. 6 radar target has an explicit data/toolchain pre-check, so it is reported `⊘` (with the reason) and never fails the run when `PhytoBench-RAG-for_plot.csv`, `ggradar`, or R is missing. Ext. Data 5a and 5b share one notebook but are separate manifest targets: 5a (`run`) can report `✓` because `Phytomni-PaperYear-for_plot.csv` ships in the repo; 5b is `skip_until_data` and reports `⊘` until `Phytomni-DocType-for_plot.csv` lands. The notebook's `have_5b` guard only prevents the shared notebook from aborting when that CSV is absent (5a still renders); runner status is authoritative — check for `extended_data_fig.5b.pdf` in `output/` to confirm 5b actually emitted. Every push is exercised end-to-end by GitHub Actions (see `.github/workflows/reproduce.yml`).
 
 ### Reproduction matrix
 
@@ -115,27 +114,23 @@ Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) 
 | Supp. 7 | `Supplementary Fig. 7/supplementary_fig. 7.py` | `python3` (script) | `PhytoBench-Data-for_plot.xlsx` ✓ | `run` | `model_accuracy_by_species.pdf` |
 | Supp. 8 | `Supplementary Fig. 8/supplementary_fig. 8.ipynb` | `python3` | *inline* | `run` | `model_compare_agent_split.pdf` |
 | Supp. 9 | `Supplementary Fig. 9/supplementary_fig. 9.ipynb` | `python3` | *inline* | `run` | `model_compare_agent_split_across_speciesv1.pdf` |
-| Supp. 10-13 | `Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb` | `python3` | `score.tsv` ✓, `score.well_studied.tsv` ✓, `score.uncharacterized.tsv` ✓ | `run` | `fig.2d.phytobench-gene.percent.bar.pdf` / `fig.2e.phytobench-gene.prob.heatmap.pdf` / `fig.2f.phytobench-gene.score.bar.pdf` / … (9 files) |
+| Supp. 10-13 | `Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb` | `python3` | `score.tsv` ✓, `score.well_studied.tsv` ✓, `score.uncharacterized.tsv` ✓ | `run` | `fig.2d.phytobench-gene.percent.bar.pdf` / `fig.2e.phytobench-gene.prob.heatmap.pdf` / `fig.2f.phytobench-gene.score.bar.pdf` / … (5 files) |
 | Supp. 14 | `Supplementary Fig. 14/supplementary_fig. 14.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.6a.model.paperbench-mp.line.pdf` / `supplementary_fig.6b.model.paperbench-as.line.pdf` / `supplementary_fig.6c.model.paperbench-cr.line.pdf` / … (5 files) |
 | Supp. 19 | `Supplementary Fig. 19/supplementary_fig. 19.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.19.pdf` |
 | Supp. 24 | `Supplementary Fig. 24/supplementary_fig. 24.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.13.phytobench-review.polar.pdf` |
 <!-- END:REPRODUCE_MATRIX -->
 
-> Note: `extended_data_fig. 6abc.Rmd` provisionally sits under Ext. Data Fig. 6 (RAG/rerank radar charts) alongside `extended_data_fig. 6abc.ipynb` (knowledge bar charts, the panel 6a–c source); the final panel label for the radar figure is set by the authors.
-> Note: `Extended Data Fig. 6/extended_data_fig.6ab.ipynb` is a deprecated orphan duplicate of the Ext. Data 6a–b panels already reproduced by `extended_data_fig. 6abc.ipynb` — it is listed in `reproduce.manifest.yaml` as `ext-data-6ab-deprecated` and is not executed by `./reproduce.sh`.
-> Note: `Supplementary Fig. 7/supplementary_fig. 7.py` (multi-species model-accuracy bar chart) is a standalone Python script, not a notebook — run with `python3`, not `$NBX`. Its save is gated behind `PHYTOMNI_SAVE` and writes to `output/` only when `PHYTOMNI_SAVE=1`, like every other file.
-
 ### How to run
 
 - **Python notebooks** need only the Python environment from [Environment setup](#environment-setup). Run headlessly with `$NBX "<file>"`, or open the file in `jupyter lab` and run all cells.
-- **R notebooks** (`5ab`, `6abc`, `7`, Supp. 6, Supp. 17; plus the `6abc.Rmd` R Markdown) need the `ir` kernel / an R install — install the kernel once with `R -e "IRkernel::installspec()"`. Without it, `nbconvert` reports `No such kernel`. Supp. 6 panel 6b also needs **ggradar** (GitHub-only; see [Environment setup](#environment-setup)).
+- **R notebooks** (`5ab`, `6abc`, `7`, Supp. 6, Supp. 17; plus the `6abc.Rmd` R Markdown) need the `ir` kernel / an R install — install the kernel once with `R -e "IRkernel::installspec()"`. Without it, `nbconvert` reports `No such kernel`.
 - **The R script** (`5c.R`) runs standalone with `Rscript`; its save (`ggsave`) is gated behind `PHYTOMNI_SAVE` like every other file.
 - **The Python script** (`Supplementary Fig. 7/supplementary_fig. 7.py`) also runs standalone with `python3` (not via `$NBX` — it is a script, not a notebook). It reads `PhytoBench-Data-for_plot.xlsx` by a bare relative path, so run it from inside its directory: `cd "Supplementary Fig. 7" && python3 "supplementary_fig. 7.py"`.
 - **Figure-saving is gated behind `PHYTOMNI_SAVE`.** A default run renders each figure inline and writes nothing. Set `PHYTOMNI_SAVE=1` to emit every figure into that directory's `output/` (gitignored; filenames follow `<figure>.<panel>.pdf`/`.png`). `reproduce.sh` does this for you — see [One command](#one-command) above.
 
 ## Agent evaluation (not a figure)
 
-Four agent-evaluation harnesses live in this repo. They are **not** manuscript figure reproduction — `./reproduce.sh` runs lightweight **probes only** for them (see the `—— Eval probes ——` block at the end of a normal run). On a bare clone all four probes are expected to show **⊘** with reasons; eval ⊘ never fails `--check`. None of these harnesses runs from the figure environment alone.
+Four agent-evaluation harnesses live in this repo. They are **not** manuscript figure reproduction — `./reproduce.sh` runs lightweight **probes only** for them (see the eval summary block at the end of a normal run). On a bare clone all four probes are expected to show **⊘** with reasons; eval ⊘ never fails `--check`. None of these harnesses runs from the figure environment alone.
 
 ### AnalystAgent Evaluation
 

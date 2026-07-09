@@ -97,50 +97,19 @@ def render_matrix(manifest: dict[str, Any], repo_root: Path | None = None) -> st
     return "\n".join(rows)
 
 
-def _matrix_block(matrix_md: str) -> str:
-    return f"{BEGIN_MARKER}\n{matrix_md}\n{END_MARKER}"
-
-
-def update_readme_matrix(readme_text: str, matrix_md: str) -> str:
-    """Replace or insert the reproduction matrix block in README text."""
-    if BEGIN_MARKER in readme_text and END_MARKER in readme_text:
-        before, rest = readme_text.split(BEGIN_MARKER, 1)
-        _, after = rest.split(END_MARKER, 1)
-        return f"{before}{_matrix_block(matrix_md)}{after}"
-
-    section = f"\n### Reproduction matrix\n\n{_matrix_block(matrix_md)}\n"
-
-    repro_matrix = "### Reproduction matrix"
-    if repro_matrix in readme_text:
-        start = readme_text.index(repro_matrix)
-        rest = readme_text[start + len(repro_matrix) :]
-        next_h3 = rest.find("\n### ")
-        if next_h3 != -1:
-            end = start + len(repro_matrix) + next_h3
-            return readme_text[:start] + section.lstrip("\n") + readme_text[end:]
-        return readme_text[:start] + section.lstrip("\n")
-
-    one_cmd = "### One command"
-    if one_cmd in readme_text:
-        start = readme_text.index(one_cmd)
-        rest = readme_text[start + len(one_cmd) :]
-        next_h3 = rest.find("\n### ")
-        insert_at = start + len(one_cmd) + next_h3 if next_h3 != -1 else len(readme_text)
-        return readme_text[:insert_at] + section + readme_text[insert_at:]
-
-    repro = "## Reproducing the figures"
-    if repro in readme_text:
-        idx = readme_text.index(repro) + len(repro)
-        return readme_text[:idx] + section + readme_text[idx:]
-
-    return readme_text + section
+def _replace_matrix_block(readme_text: str, matrix_md: str) -> str:
+    if BEGIN_MARKER not in readme_text or END_MARKER not in readme_text:
+        raise ValueError(f"README must contain {BEGIN_MARKER} and {END_MARKER}")
+    before, rest = readme_text.split(BEGIN_MARKER, 1)
+    _, after = rest.split(END_MARKER, 1)
+    return f"{before}{BEGIN_MARKER}\n{matrix_md}\n{END_MARKER}{after}"
 
 
 def write_readme_matrix(readme_path: Path, manifest_path: Path, repo_root: Path) -> None:
     manifest = load_manifest(manifest_path)
     matrix_md = render_matrix(manifest, repo_root=repo_root)
     readme_text = readme_path.read_text(encoding="utf-8")
-    updated = update_readme_matrix(readme_text, matrix_md)
+    updated = _replace_matrix_block(readme_text, matrix_md)
     readme_path.write_text(updated, encoding="utf-8")
 
 

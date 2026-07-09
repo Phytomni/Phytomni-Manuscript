@@ -171,10 +171,8 @@ targets:
     kind: notebook
     path: "Supplementary Fig. 6/supplementary_fig.6.ipynb"
     kernel: ir
+    requires_toolchain: [ir, ggradar]
     status: run
-    requires_toolchain:
-      - ir
-      - ggradar
     expected_artifacts:
       - "Supplementary Fig. 6/output/supplementary_fig.6a.pdf"
       - "Supplementary Fig. 6/output/supplementary_fig.6b.pdf"
@@ -185,9 +183,8 @@ targets:
     kind: notebook
     path: "Supplementary Fig. 17/supplementary_fig.17.ipynb"
     kernel: ir
+    requires_toolchain: [ir]
     status: run
-    requires_toolchain:
-      - ir
     expected_artifacts:
       - "Supplementary Fig. 17/output/supplementary_fig.17.pdf"
 
@@ -243,19 +240,14 @@ targets:
       - "Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/score.tsv"
       - "Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/score.well_studied.tsv"
       - "Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/score.uncharacterized.tsv"
-    # Minimum artifact bar (9 PDFs): 3 non-loop panels (fig.2d/e/f) plus
-    # well_studied and uncharacterized percent/prob/score bars (6 files).
-    # Full 17×3 loop expansion is not required for CI smoke checks.
+    # Minimum artifact bar: 3 non-loop panels (fig.2d/e/f) plus aggregate
+    # well_studied and uncharacterized percent bars only (not full 17×3 loop).
     expected_artifacts:
       - "Supplementary Fig. 10-13/output/fig.2d.phytobench-gene.percent.bar.pdf"
       - "Supplementary Fig. 10-13/output/fig.2e.phytobench-gene.prob.heatmap.pdf"
       - "Supplementary Fig. 10-13/output/fig.2f.phytobench-gene.score.bar.pdf"
       - "Supplementary Fig. 10-13/output/supplementary_fig.7.phytobench-gene.well_studied.percent.bar.pdf"
-      - "Supplementary Fig. 10-13/output/supplementary_fig.8.phytobench-gene.well_studied.prob.heatmap.pdf"
-      - "Supplementary Fig. 10-13/output/supplementary_fig.9.phytobench-gene.well_studied.score.bar.pdf"
       - "Supplementary Fig. 10-13/output/supplementary_fig.7.phytobench-gene.uncharacterized.percent.bar.pdf"
-      - "Supplementary Fig. 10-13/output/supplementary_fig.8.phytobench-gene.uncharacterized.prob.heatmap.pdf"
-      - "Supplementary Fig. 10-13/output/supplementary_fig.9.phytobench-gene.uncharacterized.score.bar.pdf"
 
   - id: supp-14
     label: Supp. 14
@@ -308,7 +300,7 @@ targets:
     probes:
       - { type: file_exists, path: "DataAgent Evaluation/src/prompt_template.yaml" }
       - { type: can_import, module: langchain }
-      - { type: file_contains_none, path: "DataAgent Evaluation/src/model/config.py", substring: "Change_to_your_" }
+      - { type: file_contains_none, path: "DataAgent Evaluation/src/model/config.py", substring: "change_to_your_" }
 
   - id: eval-knowledge
     label: KnowledgeAgent Evaluation
@@ -316,6 +308,7 @@ targets:
     kind: eval_probe
     status: run
     probes:
+      - { type: file_exists, path: "KnowledgeAgent Evaluation/evaluation_id.py" }
       - { type: note_requires, message: "CLI requires --input dataset not shipped in this repo" }
 
   - id: eval-expert

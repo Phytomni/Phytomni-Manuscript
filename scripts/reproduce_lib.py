@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import importlib
 import os
 import shutil
 import subprocess
@@ -151,13 +150,13 @@ def run_figure_target(target: dict[str, Any], repo_root: Path, log_path: Path) -
         return proc.returncode
 
 
-def _notebook_run_key(target: dict[str, Any]) -> str | None:
+def _notebook_key(target: dict[str, Any]) -> tuple[str, str] | None:
     if target.get("kind") != "notebook":
         return None
     path = target.get("path")
     if not path:
         return None
-    return str(path)
+    return ("notebook", path)
 
 
 def _write_skip_log(log_path: Path, reason: str) -> None:
@@ -173,13 +172,6 @@ def _format_line(mark: str, label: str, note: str | None = None) -> str:
 
 def run_probe(probe: dict[str, Any], repo_root: Path) -> str | None:
     probe_type = probe.get("type")
-    if probe_type == "can_import":
-        module = probe["module"]
-        try:
-            importlib.import_module(module)
-        except ImportError:
-            return f"import failed: {module}"
-        return None
     if probe_type == "file_exists":
         rel = probe["path"]
         if not (repo_root / rel).is_file():
@@ -189,6 +181,13 @@ def run_probe(probe: dict[str, Any], repo_root: Path) -> str | None:
         rel = probe["path"]
         if (repo_root / rel).is_file():
             return f"file present: {rel}"
+        return None
+    if probe_type == "can_import":
+        module = probe["module"]
+        try:
+            __import__(module)
+        except ImportError:
+            return f"import failed: {module}"
         return None
     if probe_type in ("file_contains", "file_contains_none"):
         rel = probe["path"]
@@ -205,21 +204,15 @@ def run_probe(probe: dict[str, Any], repo_root: Path) -> str | None:
     return f"unknown probe type: {probe_type}"
 
 
-def run_eval_probes(
-    target: dict[str, Any], repo_root: Path, log_path: Path
-) -> tuple[bool, str]:
+def run_eval_probes(target: dict[str, Any], repo_root: Path) -> str | None:
     reasons: list[str] = []
     for probe in target.get("probes", []):
         reason = run_probe(probe, repo_root)
         if reason:
             reasons.append(reason)
-    note = "; ".join(reasons)
-    log_path.parent.mkdir(parents=True, exist_ok=True)
     if reasons:
-        log_path.write_text(f"skipped: {note}\n", encoding="utf-8")
-        return False, note
-    log_path.write_text("all probes passed\n", encoding="utf-8")
-    return True, ""
+        return "; ".join(reasons)
+    return None
 
 
 def reproduce_main(argv: list[str], repo_root: Path) -> int:
@@ -240,7 +233,7 @@ def reproduce_main(argv: list[str], repo_root: Path) -> int:
     fail_count = 0
     skip_count = 0
 
-    notebook_runs: dict[str, tuple[int, Path]] = {}
+    notebook_runs: dict[tuple[str, str], tuple[int, Path]] = {}
 
     for target in targets:
         tid = target["id"]
@@ -259,8 +252,9 @@ def reproduce_main(argv: list[str], repo_root: Path) -> int:
             skip_count += 1
             continue
 
+        kind = target["kind"]
         log_path = logs_dir / f"{tid}.log"
-        nb_key = _notebook_run_key(target)
+        nb_key = _notebook_key(target)
 
         if nb_key is not None and nb_key in notebook_runs:
             run_rc, primary_log = notebook_runs[nb_key]
@@ -295,20 +289,24 @@ def reproduce_main(argv: list[str], repo_root: Path) -> int:
 
     eval_targets = iter_targets(manifest, phase="eval")
     if eval_targets:
-        print("—— Eval probes ——")
+        print("————————————————————————————————————————————")
+        print("Agent evaluation (not figures — probes only)")
         eval_pass = 0
         eval_skip = 0
         for target in eval_targets:
             tid = target["id"]
             label = target["label"]
             log_path = logs_dir / f"{tid}.log"
-            ok, note = run_eval_probes(target, repo_root, log_path)
-            if ok:
+            skip_reason = run_eval_probes(target, repo_root)
+            if skip_reason:
+                _write_skip_log(log_path, skip_reason)
+                print(_format_line("⊘", label, skip_reason))
+                eval_skip += 1
+            else:
+                log_path.parent.mkdir(parents=True, exist_ok=True)
+                log_path.write_text("all probes passed\n", encoding="utf-8")
                 print(_format_line("✓", label))
                 eval_pass += 1
-            else:
-                print(_format_line("⊘", label, note))
-                eval_skip += 1
         print("————————————————————————————————————————————")
         print(f"{len(eval_targets)} eval targets / {eval_pass} ok / {eval_skip} skipped")
 
