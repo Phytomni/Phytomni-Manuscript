@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from scripts.render_reproduce_matrix import render_matrix
 from scripts.reproduce_lib import (
     ManifestError,
     check_skip,
@@ -15,6 +16,27 @@ from scripts.reproduce_lib import (
 )
 
 FIXTURE = Path(__file__).parent / "fixtures" / "mini.manifest.yaml"
+
+
+def test_render_matrix_contains_ids():
+    m = {
+        "targets": [
+            {
+                "id": "fig-2",
+                "label": "Fig. 2",
+                "phase": "figure",
+                "kind": "notebook",
+                "path": "Fig. 2/fig. 2.ipynb",
+                "kernel": "py",
+                "status": "run",
+                "requires_data": [],
+                "expected_artifacts": ["Fig. 2/output/x.pdf"],
+            }
+        ]
+    }
+    md = render_matrix(m)
+    assert "Fig. 2" in md
+    assert "fig. 2.ipynb" in md
 
 
 def test_load_manifest_requires_targets(tmp_path: Path):
