@@ -165,6 +165,32 @@ targets:
       - "Supplementary Fig. 1/output/supplementary_fig.1c.chatbot_sft_loss.line.pdf"
       - "Supplementary Fig. 1/output/supplementary_fig.1d.reasoner_sft_loss.line.pdf"
 
+  - id: supp-6
+    label: Supp. 6
+    phase: figure
+    kind: notebook
+    path: "Supplementary Fig. 6/supplementary_fig.6.ipynb"
+    kernel: ir
+    status: run
+    requires_toolchain:
+      - ir
+      - ggradar
+    expected_artifacts:
+      - "Supplementary Fig. 6/output/supplementary_fig.6a.pdf"
+      - "Supplementary Fig. 6/output/supplementary_fig.6b.pdf"
+
+  - id: supp-17
+    label: Supp. 17
+    phase: figure
+    kind: notebook
+    path: "Supplementary Fig. 17/supplementary_fig.17.ipynb"
+    kernel: ir
+    status: run
+    requires_toolchain:
+      - ir
+    expected_artifacts:
+      - "Supplementary Fig. 17/output/supplementary_fig.17.pdf"
+
   - id: ext-data-6ab-deprecated
     label: Ext. Data 6ab (deprecated notebook)
     phase: figure

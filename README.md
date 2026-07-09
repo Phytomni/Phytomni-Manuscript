@@ -90,21 +90,24 @@ This table is the single source of truth: which file produces each figure, the k
 | Ext. Data Fig. 6d,e | `Extended Data Fig. 6/extended_data_fig. 6de.ipynb` | `python3` | *inline* | `$NBX "Extended Data Fig. 6/extended_data_fig. 6de.ipynb"` | `extended_data_fig.6d.pdf` / `6e.pdf` |
 | Ext. Data Fig. 6f,g | `Extended Data Fig. 6/extended_data_fig. 6fg.ipynb` | `python3` | *inline* | `$NBX "Extended Data Fig. 6/extended_data_fig. 6fg.ipynb"` | `model_compare_agent_total*.pdf` |
 | Ext. Data Fig. 7 | `Extended Data Fig. 7/extended_data_fig. 7.ipynb` | `ir` (R) | *inline* | `$NBX "Extended Data Fig. 7/extended_data_fig. 7.ipynb"` | `extended_data_fig.7.pdf` |
+| Supp. Fig. 6 | `Supplementary Fig. 6/supplementary_fig.6.ipynb` | `ir` (R) | *inline* | `$NBX "Supplementary Fig. 6/supplementary_fig.6.ipynb"` | `supplementary_fig.6a.pdf` / `supplementary_fig.6b.pdf` |
 | Supp. Fig. 7 | `Supplementary Fig. 7/supplementary_fig. 7.py` | `python3` (script, not notebook) | `PhytoBench-Data-for_plot.xlsx` ✓ | `cd "Supplementary Fig. 7" && python3 "supplementary_fig. 7.py"` | `model_accuracy_by_species.pdf` |
 | Supp. Fig. 8 | `Supplementary Fig. 8/supplementary_fig. 8.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 8/supplementary_fig. 8.ipynb"` | `model_compare_agent_split.pdf` |
 | Supp. Fig. 9 | `Supplementary Fig. 9/supplementary_fig. 9.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 9/supplementary_fig. 9.ipynb"` | `model_compare_agent_split_across_speciesv1.pdf` |
 | Supp. Fig. 10–13 | `Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb` | `python3` | `PhytoBench-Gene-for_plot/score*.tsv` ✓ (15 files) | `$NBX "Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb"` | `*.pdf` / `*.png`; also writes `pl_elo_results.csv`, `pl_pairwise_probs.csv` |
 | Supp. Fig. 14 | `Supplementary Fig. 14/supplementary_fig. 14.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 14/supplementary_fig. 14.ipynb"` | `*.pdf` / `*.png` |
+| Supp. Fig. 17 | `Supplementary Fig. 17/supplementary_fig.17.ipynb` | `ir` (R) | *inline* | `$NBX "Supplementary Fig. 17/supplementary_fig.17.ipynb"` | `supplementary_fig.17.pdf` |
 | Supp. Fig. 19 | `Supplementary Fig. 19/supplementary_fig. 19.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 19/supplementary_fig. 19.ipynb"` | matplotlib + plotly figures |
 | Supp. Fig. 24 | `Supplementary Fig. 24/supplementary_fig. 24.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 24/supplementary_fig. 24.ipynb"` | `*.pdf` / `*.png` |
 
 > Note: `extended_data_fig. 6abc.Rmd` provisionally sits under Ext. Data Fig. 6 (RAG/rerank radar charts) alongside `extended_data_fig. 6abc.ipynb` (knowledge bar charts, the panel 6a–c source); the final panel label for the radar figure is set by the authors.
+> Note: `Extended Data Fig. 6/extended_data_fig.6ab.ipynb` is a deprecated orphan duplicate of the Ext. Data 6a–b panels already reproduced by `extended_data_fig. 6abc.ipynb` — it is listed in `reproduce.manifest.yaml` as `ext-data-6ab-deprecated` and is not executed by `./reproduce.sh`.
 > Note: `Supplementary Fig. 7/supplementary_fig. 7.py` (multi-species model-accuracy bar chart) is a standalone Python script, not a notebook — run with `python3`, not `$NBX`. Its save is gated behind `PHYTOMNI_SAVE` and writes to `output/` only when `PHYTOMNI_SAVE=1`, like every other file.
 
 ### How to run
 
 - **Python notebooks** need only the Python environment from [Environment setup](#environment-setup). Run headlessly with `$NBX "<file>"`, or open the file in `jupyter lab` and run all cells.
-- **R notebooks** (`5ab`, `6abc`, `7`; plus the `6abc.Rmd` R Markdown) need the `ir` kernel / an R install — install the kernel once with `R -e "IRkernel::installspec()"`. Without it, `nbconvert` reports `No such kernel`.
+- **R notebooks** (`5ab`, `6abc`, `7`, Supp. 6, Supp. 17; plus the `6abc.Rmd` R Markdown) need the `ir` kernel / an R install — install the kernel once with `R -e "IRkernel::installspec()"`. Without it, `nbconvert` reports `No such kernel`. Supp. 6 panel 6b also needs **ggradar** (GitHub-only; see [Environment setup](#environment-setup)).
 - **The R script** (`5c.R`) runs standalone with `Rscript`; its save (`ggsave`) is gated behind `PHYTOMNI_SAVE` like every other file.
 - **The Python script** (`Supplementary Fig. 7/supplementary_fig. 7.py`) also runs standalone with `python3` (not via `$NBX` — it is a script, not a notebook). It reads `PhytoBench-Data-for_plot.xlsx` by a bare relative path, so run it from inside its directory: `cd "Supplementary Fig. 7" && python3 "supplementary_fig. 7.py"`.
 - **Figure-saving is gated behind `PHYTOMNI_SAVE`.** A default run renders each figure inline and writes nothing. Set `PHYTOMNI_SAVE=1` to emit every figure into that directory's `output/` (gitignored; filenames follow `<figure>.<panel>.pdf`/`.png`). `reproduce.sh` does this for you — see [One command](#one-command) above.
