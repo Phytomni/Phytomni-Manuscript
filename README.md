@@ -55,6 +55,18 @@ R -e "install.packages(c('IRkernel'))"
 R -e "IRkernel::installspec()"
 ```
 
+### R version locking (renv)
+
+`environment.yml` installs R packages via conda-forge. `renv.lock` records the exact versions used when figures were validated (including GitHub `ggradar`). After creating the conda (or system R) environment:
+
+```r
+renv::restore()
+```
+
+This repo does not ship a Docker image.
+
+> **Conda vs `uv.lock`:** `environment.yml` pins the same major Python package versions as `uv.lock` (pandas 3.0.2, numpy 2.4.4, etc.). Conda may resolve different build strings per platform/Python minor; use `uv sync --frozen` when you need bit-for-bit parity with the committed Python lockfile.
+
 ## Reproducing the figures
 
 > **Authoritative target list:** [`reproduce.manifest.yaml`](reproduce.manifest.yaml). The table below is generated; CI fails if it drifts.
