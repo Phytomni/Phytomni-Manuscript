@@ -57,6 +57,8 @@ R -e "IRkernel::installspec()"
 
 ## Reproducing the figures
 
+> **Authoritative target list:** [`reproduce.manifest.yaml`](reproduce.manifest.yaml). The table below is generated; CI fails if it drifts.
+
 Each figure directory is self-contained and reads its data via relative paths, so notebooks run from a fresh clone. **Run everything from the repository root.** (This applies to the figure directories; `AnalystAgent Evaluation/` is an agent-evaluation harness, not a figure — see [Agent evaluation](#agent-evaluation-not-a-figure) below.)
 
 The headless run command is identical for every notebook; define it once:
@@ -75,30 +77,34 @@ The ED Fig. 6 radar target has an explicit data/toolchain pre-check, so it is re
 
 ### Reproduction matrix
 
-This table is the single source of truth: which file produces each figure, the kernel it needs, the data it reads, how to run it, and what it writes. Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) · *inline* = data is hardcoded in the notebook. Artifacts are written only when `PHYTOMNI_SAVE=1` is set; a default run renders inline and writes nothing.
+<!-- BEGIN:REPRODUCE_MATRIX -->
+Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) · *inline* = data is hardcoded in the notebook. Artifacts are written only when `PHYTOMNI_SAVE=1` is set; a default run renders inline and writes nothing.
 
-| Figure | File | Kernel | Input data | Run command | Emits (into output/ when PHYTOMNI_SAVE=1) |
+| Figure | File | Kernel | Input data | Status | Emits (into output/ when PHYTOMNI_SAVE=1) |
 |---|---|---|---|---|---|
-| Fig. 2 | `Fig. 2/fig. 2.ipynb` | `python3` | *inline* | `$NBX "Fig. 2/fig. 2.ipynb"` | `fig.2*.pdf` / `fig.2*.png` |
-| Fig. 3 | `Fig. 3/fig. 3.ipynb` | `python3` | `PhytoBench-Paper-for_plot.xlsx` ✓ | `$NBX "Fig. 3/fig. 3.ipynb"` | `fig.3*.pdf` / `fig.3*.png` |
-| Ext. Data Fig. 5a | `Extended Data Fig. 5/extended_data_fig. 5ab.ipynb` | `ir` (R) | `Phytomni-PaperYear-for_plot.csv` ✓ | `$NBX "Extended Data Fig. 5/extended_data_fig. 5ab.ipynb"` | `extended_data_fig.5a.pdf` |
-| Ext. Data Fig. 5b | *(same notebook)* | `ir` (R) | `Phytomni-DocType-for_plot.csv` ⚠ | *(same as 5a)* | `extended_data_fig.5b.pdf` |
-| Ext. Data Fig. 5c | `Extended Data Fig. 5/extended_data_fig. 5c.R` | Rscript | `Phytomni-Multiomics-for_plot.txt` ✓ | `cd "Extended Data Fig. 5" && Rscript "extended_data_fig. 5c.R"` | `extended_data_fig.5c.png` |
-| Ext. Data Fig. 5d | `Extended Data Fig. 5/extended_data_fig. 5d.ipynb` | `python3` | *inline* | `$NBX "Extended Data Fig. 5/extended_data_fig. 5d.ipynb"` | `extended_data_fig.5d.pdf` |
-| Ext. Data Fig. 6a–c | `Extended Data Fig. 6/extended_data_fig. 6abc.ipynb` | `ir` (R) | `PhytoBench-Knowledge-for_plot.xlsx` ✓ | `$NBX "Extended Data Fig. 6/extended_data_fig. 6abc.ipynb"` | `extended_data_fig.6a.pdf` / `6b.pdf` / `6c.pdf` (6c only if plot object `p` is defined) |
-| Ext. Data Fig. 6 (radar, provisional) | `Extended Data Fig. 6/extended_data_fig. 6abc.Rmd` | R / `rmarkdown::render` | `PhytoBench-RAG-for_plot.csv` ⚠ | `R -e 'rmarkdown::render("Extended Data Fig. 6/extended_data_fig. 6abc.Rmd")'` | `extended_data_fig.6-radar-*.pdf` (4 files) |
-| Ext. Data Fig. 6d,e | `Extended Data Fig. 6/extended_data_fig. 6de.ipynb` | `python3` | *inline* | `$NBX "Extended Data Fig. 6/extended_data_fig. 6de.ipynb"` | `extended_data_fig.6d.pdf` / `6e.pdf` |
-| Ext. Data Fig. 6f,g | `Extended Data Fig. 6/extended_data_fig. 6fg.ipynb` | `python3` | *inline* | `$NBX "Extended Data Fig. 6/extended_data_fig. 6fg.ipynb"` | `model_compare_agent_total*.pdf` |
-| Ext. Data Fig. 7 | `Extended Data Fig. 7/extended_data_fig. 7.ipynb` | `ir` (R) | *inline* | `$NBX "Extended Data Fig. 7/extended_data_fig. 7.ipynb"` | `extended_data_fig.7.pdf` |
-| Supp. Fig. 6 | `Supplementary Fig. 6/supplementary_fig.6.ipynb` | `ir` (R) | *inline* | `$NBX "Supplementary Fig. 6/supplementary_fig.6.ipynb"` | `supplementary_fig.6a.pdf` / `supplementary_fig.6b.pdf` |
-| Supp. Fig. 7 | `Supplementary Fig. 7/supplementary_fig. 7.py` | `python3` (script, not notebook) | `PhytoBench-Data-for_plot.xlsx` ✓ | `cd "Supplementary Fig. 7" && python3 "supplementary_fig. 7.py"` | `model_accuracy_by_species.pdf` |
-| Supp. Fig. 8 | `Supplementary Fig. 8/supplementary_fig. 8.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 8/supplementary_fig. 8.ipynb"` | `model_compare_agent_split.pdf` |
-| Supp. Fig. 9 | `Supplementary Fig. 9/supplementary_fig. 9.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 9/supplementary_fig. 9.ipynb"` | `model_compare_agent_split_across_speciesv1.pdf` |
-| Supp. Fig. 10–13 | `Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb` | `python3` | `PhytoBench-Gene-for_plot/score*.tsv` ✓ (15 files) | `$NBX "Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb"` | `*.pdf` / `*.png`; also writes `pl_elo_results.csv`, `pl_pairwise_probs.csv` |
-| Supp. Fig. 14 | `Supplementary Fig. 14/supplementary_fig. 14.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 14/supplementary_fig. 14.ipynb"` | `*.pdf` / `*.png` |
-| Supp. Fig. 17 | `Supplementary Fig. 17/supplementary_fig.17.ipynb` | `ir` (R) | *inline* | `$NBX "Supplementary Fig. 17/supplementary_fig.17.ipynb"` | `supplementary_fig.17.pdf` |
-| Supp. Fig. 19 | `Supplementary Fig. 19/supplementary_fig. 19.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 19/supplementary_fig. 19.ipynb"` | matplotlib + plotly figures |
-| Supp. Fig. 24 | `Supplementary Fig. 24/supplementary_fig. 24.ipynb` | `python3` | *inline* | `$NBX "Supplementary Fig. 24/supplementary_fig. 24.ipynb"` | `*.pdf` / `*.png` |
+| Fig. 2 | `Fig. 2/fig. 2.ipynb` | `python3` | *inline* | `run` | `fig.2a.phytobench-knowledge.bar.pdf` / `fig.2b.phytobench-data.bar.pdf` / `fig.2c.phytobench-analysis.violin.pdf` / … (5 files) |
+| Fig. 3 | `Fig. 3/fig. 3.ipynb` | `python3` | `PhytoBench-Paper-for_plot.xlsx` ✓ | `run` | `fig.3d.phytobench-paper.line.pdf` / `fig.3e.phytobench-paper.heatmap.pdf` |
+| Ext. Data 5a | `Extended Data Fig. 5/extended_data_fig. 5ab.ipynb` | `ir` (R) | `Phytomni-PaperYear-for_plot.csv` ✓ | `run` | `extended_data_fig.5a.pdf` |
+| Ext. Data 5b | `Extended Data Fig. 5/extended_data_fig. 5ab.ipynb` | `ir` (R) | `Phytomni-DocType-for_plot.csv` ⚠ | `skip_until_data` | `extended_data_fig.5b.pdf` |
+| Ext. Data 5c | `Extended Data Fig. 5/extended_data_fig. 5c.R` | Rscript | `Phytomni-Multiomics-for_plot.txt` ✓ | `run` | `extended_data_fig.5c.png` |
+| Ext. Data 5d | `Extended Data Fig. 5/extended_data_fig. 5d.ipynb` | `python3` | *inline* | `run` | `extended_data_fig.5d.pdf` |
+| Ext. Data 6a-c | `Extended Data Fig. 6/extended_data_fig. 6abc.ipynb` | `ir` (R) | `PhytoBench-Knowledge-for_plot.xlsx` ✓ | `run` | `extended_data_fig.6a.pdf` / `extended_data_fig.6b.pdf` |
+| Ext. Data 6 radar | `Extended Data Fig. 6/extended_data_fig. 6abc.Rmd` | R / `rmarkdown::render` | `PhytoBench-RAG-for_plot.csv` ⚠ | `skip_until_data` | `extended_data_fig.6-radar-figure1.pdf` / `extended_data_fig.6-radar-figure2.pdf` / `extended_data_fig.6-radar-figure3.pdf` / `extended_data_fig.6-radar-figure4.pdf` |
+| Ext. Data 6d,e | `Extended Data Fig. 6/extended_data_fig. 6de.ipynb` | `python3` | *inline* | `run` | `extended_data_fig.6d.pdf` / `extended_data_fig.6e.pdf` |
+| Ext. Data 6f,g | `Extended Data Fig. 6/extended_data_fig. 6fg.ipynb` | `python3` | *inline* | `run` | `model_compare_agent_total.pdf` / `model_compare_agent_total_across_speciesv1.pdf` |
+| Ext. Data 7 | `Extended Data Fig. 7/extended_data_fig. 7.ipynb` | `ir` (R) | *inline* | `run` | `extended_data_fig.7.pdf` |
+| Supp. 1 | `Supplementary Fig. 1/supplementary_fig. 1.ipynb` | `python3` | `Phyto-Chatbot-Pretrain.loss.json` ✓, … (4 files) | `run` | `supplementary_fig.1a.chatbot_pretrain_loss.line.pdf` / `supplementary_fig.1b.reasoner_pretrain_loss.line.pdf` / `supplementary_fig.1c.chatbot_sft_loss.line.pdf` / `supplementary_fig.1d.reasoner_sft_loss.line.pdf` |
+| Supp. 6 | `Supplementary Fig. 6/supplementary_fig.6.ipynb` | `ir` (R) | *inline* | `run` | `supplementary_fig.6a.pdf` / `supplementary_fig.6b.pdf` |
+| Supp. 17 | `Supplementary Fig. 17/supplementary_fig.17.ipynb` | `ir` (R) | *inline* | `run` | `supplementary_fig.17.pdf` |
+| Ext. Data 6ab (deprecated notebook) | `Extended Data Fig. 6/extended_data_fig.6ab.ipynb` | none | *inline* | `deprecated` | — |
+| Supp. 7 | `Supplementary Fig. 7/supplementary_fig. 7.py` | `python3` (script) | `PhytoBench-Data-for_plot.xlsx` ✓ | `run` | `model_accuracy_by_species.pdf` |
+| Supp. 8 | `Supplementary Fig. 8/supplementary_fig. 8.ipynb` | `python3` | *inline* | `run` | `model_compare_agent_split.pdf` |
+| Supp. 9 | `Supplementary Fig. 9/supplementary_fig. 9.ipynb` | `python3` | *inline* | `run` | `model_compare_agent_split_across_speciesv1.pdf` |
+| Supp. 10-13 | `Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb` | `python3` | `score.tsv` ✓, `score.well_studied.tsv` ✓, `score.uncharacterized.tsv` ✓ | `run` | `fig.2d.phytobench-gene.percent.bar.pdf` / `fig.2e.phytobench-gene.prob.heatmap.pdf` / `fig.2f.phytobench-gene.score.bar.pdf` / … (9 files) |
+| Supp. 14 | `Supplementary Fig. 14/supplementary_fig. 14.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.6a.model.paperbench-mp.line.pdf` / `supplementary_fig.6b.model.paperbench-as.line.pdf` / `supplementary_fig.6c.model.paperbench-cr.line.pdf` / … (5 files) |
+| Supp. 19 | `Supplementary Fig. 19/supplementary_fig. 19.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.19.pdf` |
+| Supp. 24 | `Supplementary Fig. 24/supplementary_fig. 24.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.13.phytobench-review.polar.pdf` |
+<!-- END:REPRODUCE_MATRIX -->
 
 > Note: `extended_data_fig. 6abc.Rmd` provisionally sits under Ext. Data Fig. 6 (RAG/rerank radar charts) alongside `extended_data_fig. 6abc.ipynb` (knowledge bar charts, the panel 6a–c source); the final panel label for the radar figure is set by the authors.
 > Note: `Extended Data Fig. 6/extended_data_fig.6ab.ipynb` is a deprecated orphan duplicate of the Ext. Data 6a–b panels already reproduced by `extended_data_fig. 6abc.ipynb` — it is listed in `reproduce.manifest.yaml` as `ext-data-6ab-deprecated` and is not executed by `./reproduce.sh`.

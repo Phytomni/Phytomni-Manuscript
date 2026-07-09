@@ -3,6 +3,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from scripts.render_reproduce_matrix import (
+    BEGIN_MARKER,
+    END_MARKER,
+    render_matrix,
+    update_readme_matrix,
+)
 from scripts.reproduce_lib import (
     ManifestError,
     _notebook_run_key,
@@ -14,6 +20,47 @@ from scripts.reproduce_lib import (
     run_figure_target,
     validate_artifacts,
 )
+
+
+def test_render_matrix_contains_ids():
+    m = {
+        "targets": [
+            {
+                "id": "fig-2",
+                "label": "Fig. 2",
+                "phase": "figure",
+                "kind": "notebook",
+                "path": "Fig. 2/fig. 2.ipynb",
+                "kernel": "py",
+                "status": "run",
+                "requires_data": [],
+                "expected_artifacts": ["Fig. 2/output/x.pdf"],
+            }
+        ]
+    }
+    md = render_matrix(m)
+    assert "Fig. 2" in md
+    assert "fig. 2.ipynb" in md
+    assert "| Status |" in md
+    assert "`run`" in md
+
+
+def test_update_readme_matrix_replaces_markers():
+    readme = f"before\n{BEGIN_MARKER}\nold\n{END_MARKER}\nafter"
+    updated = update_readme_matrix(readme, "new table")
+    assert "old" not in updated
+    assert "new table" in updated
+    assert BEGIN_MARKER in updated
+    assert END_MARKER in updated
+
+
+def test_update_readme_matrix_inserts_after_one_command():
+    readme = "## Reproducing the figures\n\n### One command\n\n```bash\n./reproduce.sh\n```\n\n### How to run\n"
+    updated = update_readme_matrix(readme, "table content")
+    assert "### Reproduction matrix" in updated
+    assert BEGIN_MARKER in updated
+    assert "table content" in updated
+    assert updated.index("### Reproduction matrix") < updated.index("### How to run")
 
 
 def test_load_manifest_requires_targets(tmp_path: Path):
