@@ -63,6 +63,8 @@ R -e "IRkernel::installspec()"
 renv::restore()
 ```
 
+Under conda, `renv::restore()` may conflict with the conda R library path — treat it as best-effort (it may fail). When restore is awkward, rely on `environment.yml` for installation; **`renv.lock` remains the authoritative R package fingerprint for reviewers.** The lockfile was snapshotted on R 4.3.3 while `environment.yml` keeps `r-base>=4.0`, so minor R-version drift is possible.
+
 This repo does not ship a Docker image.
 
 > **Conda vs `uv.lock`:** `environment.yml` pins the same major Python package versions as `uv.lock` (pandas 3.0.2, numpy 2.4.4, etc.). Conda may resolve different build strings per platform/Python minor; use `uv sync --frozen` when you need bit-for-bit parity with the committed Python lockfile.
