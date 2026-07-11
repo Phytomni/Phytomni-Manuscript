@@ -139,8 +139,8 @@ Reviewers’ default path remains `conda env create -f environment.yml` or `uv s
 |---|---|
 | `AnalystAgent Evaluation/` | Probe only (`mcp_server_phytomni`, HF/data layout, backend placeholders) — never submit live tasks |
 | `DataAgent Evaluation/` | Probe only (`prompt_template.yaml`, deps, `Change_to_your_*` placeholders) |
-| `KnowledgeAgent Evaluation/` | Probe only (scripts/inputs/config) |
-| `Expert Evaluation/` | Probe only; do not require a green figure-like run in this effort |
+| `Knowledge&ReviewAgent Evaluation/` | Probe only (scripts/inputs/config) |
+| `DeepGenomeAgent Evaluation/` | Probe only; do not require a green figure-like run in this effort |
 
 ### Manifest + runner
 

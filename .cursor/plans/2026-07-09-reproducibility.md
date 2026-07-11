@@ -904,25 +904,25 @@ Suggested targets:
       - { type: file_contains_none, path: "DataAgent Evaluation/src/model/config.py", substring: "Change_to_your_" }
 
   - id: eval-knowledge
-    label: KnowledgeAgent Evaluation
+    label: Knowledge&ReviewAgent Evaluation
     phase: eval
     kind: eval_probe
     status: run
     probes:
-      - { type: file_exists, path: "KnowledgeAgent Evaluation/evaluation_id.py" }
+      - { type: file_exists, path: "Knowledge&ReviewAgent Evaluation/evaluation_id.py" }
       # bare clone has scripts but no required --input dataset in-repo → document as needing user data
-      - { type: file_exists, path: "KnowledgeAgent Evaluation/INPUT_DATA_PLACEHOLDER" }  # intentional miss → ⊘
+      - { type: file_exists, path: "Knowledge&ReviewAgent Evaluation/INPUT_DATA_PLACEHOLDER" }  # intentional miss → ⊘
 
   - id: eval-expert
-    label: Expert Evaluation
+    label: DeepGenomeAgent Evaluation
     phase: eval
     kind: eval_probe
     status: run
     probes:
-      - { type: file_exists, path: "Expert Evaluation/score.tsv" }
+      - { type: file_exists, path: "DeepGenomeAgent Evaluation/score.tsv" }
 ```
 
-Prefer **not** inventing fake placeholder paths: for Knowledge/Expert, probe for clearly missing inputs (`Expert Evaluation/score.tsv` is missing today → ⊘ “data missing: score.tsv”). For Knowledge, probe `can_import` of heavy deps only if imported at module level; otherwise document “requires `--input` dataset not shipped” via a probe type `always_fail` with message — **avoid `always_fail`**. Use:
+Prefer **not** inventing fake placeholder paths: for Knowledge&ReviewAgent/DeepGenomeAgent, probe for clearly missing inputs (`DeepGenomeAgent Evaluation/score.tsv` is missing today → ⊘ “data missing: score.tsv”). For Knowledge&ReviewAgent, probe `can_import` of heavy deps only if imported at module level; otherwise document “requires `--input` dataset not shipped” via a probe type `always_fail` with message — **avoid `always_fail`**. Use:
 
 ```yaml
       - { type: note_requires, message: "CLI requires --input dataset not shipped in this repo" }

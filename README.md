@@ -152,13 +152,13 @@ Downloaded data and `submit_log/` are gitignored.
 
 The `output/` and `result/` directories it creates are gitignored.
 
-### KnowledgeAgent Evaluation
+### Knowledge&ReviewAgent Evaluation
 
-`KnowledgeAgent Evaluation/` contains CLI evaluators (`evaluation_id.py`, `evaluation_trace.py`) for gene-ID and trace-QA benchmarks. Both require a **`--input` dataset** (`.xlsx`/`.csv`) that is **not shipped in this repo** — supply your own benchmark file. They use pandas/matplotlib (available in the figure Python env) but cannot produce manuscript figures without your input data and model outputs.
+`Knowledge&ReviewAgent Evaluation/` contains CLI evaluators (`evaluation_id.py`, `evaluation_trace.py`) for gene-ID and trace-QA benchmarks. Both require a **`--input` dataset** (`.xlsx`/`.csv`) that is **not shipped in this repo** — supply your own benchmark file. They use pandas/matplotlib (available in the figure Python env) but cannot produce manuscript figures without your input data and model outputs.
 
-### Expert Evaluation
+### DeepGenomeAgent Evaluation
 
-`Expert Evaluation/` plots expert-rating distributions from `score.tsv` (`plot.py`, `statistics.ipynb`). The **`score.tsv` file is not in the repo** — it contains proprietary expert ratings. Supply your own TSV with columns `Species`, model names, and rating columns `R1`–`R5`.
+`DeepGenomeAgent Evaluation/` plots expert-rating distributions from `score.tsv` (`plot.py`, `statistics.ipynb`). The **`score.tsv` file is not in the repo** — it contains proprietary expert ratings. Supply your own TSV with columns `Species`, model names, and rating columns `R1`–`R5`.
 
 ## Help
 

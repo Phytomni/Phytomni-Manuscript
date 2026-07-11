@@ -303,18 +303,18 @@ targets:
       - { type: file_contains_none, path: "DataAgent Evaluation/src/model/config.py", substring: "change_to_your_" }
 
   - id: eval-knowledge
-    label: KnowledgeAgent Evaluation
+    label: Knowledge&ReviewAgent Evaluation
     phase: eval
     kind: eval_probe
     status: run
     probes:
-      - { type: file_exists, path: "KnowledgeAgent Evaluation/evaluation_id.py" }
+      - { type: file_exists, path: "Knowledge&ReviewAgent Evaluation/evaluation_id.py" }
       - { type: note_requires, message: "CLI requires --input dataset not shipped in this repo" }
 
   - id: eval-expert
-    label: Expert Evaluation
+    label: DeepGenomeAgent Evaluation
     phase: eval
     kind: eval_probe
     status: run
     probes:
-      - { type: file_exists, path: "Expert Evaluation/score.tsv" }
+      - { type: file_exists, path: "DeepGenomeAgent Evaluation/score.tsv" }

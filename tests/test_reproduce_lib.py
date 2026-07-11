@@ -140,6 +140,32 @@ def test_real_manifest_loads():
     assert eval_ids == ["eval-analyst", "eval-data", "eval-knowledge", "eval-expert"]
 
 
+def test_evaluation_directory_references_match_canonical_names():
+    root = Path(__file__).resolve().parents[1]
+    manifest = load_manifest(root / "reproduce.manifest.yaml")
+    eval_targets = {target["id"]: target for target in iter_targets(manifest, phase="eval")}
+    expected = {
+        "eval-knowledge": (
+            "Knowledge&ReviewAgent Evaluation",
+            "Knowledge&ReviewAgent Evaluation/evaluation_id.py",
+        ),
+        "eval-expert": (
+            "DeepGenomeAgent Evaluation",
+            "DeepGenomeAgent Evaluation/score.tsv",
+        ),
+    }
+
+    for target_id, (label, probe_path) in expected.items():
+        target = eval_targets[target_id]
+        assert target["label"] == label
+        assert any(probe.get("path") == probe_path for probe in target["probes"])
+
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    for label, _ in expected.values():
+        assert f"### {label}" in readme
+        assert f"`{label}/`" in readme
+
+
 def test_real_manifest_eval_targets_probe_skip_on_bare_clone():
     root = Path(__file__).resolve().parents[1]
     m = load_manifest(root / "reproduce.manifest.yaml")
