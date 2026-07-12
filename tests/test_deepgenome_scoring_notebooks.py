@@ -1,6 +1,7 @@
 import ast
 import json
 import re
+from itertools import permutations
 from pathlib import Path
 
 import nbformat
@@ -10,6 +11,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 EVAL_DIR = ROOT / "DeepGenomeAgent Evaluation"
 HALLUCINATION_NOTEBOOK = EVAL_DIR / "score_hallucination.ipynb"
+PL_NOTEBOOK = EVAL_DIR / "score_plackett_luce.ipynb"
 CJK_PATTERN = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
 SECRET_PATTERN = re.compile(r"sk-[A-Za-z0-9_-]{16,}")
 
@@ -177,3 +179,66 @@ def test_hallucination_semantic_risk_threshold_is_strict() -> None:
 
     assert not is_high_risk(0.6)
     assert is_high_risk(np.nextafter(0.6, 1.0))
+
+
+def test_plackett_luce_notebook_contract() -> None:
+    assert PL_NOTEBOOK.exists()
+    assert not (EVAL_DIR / "cal_score.ipynb").exists()
+    assert_clean_notebook(
+        PL_NOTEBOOK,
+        [
+            "# Plackett-Luce Scoring",
+            "## Scope and Method",
+            "## Reproducibility Configuration",
+            "## Load and Validate Rankings",
+            "## Fit the Plackett-Luce Model",
+            "## Elo-Like Scores and Uncertainty",
+            "## Pairwise Win Probabilities",
+            "## Reproducibility Checks",
+            "## Results and Optional Export",
+        ],
+    )
+    text = notebook_text(load_notebook(PL_NOTEBOOK))
+    assert "DEEPGENOME_SCORE_TSV" in text
+    assert "DEEPGENOME_SAVE_RESULTS" in text
+    assert "Claude" in text
+    assert "reference-parameter approximation" in text
+
+
+def test_plackett_luce_numerical_equivalence() -> None:
+    namespace = execute_tagged_source(PL_NOTEBOOK, "plackett-luce-core")
+    models = ["Gemini", "Grok", "OpenAI", "Phytomni"]
+    rankings = [list(order) for order in permutations(models)]
+    rankings.extend([["Phytomni", "OpenAI", "Grok", "Gemini"]] * 6)
+
+    xi0 = {model: 0.0 for model in models}
+    log_likelihood, gradient = namespace["pl_loglik_and_grad"](
+        xi0,
+        rankings,
+        models,
+        "Gemini",
+    )
+    assert np.isclose(log_likelihood, -95.34161491043835, atol=1e-12)
+    np.testing.assert_allclose(gradient, [-0.5, 2.5, 4.5], atol=1e-12)
+
+    fit = namespace["fit_plackett_luce"](rankings, models)
+    assert np.isclose(fit["negative_log_likelihood"], 93.43927901604626, atol=1e-6)
+    np.testing.assert_allclose(
+        [fit["xi"][model] for model in models],
+        [0.0, 0.3126965119, 0.4923752789, 0.6228591999],
+        atol=1e-6,
+    )
+    np.testing.assert_allclose(
+        fit["elo"],
+        [1437.9857450, 1492.3066929, 1523.5200917, 1546.1874704],
+        atol=1e-6,
+    )
+    np.testing.assert_allclose(
+        fit["elo_standard_error"],
+        [0.0, 56.4574659, 58.3740115, 59.6279150],
+        atol=1e-5,
+    )
+    probabilities = fit["pairwise_probabilities"]
+    assert np.isclose(probabilities[3, 0], 0.6508685493, atol=1e-6)
+    assert np.isclose(probabilities[3, 2], 0.5325747750, atol=1e-6)
+    assert np.isclose(probabilities[2, 1], 0.5447992300, atol=1e-6)
