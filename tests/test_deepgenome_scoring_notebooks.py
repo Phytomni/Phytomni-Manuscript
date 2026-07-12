@@ -6,6 +6,7 @@ from pathlib import Path
 
 import nbformat
 import numpy as np
+import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -242,3 +243,31 @@ def test_plackett_luce_numerical_equivalence() -> None:
     assert np.isclose(probabilities[3, 0], 0.6508685493, atol=1e-6)
     assert np.isclose(probabilities[3, 2], 0.5325747750, atol=1e-6)
     assert np.isclose(probabilities[2, 1], 0.5447992300, atol=1e-6)
+
+
+def test_deepgenome_manifest_probes_canonical_notebooks() -> None:
+    manifest = yaml.safe_load((ROOT / "reproduce.manifest.yaml").read_text())
+    target = next(item for item in manifest["targets"] if item["id"] == "eval-expert")
+    paths = {
+        probe["path"]
+        for probe in target["probes"]
+        if probe.get("type") == "file_exists"
+    }
+    assert paths == {
+        "DeepGenomeAgent Evaluation/score_hallucination.ipynb",
+        "DeepGenomeAgent Evaluation/score_plackett_luce.ipynb",
+        "DeepGenomeAgent Evaluation/score.tsv",
+    }
+
+
+def test_readme_documents_deepgenome_scoring_contract() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    for text in [
+        "score_hallucination.ipynb",
+        "score_plackett_luce.ipynb",
+        "uv sync --frozen --extra deepgenome-eval",
+        "mean directional contradiction ratio",
+        "cross-response inconsistency",
+        "DEEPGENOME_SCORE_TSV",
+    ]:
+        assert text in readme

@@ -158,7 +158,49 @@ The `output/` and `result/` directories it creates are gitignored.
 
 ### DeepGenomeAgent Evaluation
 
-`DeepGenomeAgent Evaluation/` plots expert-rating distributions from `score.tsv` (`plot.py`, `statistics.ipynb`). The **`score.tsv` file is not in the repo** — it contains proprietary expert ratings. Supply your own TSV with columns `Species`, model names, and rating columns `R1`–`R5`.
+`DeepGenomeAgent Evaluation/` contains two canonical scoring notebooks. `score_hallucination.ipynb` measures cross-response inconsistency. For each gene and model, it compares three repeated responses over every ordered response pair, records window-level pairwise entailment judgments, clusters mutually entailing responses to calculate normalized semantic entropy, and summarizes the validated logs with the mean directional contradiction ratio. Neither cross-response consistency nor semantic entropy directly verifies factual truth: a false claim repeated consistently across all three responses can score as consistent.
+
+`DeepGenomeAgent Evaluation/score_plackett_luce.ipynb` converts complete expert rankings of four models (`Gemini`, `Grok`, `OpenAI`, and `Phytomni`) into Plackett–Luce log-strengths, Elo-like scores and confidence intervals, and pairwise win probabilities.
+
+The private query workbook, response corpus, judgment logs, and `score.tsv` are not shipped. Exact numeric reproduction of the inconsistency results requires the frozen judgment logs used for the reported run; rerunning a drifting external judge alias can change entailment labels and therefore does not guarantee the same numbers.
+
+For an offline repository check, install only the locked base environment and run the scoring contract tests. The Plackett–Luce notebook can also execute without private data:
+
+```bash
+uv sync --frozen
+uv run pytest tests/test_deepgenome_scoring_notebooks.py -v
+uv run jupyter nbconvert --to notebook --execute --inplace \
+  "DeepGenomeAgent Evaluation/score_plackett_luce.ipynb"
+```
+
+Set `DEEPGENOME_SCORE_TSV=/absolute/path/to/score.tsv` to fit the private rankings. Add `DEEPGENOME_SAVE_RESULTS=1` only to write `pl_elo_results.csv` and `pl_pairwise_probs.csv`; exports are disabled by default. If `DEEPGENOME_SCORE_TSV` is unset, the notebook completes its deterministic checks, reports `SKIPPED`, and does not fit or invent private benchmark results.
+
+The hallucination notebook's default execution is offline, but its optional analysis dependencies are installed with the live-evaluation extra. To aggregate already frozen logs without contacting a service, leave live judging disabled and provide only the log directory:
+
+```bash
+uv sync --frozen --extra deepgenome-eval
+DEEPGENOME_JUDGMENT_DIR=/absolute/path/to/frozen/judgment-logs \
+  uv run --extra deepgenome-eval jupyter nbconvert --to notebook --execute --inplace \
+  "DeepGenomeAgent Evaluation/score_hallucination.ipynb"
+```
+
+For a new live hallucination run, install the same extra and the NLTK sentence tokenizer, then explicitly opt in to API requests:
+
+```bash
+uv sync --frozen --extra deepgenome-eval
+uv run --extra deepgenome-eval python -m nltk.downloader punkt_tab
+DEEPGENOME_QUERY_WORKBOOK=/absolute/path/to/queries.xlsx \
+DEEPGENOME_RESPONSE_ROOT=/absolute/path/to/response-corpus \
+DEEPGENOME_JUDGMENT_DIR=/absolute/path/to/judgment-logs \
+DEEPGENOME_API_BASE_URL=https://judge.example/v1 \
+DEEPGENOME_API_KEY=replace-with-private-key \
+DEEPGENOME_JUDGE_MODEL=replace-with-pinned-model \
+DEEPGENOME_RUN_LIVE_JUDGING=1 \
+  uv run --extra deepgenome-eval jupyter nbconvert --to notebook --execute --inplace \
+  "DeepGenomeAgent Evaluation/score_hallucination.ipynb"
+```
+
+All seven hallucination variables are explicit: `DEEPGENOME_QUERY_WORKBOOK`, `DEEPGENOME_RESPONSE_ROOT`, `DEEPGENOME_JUDGMENT_DIR`, `DEEPGENOME_API_BASE_URL`, `DEEPGENOME_API_KEY`, `DEEPGENOME_JUDGE_MODEL`, and `DEEPGENOME_RUN_LIVE_JUDGING`. With live judging unset, with incomplete live configuration, with a missing judgment directory, or with no valid logs, the notebook reports the corresponding `SKIPPED` reason instead of fabricating a score. API requests occur only when `DEEPGENOME_RUN_LIVE_JUDGING=1` and the other six settings are complete.
 
 ## Help
 

@@ -219,6 +219,12 @@ AnalystAgent Evaluation/submit_log/
 DataAgent Evaluation/output/
 DataAgent Evaluation/result/
 
+# Private DeepGenome evaluation inputs and generated outputs
+DeepGenomeAgent Evaluation/score.tsv
+DeepGenomeAgent Evaluation/hallucination_analysis/
+DeepGenomeAgent Evaluation/pl_elo_results.csv
+DeepGenomeAgent Evaluation/pl_pairwise_probs.csv
+
 # Figure artifacts emitted when PHYTOMNI_SAVE=1 (per-figure-dir output/)
 output/
 
