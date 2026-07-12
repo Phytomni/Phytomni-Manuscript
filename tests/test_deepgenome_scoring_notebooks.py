@@ -423,6 +423,32 @@ def test_hallucination_malformed_summary_stubs_cannot_score(
     assert result["mean_directional_contradiction_ratio"] is None
 
 
+def test_hallucination_extreme_integer_ratio_is_invalid_without_aborting(
+    tmp_path: Path,
+) -> None:
+    namespace = execute_tagged_source(HALLUCINATION_NOTEBOOK, "hallucination-core")
+    aggregate = namespace["aggregate_model_logs"]
+    extreme_log = tmp_path / "phytomni__extreme__rep_1-rep_2-rep_3.json"
+    extreme_records = complete_primary_log()
+    extreme_records[1] = {
+        **extreme_records[1],
+        "contra_ratio": 10**400,
+    }
+    extreme_log.write_text(json.dumps(extreme_records), encoding="utf-8")
+    valid_log = tmp_path / "phytomni__valid__rep_1-rep_2-rep_3.json"
+    valid_log.write_text(
+        json.dumps(complete_primary_log([0.2] * 6)),
+        encoding="utf-8",
+    )
+
+    result = aggregate("phytomni", ["extreme", "valid"], tmp_path)
+
+    assert result["valid_log_count"] == 1
+    assert result["invalid_log_count"] == 1
+    assert result["invalid_gene_ids"] == ["extreme"]
+    assert np.isclose(result["mean_directional_contradiction_ratio"], 0.2)
+
+
 def test_hallucination_gene_threshold_is_inclusive(tmp_path: Path) -> None:
     namespace = execute_tagged_source(HALLUCINATION_NOTEBOOK, "hallucination-core")
     aggregate = namespace["aggregate_model_logs"]
@@ -615,3 +641,17 @@ def test_readme_documents_deepgenome_scoring_contract() -> None:
         "fails before constructing the judge client",
     ]:
         assert text in readme
+
+    deepgenome_section = readme.split(
+        "### DeepGenomeAgent Evaluation",
+        maxsplit=1,
+    )[1].split("## Help", maxsplit=1)[0]
+    output_dir = "/tmp/deepgenome-notebook-runs"
+    assert "--inplace" not in deepgenome_section
+    assert deepgenome_section.count(f"mkdir -p {output_dir}") == 3
+    assert deepgenome_section.count(f"--output-dir={output_dir}") == 3
+    for notebook_name in [
+        "score_hallucination.ipynb",
+        "score_plackett_luce.ipynb",
+    ]:
+        assert f"{output_dir}/{notebook_name}" in deepgenome_section

@@ -169,9 +169,13 @@ For an offline repository check, install only the locked base environment and ru
 ```bash
 uv sync --frozen
 uv run --no-sync pytest tests/test_deepgenome_scoring_notebooks.py -v
-uv run jupyter nbconvert --to notebook --execute --inplace \
+mkdir -p /tmp/deepgenome-notebook-runs
+uv run --no-sync jupyter nbconvert --to notebook --execute \
+  --output-dir=/tmp/deepgenome-notebook-runs \
   "DeepGenomeAgent Evaluation/score_plackett_luce.ipynb"
 ```
+
+`nbconvert` writes executed copies to `/tmp/deepgenome-notebook-runs/score_plackett_luce.ipynb` and `/tmp/deepgenome-notebook-runs/score_hallucination.ipynb`; the tracked canonical notebooks remain output-free. The same temporary output directory is used in the private-log and live examples below.
 
 Set `DEEPGENOME_SCORE_TSV=/absolute/path/to/score.tsv` to fit the private rankings. Add `DEEPGENOME_SAVE_RESULTS=1` only to write `pl_elo_results.csv` and `pl_pairwise_probs.csv`; exports are disabled by default. If `DEEPGENOME_SCORE_TSV` is unset, the notebook completes its deterministic checks, reports `SKIPPED`, and does not fit or invent private benchmark results.
 
@@ -179,8 +183,10 @@ The hallucination notebook's default execution is offline, but its optional anal
 
 ```bash
 uv sync --frozen --extra deepgenome-eval
+mkdir -p /tmp/deepgenome-notebook-runs
 DEEPGENOME_JUDGMENT_DIR=/absolute/path/to/frozen/judgment-logs \
-  uv run --extra deepgenome-eval jupyter nbconvert --to notebook --execute --inplace \
+  uv run --no-sync --extra deepgenome-eval jupyter nbconvert \
+  --to notebook --execute --output-dir=/tmp/deepgenome-notebook-runs \
   "DeepGenomeAgent Evaluation/score_hallucination.ipynb"
 ```
 
@@ -190,6 +196,7 @@ For a new live hallucination run, install the same extra and the NLTK sentence t
 uv sync --frozen --extra deepgenome-eval
 uv run --extra deepgenome-eval python -m nltk.downloader punkt_tab
 mkdir -p /absolute/path/to/judgment-logs
+mkdir -p /tmp/deepgenome-notebook-runs
 DEEPGENOME_QUERY_WORKBOOK=/absolute/path/to/queries.xlsx \
 DEEPGENOME_RESPONSE_ROOT=/absolute/path/to/response-corpus \
 DEEPGENOME_JUDGMENT_DIR=/absolute/path/to/judgment-logs \
@@ -197,7 +204,8 @@ DEEPGENOME_API_BASE_URL=https://judge.example/v1 \
 DEEPGENOME_API_KEY=replace-with-private-key \
 DEEPGENOME_JUDGE_MODEL=replace-with-pinned-model \
 DEEPGENOME_RUN_LIVE_JUDGING=1 \
-  uv run --extra deepgenome-eval jupyter nbconvert --to notebook --execute --inplace \
+  uv run --no-sync --extra deepgenome-eval jupyter nbconvert \
+  --to notebook --execute --output-dir=/tmp/deepgenome-notebook-runs \
   "DeepGenomeAgent Evaluation/score_hallucination.ipynb"
 ```
 
