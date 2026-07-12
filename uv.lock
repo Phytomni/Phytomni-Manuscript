@@ -1581,6 +1581,7 @@ deepgenome-eval = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "networkx" },
     { name = "pytest" },
 ]
 
@@ -1607,7 +1608,10 @@ requires-dist = [
 provides-extras = ["deepgenome-eval"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=8.0" }]
+dev = [
+    { name = "networkx", specifier = ">=3.4.2" },
+    { name = "pytest", specifier = ">=8.0" },
+]
 
 [[package]]
 name = "pillow"

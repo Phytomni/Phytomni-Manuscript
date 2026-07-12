@@ -158,7 +158,7 @@ The `output/` and `result/` directories it creates are gitignored.
 
 ### DeepGenomeAgent Evaluation
 
-`DeepGenomeAgent Evaluation/` contains two canonical scoring notebooks. `score_hallucination.ipynb` measures cross-response inconsistency. For each gene and model, it compares three repeated responses over every ordered response pair, records window-level pairwise entailment judgments, clusters mutually entailing responses to calculate normalized semantic entropy, and summarizes the validated logs with the mean directional contradiction ratio. Neither cross-response consistency nor semantic entropy directly verifies factual truth: a false claim repeated consistently across all three responses can score as consistent.
+`DeepGenomeAgent Evaluation/` contains two canonical scoring notebooks. `score_hallucination.ipynb` measures cross-response inconsistency. For each gene and model, it compares three repeated responses over every ordered response pair, records window-level pairwise entailment judgments, clusters mutually entailing responses to calculate normalized semantic entropy, and summarizes structurally complete logs with the primary `mean_directional_contradiction_ratio` and the inclusive-threshold `high_contradiction_gene_fraction`. Neither cross-response consistency nor semantic entropy directly verifies factual truth: a false claim repeated consistently across all three responses can score as consistent.
 
 `DeepGenomeAgent Evaluation/score_plackett_luce.ipynb` converts complete expert rankings of four models (`Gemini`, `Grok`, `OpenAI`, and `Phytomni`) into Plackett–Luce log-strengths, Elo-like scores and confidence intervals, and pairwise win probabilities.
 
@@ -168,7 +168,7 @@ For an offline repository check, install only the locked base environment and ru
 
 ```bash
 uv sync --frozen
-uv run pytest tests/test_deepgenome_scoring_notebooks.py -v
+uv run --no-sync pytest tests/test_deepgenome_scoring_notebooks.py -v
 uv run jupyter nbconvert --to notebook --execute --inplace \
   "DeepGenomeAgent Evaluation/score_plackett_luce.ipynb"
 ```
@@ -184,11 +184,12 @@ DEEPGENOME_JUDGMENT_DIR=/absolute/path/to/frozen/judgment-logs \
   "DeepGenomeAgent Evaluation/score_hallucination.ipynb"
 ```
 
-For a new live hallucination run, install the same extra and the NLTK sentence tokenizer, then explicitly opt in to API requests:
+For a new live hallucination run, install the same extra and the NLTK sentence tokenizer, create the judgment-log directory, then explicitly opt in to API requests:
 
 ```bash
 uv sync --frozen --extra deepgenome-eval
 uv run --extra deepgenome-eval python -m nltk.downloader punkt_tab
+mkdir -p /absolute/path/to/judgment-logs
 DEEPGENOME_QUERY_WORKBOOK=/absolute/path/to/queries.xlsx \
 DEEPGENOME_RESPONSE_ROOT=/absolute/path/to/response-corpus \
 DEEPGENOME_JUDGMENT_DIR=/absolute/path/to/judgment-logs \
@@ -200,7 +201,7 @@ DEEPGENOME_RUN_LIVE_JUDGING=1 \
   "DeepGenomeAgent Evaluation/score_hallucination.ipynb"
 ```
 
-All seven hallucination variables are explicit: `DEEPGENOME_QUERY_WORKBOOK`, `DEEPGENOME_RESPONSE_ROOT`, `DEEPGENOME_JUDGMENT_DIR`, `DEEPGENOME_API_BASE_URL`, `DEEPGENOME_API_KEY`, `DEEPGENOME_JUDGE_MODEL`, and `DEEPGENOME_RUN_LIVE_JUDGING`. With live judging unset, with incomplete live configuration, with a missing judgment directory, or with no valid logs, the notebook reports the corresponding `SKIPPED` reason instead of fabricating a score. API requests occur only when `DEEPGENOME_RUN_LIVE_JUDGING=1` and the other six settings are complete.
+All seven hallucination variables are explicit: `DEEPGENOME_QUERY_WORKBOOK`, `DEEPGENOME_RESPONSE_ROOT`, `DEEPGENOME_JUDGMENT_DIR`, `DEEPGENOME_API_BASE_URL`, `DEEPGENOME_API_KEY`, `DEEPGENOME_JUDGE_MODEL`, and `DEEPGENOME_RUN_LIVE_JUDGING`. With live judging disabled, a missing judgment directory or the absence of valid logs reports `SKIPPED` instead of fabricating a score. When `DEEPGENOME_RUN_LIVE_JUDGING=1`, any unset or nonexistent private input, missing API setting, or unavailable NLTK `punkt_tab` raises an actionable error and fails before constructing the judge client. Each live log records only a sanitized API base URL, judge model, UTC timestamp, relevant package versions, and SHA-256 checksums for the question and ordered responses; it never serializes the API key or URL credentials, query, or fragment.
 
 ## Help
 

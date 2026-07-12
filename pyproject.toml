@@ -28,4 +28,7 @@ deepgenome-eval = [
 ]
 
 [dependency-groups]
-dev = ["pytest>=8.0"]
+dev = [
+    "networkx>=3.4.2",
+    "pytest>=8.0",
+]
