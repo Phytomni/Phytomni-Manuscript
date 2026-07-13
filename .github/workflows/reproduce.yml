@@ -71,6 +71,7 @@ jobs:
         run: Rscript -e 'if (requireNamespace("renv", quietly=TRUE)) renv::restore(prompt=FALSE)'
       - name: Install R packages + kernel + ggradar
         run: |
+          source .venv/bin/activate
           Rscript -e 'install.packages(c("renv"), repos="https://cloud.r-project.org")'
           Rscript -e 'packages <- c("tidyverse","scales","treemapify","viridis","readxl","RColorBrewer","rmarkdown","IRkernel"); missing <- packages[!vapply(packages, requireNamespace, logical(1), quietly=TRUE)]; if (length(missing)) install.packages(missing, repos="https://cloud.r-project.org")'
           Rscript -e 'if (!requireNamespace("ggradar", quietly=TRUE)) { if (!requireNamespace("remotes", quietly=TRUE)) install.packages("remotes", repos="https://cloud.r-project.org"); remotes::install_github("ricardo-bion/ggradar", ref="f99517ae4df2903d3dbd4116af91b24009a5ac93", upgrade="never") }'

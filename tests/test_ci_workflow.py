@@ -111,6 +111,21 @@ def test_uv_job_installs_each_missing_r_dependency_independently() -> None:
         assert f'"{package}"' in run_block
 
 
+def test_uv_job_activates_python_env_before_registering_r_kernel() -> None:
+    workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+    install_step = next(
+        step
+        for step in workflow["jobs"]["uv"]["steps"]
+        if step.get("name") == "Install R packages + kernel + ggradar"
+    )
+    run_block = install_step["run"]
+
+    activation = "source .venv/bin/activate"
+    registration = "IRkernel::installspec(user = TRUE)"
+    assert activation in run_block
+    assert run_block.index(activation) < run_block.index(registration)
+
+
 def test_r_jobs_activate_the_project_library_from_figure_directories() -> None:
     workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
 
