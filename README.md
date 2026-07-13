@@ -158,7 +158,58 @@ The `output/` and `result/` directories it creates are gitignored.
 
 ### DeepGenomeAgent Evaluation
 
-`DeepGenomeAgent Evaluation/` plots expert-rating distributions from `score.tsv` (`plot.py`, `statistics.ipynb`). The **`score.tsv` file is not in the repo** — it contains proprietary expert ratings. Supply your own TSV with columns `Species`, model names, and rating columns `R1`–`R5`.
+`DeepGenomeAgent Evaluation/` contains two canonical scoring notebooks. `score_hallucination.ipynb` measures cross-response inconsistency. For each gene and model, it compares three repeated responses over every ordered response pair, records window-level pairwise entailment judgments, clusters mutually entailing responses to calculate normalized semantic entropy, and summarizes structurally complete logs with the primary `mean_directional_contradiction_ratio` and the inclusive-threshold `high_contradiction_gene_fraction`. Neither cross-response consistency nor semantic entropy directly verifies factual truth: a false claim repeated consistently across all three responses can score as consistent.
+
+`DeepGenomeAgent Evaluation/score_plackett_luce.ipynb` converts complete expert rankings into Plackett–Luce log-strengths, Elo-like scores and confidence intervals, and pairwise win probabilities. Its default target set contains five models (`Gemini`, `Grok`, `OpenAI`, `Phytomni`, and `Claude`), while the likelihood implementation supports any configured count of at least two models.
+
+The private query workbook, response corpus, judgment logs, and `score.tsv` are not shipped. Exact numeric reproduction of the inconsistency results requires the frozen judgment logs used for the reported run; rerunning a drifting external judge alias can change entailment labels and therefore does not guarantee the same numbers.
+
+For an offline repository check, install only the locked base environment and run the scoring contract tests. The Plackett–Luce notebook can also execute without private data:
+
+```bash
+uv sync --frozen
+uv run --no-sync pytest tests/test_deepgenome_scoring_notebooks.py -v
+mkdir -p /tmp/deepgenome-notebook-runs
+uv run --no-sync jupyter nbconvert --to notebook --execute \
+  --output-dir=/tmp/deepgenome-notebook-runs \
+  "DeepGenomeAgent Evaluation/score_plackett_luce.ipynb"
+```
+
+`nbconvert` writes executed copies to `/tmp/deepgenome-notebook-runs/score_plackett_luce.ipynb` and `/tmp/deepgenome-notebook-runs/score_hallucination.ipynb`; the tracked canonical notebooks remain output-free. The same temporary output directory is used in the private-log and live examples below.
+
+Set `DEEPGENOME_SCORE_TSV=/absolute/path/to/score.tsv` to fit the private rankings. The five default model columns match the planned benchmark input; set `DEEPGENOME_MODEL_COLUMNS=Gemini,Claude,Model_X` to supply a different comma-separated set while retaining `Gemini` as the reference model. Add `DEEPGENOME_SAVE_RESULTS=1` only to write `pl_elo_results.csv` and `pl_pairwise_probs.csv`; exports are disabled by default. If `DEEPGENOME_SCORE_TSV` is unset, the notebook completes its deterministic checks, reports `SKIPPED`, and does not fit or invent private benchmark results.
+
+The hallucination notebook's default execution is offline, but its optional analysis dependencies are installed with the live-evaluation extra. To aggregate already frozen logs without contacting a service, leave live judging disabled and provide only the log directory:
+
+```bash
+uv sync --frozen --extra deepgenome-eval
+mkdir -p /tmp/deepgenome-notebook-runs
+DEEPGENOME_JUDGMENT_DIR=/absolute/path/to/frozen/judgment-logs \
+  uv run --no-sync --extra deepgenome-eval jupyter nbconvert \
+  --to notebook --execute --output-dir=/tmp/deepgenome-notebook-runs \
+  "DeepGenomeAgent Evaluation/score_hallucination.ipynb"
+```
+
+For a new live hallucination run, install the same extra and the NLTK sentence tokenizer, create the judgment-log directory, then explicitly opt in to API requests:
+
+```bash
+uv sync --frozen --extra deepgenome-eval
+uv run --extra deepgenome-eval python -m nltk.downloader punkt_tab
+mkdir -p /absolute/path/to/judgment-logs
+mkdir -p /tmp/deepgenome-notebook-runs
+DEEPGENOME_QUERY_WORKBOOK=/absolute/path/to/queries.xlsx \
+DEEPGENOME_RESPONSE_ROOT=/absolute/path/to/response-corpus \
+DEEPGENOME_JUDGMENT_DIR=/absolute/path/to/judgment-logs \
+DEEPGENOME_API_BASE_URL=https://judge.example/v1 \
+DEEPGENOME_API_KEY=replace-with-private-key \
+DEEPGENOME_JUDGE_MODEL=replace-with-pinned-model \
+DEEPGENOME_RUN_LIVE_JUDGING=1 \
+  uv run --no-sync --extra deepgenome-eval jupyter nbconvert \
+  --to notebook --execute --output-dir=/tmp/deepgenome-notebook-runs \
+  "DeepGenomeAgent Evaluation/score_hallucination.ipynb"
+```
+
+All seven hallucination variables are explicit: `DEEPGENOME_QUERY_WORKBOOK`, `DEEPGENOME_RESPONSE_ROOT`, `DEEPGENOME_JUDGMENT_DIR`, `DEEPGENOME_API_BASE_URL`, `DEEPGENOME_API_KEY`, `DEEPGENOME_JUDGE_MODEL`, and `DEEPGENOME_RUN_LIVE_JUDGING`. With live judging disabled, a missing judgment directory or the absence of valid logs reports `SKIPPED` instead of fabricating a score. When `DEEPGENOME_RUN_LIVE_JUDGING=1`, any unset or nonexistent private input, missing API setting, or unavailable NLTK `punkt_tab` raises an actionable error and fails before constructing the judge client. Each live log records only a sanitized API base URL, judge model, UTC timestamp, relevant package versions, and SHA-256 checksums for the question and ordered responses; it never serializes the API key or URL credentials, query, or fragment.
 
 ## Help
 

@@ -6,6 +6,9 @@ jobs:
   conda:
     name: conda env + figures
     runs-on: ubuntu-latest
+    env:
+      R_PROFILE_USER: ${{ github.workspace }}/.Rprofile
+      RENV_PROJECT: ${{ github.workspace }}
     defaults:
       run:
         shell: bash -el {0}
@@ -18,17 +21,18 @@ jobs:
       # renv.lock fingerprints R package versions; conda supplies r-base + R libs.
       # Optional restore (best-effort — conda env may already satisfy renv.lock):
       - name: Restore R library from renv.lock (optional)
+        id: conda_renv_restore
         continue-on-error: true
-        run: Rscript -e 'if (requireNamespace("renv", quietly=TRUE)) renv::restore(prompt=FALSE)'
+        run: Rscript -e 'renv::restore(prompt=FALSE)'
+      - name: Fall back to conda R library
+        if: steps.conda_renv_restore.outcome == 'failure'
+        run: |
+          echo "RENV_CONFIG_AUTOLOADER_ENABLED=FALSE" >> "$GITHUB_ENV"
+          echo "R_PROFILE_USER=/dev/null" >> "$GITHUB_ENV"
       - name: Install ggradar (GitHub-only) + register R kernel
         run: |
-          Rscript -e 'remotes::install_github("ricardo-bion/ggradar", upgrade="never")'
+          Rscript -e 'if (!requireNamespace("ggradar", quietly=TRUE)) install.packages("https://github.com/ricardo-bion/ggradar/archive/f99517ae4df2903d3dbd4116af91b24009a5ac93.tar.gz", repos=NULL, type="source")'
           Rscript -e 'IRkernel::installspec(user = TRUE)'
-      # renv::restore() may conflict with conda R library paths; fail-open fingerprint only.
-      - name: Attempt renv restore (optional fingerprint)
-        continue-on-error: true
-        run: |
-          Rscript -e 'if (requireNamespace("renv", quietly=TRUE)) renv::restore(prompt=FALSE)'
       - name: Check README matrix matches manifest
         run: |
           python -m scripts.render_reproduce_matrix --write-readme README.md
@@ -45,6 +49,9 @@ jobs:
   uv:
     name: uv.lock + figures
     runs-on: ubuntu-latest
+    env:
+      R_PROFILE_USER: ${{ github.workspace }}/.Rprofile
+      RENV_PROJECT: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -64,9 +71,10 @@ jobs:
         run: Rscript -e 'if (requireNamespace("renv", quietly=TRUE)) renv::restore(prompt=FALSE)'
       - name: Install R packages + kernel + ggradar
         run: |
+          source .venv/bin/activate
           Rscript -e 'install.packages(c("renv"), repos="https://cloud.r-project.org")'
-          Rscript -e 'if (!requireNamespace("tidyverse", quietly=TRUE)) install.packages(c("tidyverse","scales","treemapify","viridis","readxl","RColorBrewer","rmarkdown","remotes","IRkernel"), repos="https://cloud.r-project.org")'
-          Rscript -e 'remotes::install_github("ricardo-bion/ggradar", upgrade="never")'
+          Rscript -e 'packages <- c("tidyverse","scales","treemapify","viridis","readxl","RColorBrewer","rmarkdown","IRkernel"); missing <- packages[!vapply(packages, requireNamespace, logical(1), quietly=TRUE)]; if (length(missing)) install.packages(missing, repos="https://cloud.r-project.org")'
+          Rscript -e 'if (!requireNamespace("ggradar", quietly=TRUE)) install.packages("https://github.com/ricardo-bion/ggradar/archive/f99517ae4df2903d3dbd4116af91b24009a5ac93.tar.gz", repos=NULL, type="source")'
           Rscript -e 'IRkernel::installspec(user = TRUE)'
       - name: Reproduce all figures (smoke) in uv env
         run: |

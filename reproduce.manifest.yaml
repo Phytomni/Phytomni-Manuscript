@@ -317,4 +317,6 @@ targets:
     kind: eval_probe
     status: run
     probes:
+      - { type: file_exists, path: "DeepGenomeAgent Evaluation/score_hallucination.ipynb" }
+      - { type: file_exists, path: "DeepGenomeAgent Evaluation/score_plackett_luce.ipynb" }
       - { type: file_exists, path: "DeepGenomeAgent Evaluation/score.tsv" }

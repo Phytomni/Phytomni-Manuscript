@@ -19,5 +19,16 @@ dependencies = [
     "seaborn>=0.13.2",
 ]
 
+[project.optional-dependencies]
+deepgenome-eval = [
+    "aiofiles>=24.1.0",
+    "networkx>=3.4.2",
+    "nltk>=3.9.1",
+    "openai>=2.0.0",
+]
+
 [dependency-groups]
-dev = ["pytest>=8.0"]
+dev = [
+    "networkx>=3.4.2",
+    "pytest>=8.0",
+]
