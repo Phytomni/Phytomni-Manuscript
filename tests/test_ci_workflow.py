@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "reproduce.yml"
 
 
-def test_r_jobs_bootstrap_remotes_before_installing_ggradar() -> None:
+def test_r_jobs_install_locked_ggradar_without_github_credentials() -> None:
     workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
     lock = json.loads((ROOT / "renv.lock").read_text(encoding="utf-8"))
     ggradar_sha = lock["Packages"]["ggradar"]["RemoteSha"]
@@ -22,25 +22,20 @@ def test_r_jobs_bootstrap_remotes_before_installing_ggradar() -> None:
         run_blocks = [
             step["run"]
             for step in workflow["jobs"][job_name]["steps"]
-            if "remotes::install_github" in step.get("run", "")
+            if "ggradar" in step.get("name", "").lower()
         ]
         assert len(run_blocks) == 1, job_name
         run_block = run_blocks[0]
-        bootstrap = re.search(
-            r'if \(!requireNamespace\("remotes", quietly=TRUE\)\) '
-            r'install\.packages\("remotes",',
-            run_block,
-        )
         ggradar_guard = 'if (!requireNamespace("ggradar", quietly=TRUE))'
 
-        assert bootstrap is not None, job_name
         assert ggradar_guard in run_block, job_name
         assert ggradar_sha in run_block, job_name
-        assert (
-            run_block.index(ggradar_guard)
-            < bootstrap.start()
-            < run_block.index("remotes::install_github")
-        ), job_name
+        assert "https://github.com/ricardo-bion/ggradar/archive/" in run_block
+        assert "repos=NULL" in run_block
+        assert 'type="source"' in run_block
+        assert "remotes::" not in run_block
+        assert "GITHUB_PAT" not in run_block
+        assert "GITHUB_TOKEN" not in run_block
 
 
 def test_conda_job_falls_back_when_optional_renv_restore_fails() -> None:

@@ -31,7 +31,7 @@ jobs:
           echo "R_PROFILE_USER=/dev/null" >> "$GITHUB_ENV"
       - name: Install ggradar (GitHub-only) + register R kernel
         run: |
-          Rscript -e 'if (!requireNamespace("ggradar", quietly=TRUE)) { if (!requireNamespace("remotes", quietly=TRUE)) install.packages("remotes", repos="https://cloud.r-project.org"); remotes::install_github("ricardo-bion/ggradar", ref="f99517ae4df2903d3dbd4116af91b24009a5ac93", upgrade="never") }'
+          Rscript -e 'if (!requireNamespace("ggradar", quietly=TRUE)) install.packages("https://github.com/ricardo-bion/ggradar/archive/f99517ae4df2903d3dbd4116af91b24009a5ac93.tar.gz", repos=NULL, type="source")'
           Rscript -e 'IRkernel::installspec(user = TRUE)'
       - name: Check README matrix matches manifest
         run: |
@@ -74,7 +74,7 @@ jobs:
           source .venv/bin/activate
           Rscript -e 'install.packages(c("renv"), repos="https://cloud.r-project.org")'
           Rscript -e 'packages <- c("tidyverse","scales","treemapify","viridis","readxl","RColorBrewer","rmarkdown","IRkernel"); missing <- packages[!vapply(packages, requireNamespace, logical(1), quietly=TRUE)]; if (length(missing)) install.packages(missing, repos="https://cloud.r-project.org")'
-          Rscript -e 'if (!requireNamespace("ggradar", quietly=TRUE)) { if (!requireNamespace("remotes", quietly=TRUE)) install.packages("remotes", repos="https://cloud.r-project.org"); remotes::install_github("ricardo-bion/ggradar", ref="f99517ae4df2903d3dbd4116af91b24009a5ac93", upgrade="never") }'
+          Rscript -e 'if (!requireNamespace("ggradar", quietly=TRUE)) install.packages("https://github.com/ricardo-bion/ggradar/archive/f99517ae4df2903d3dbd4116af91b24009a5ac93.tar.gz", repos=NULL, type="source")'
           Rscript -e 'IRkernel::installspec(user = TRUE)'
       - name: Reproduce all figures (smoke) in uv env
         run: |
