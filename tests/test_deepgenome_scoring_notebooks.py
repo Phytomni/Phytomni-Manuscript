@@ -511,6 +511,14 @@ def test_plackett_luce_notebook_contract() -> None:
     assert "DEEPGENOME_SCORE_TSV" in text
     assert "DEEPGENOME_SAVE_RESULTS" in text
     assert "Claude" in text
+    namespace = execute_tagged_source(PL_NOTEBOOK, "plackett-luce-core")
+    assert namespace["MODEL_COLUMNS"] == (
+        "Gemini",
+        "Grok",
+        "OpenAI",
+        "Phytomni",
+        "Claude",
+    )
     assert "reference-parameter approximation" in text
 
 
@@ -553,6 +561,90 @@ def test_plackett_luce_numerical_equivalence() -> None:
     assert np.isclose(probabilities[2, 1], 0.5447992300, atol=1e-6)
 
 
+@pytest.mark.parametrize("model_count", [2, 3, 5, 6])
+def test_plackett_luce_likelihood_supports_arbitrary_model_counts(
+    model_count: int,
+) -> None:
+    namespace = execute_tagged_source(PL_NOTEBOOK, "plackett-luce-core")
+    models = ["Gemini", *[f"Model_{index}" for index in range(1, model_count)]]
+    ranking = list(reversed(models))
+    xi = {model: 0.0 for model in models}
+
+    log_likelihood, gradient = namespace["pl_loglik_and_grad"](
+        xi,
+        [ranking],
+        models,
+        "Gemini",
+    )
+
+    assert np.isclose(
+        log_likelihood,
+        -sum(np.log(stage_size) for stage_size in range(2, model_count + 1)),
+        atol=1e-12,
+    )
+    expected_gradient = [
+        1.0
+        - sum(
+            1.0 / (model_count - stage)
+            for stage in range(ranking.index(model) + 1)
+        )
+        for model in models
+        if model != "Gemini"
+    ]
+    np.testing.assert_allclose(gradient, expected_gradient, atol=1e-12)
+
+
+def test_plackett_luce_model_columns_are_configurable() -> None:
+    namespace = execute_tagged_source(PL_NOTEBOOK, "plackett-luce-core")
+    resolve = namespace["resolve_model_columns"]
+
+    assert resolve(None) == namespace["MODEL_COLUMNS"]
+    assert resolve("Gemini, Claude, Model_X") == (
+        "Gemini",
+        "Claude",
+        "Model_X",
+    )
+    with pytest.raises(ValueError, match="at least two"):
+        resolve("Gemini")
+    with pytest.raises(ValueError, match="duplicate"):
+        resolve("Gemini,Claude,Claude")
+    with pytest.raises(ValueError, match="reference model"):
+        resolve("Claude,Model_X")
+
+    checks_source = code_cell_source(PL_NOTEBOOK, "pl-checks")
+    assert "list(benchmark_model_columns)" in checks_source
+
+
+def test_plackett_luce_fits_balanced_five_model_rankings() -> None:
+    namespace = execute_tagged_source(PL_NOTEBOOK, "plackett-luce-core")
+    models = list(namespace["MODEL_COLUMNS"])
+    rankings = [list(order) for order in permutations(models)]
+
+    fit = namespace["fit_plackett_luce"](rankings, models)
+
+    assert fit["optimizer_result"].success
+    expected_negative_log_likelihood = len(rankings) * sum(
+        np.log(stage_size) for stage_size in range(2, len(models) + 1)
+    )
+    assert np.isclose(
+        fit["negative_log_likelihood"],
+        expected_negative_log_likelihood,
+        atol=1e-10,
+    )
+    np.testing.assert_allclose(
+        [fit["xi"][model] for model in fit["models"]],
+        np.zeros(len(models)),
+        atol=1e-10,
+    )
+    np.testing.assert_allclose(fit["elo"], np.full(len(models), 1500.0))
+    probabilities = fit["pairwise_probabilities"]
+    assert probabilities.shape == (len(models), len(models))
+    np.testing.assert_allclose(
+        probabilities[~np.eye(len(models), dtype=bool)],
+        0.5,
+    )
+
+
 def test_plackett_luce_parse_rankings_preserves_permissive_semantics() -> None:
     namespace = execute_tagged_source(PL_NOTEBOOK, "plackett-luce-core")
     frame = pd.DataFrame(
@@ -569,10 +661,9 @@ def test_plackett_luce_parse_rankings_preserves_permissive_semantics() -> None:
 
     assert skipped == 1
     assert rankings == [
-        ["Phytomni", "Grok", "OpenAI", "Gemini"],
-        ["Gemini", "Grok", "OpenAI", "Phytomni"],
+        ["Claude", "Phytomni", "Grok", "OpenAI", "Gemini"],
+        ["Claude", "Gemini", "Grok", "OpenAI", "Phytomni"],
     ]
-    assert all("Claude" not in ranking for ranking in rankings)
 
 
 def test_plackett_luce_output_tables_have_stable_contract() -> None:

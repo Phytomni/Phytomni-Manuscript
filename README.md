@@ -160,7 +160,7 @@ The `output/` and `result/` directories it creates are gitignored.
 
 `DeepGenomeAgent Evaluation/` contains two canonical scoring notebooks. `score_hallucination.ipynb` measures cross-response inconsistency. For each gene and model, it compares three repeated responses over every ordered response pair, records window-level pairwise entailment judgments, clusters mutually entailing responses to calculate normalized semantic entropy, and summarizes structurally complete logs with the primary `mean_directional_contradiction_ratio` and the inclusive-threshold `high_contradiction_gene_fraction`. Neither cross-response consistency nor semantic entropy directly verifies factual truth: a false claim repeated consistently across all three responses can score as consistent.
 
-`DeepGenomeAgent Evaluation/score_plackett_luce.ipynb` converts complete expert rankings of four models (`Gemini`, `Grok`, `OpenAI`, and `Phytomni`) into Plackett–Luce log-strengths, Elo-like scores and confidence intervals, and pairwise win probabilities.
+`DeepGenomeAgent Evaluation/score_plackett_luce.ipynb` converts complete expert rankings into Plackett–Luce log-strengths, Elo-like scores and confidence intervals, and pairwise win probabilities. Its default target set contains five models (`Gemini`, `Grok`, `OpenAI`, `Phytomni`, and `Claude`), while the likelihood implementation supports any configured count of at least two models.
 
 The private query workbook, response corpus, judgment logs, and `score.tsv` are not shipped. Exact numeric reproduction of the inconsistency results requires the frozen judgment logs used for the reported run; rerunning a drifting external judge alias can change entailment labels and therefore does not guarantee the same numbers.
 
@@ -177,7 +177,7 @@ uv run --no-sync jupyter nbconvert --to notebook --execute \
 
 `nbconvert` writes executed copies to `/tmp/deepgenome-notebook-runs/score_plackett_luce.ipynb` and `/tmp/deepgenome-notebook-runs/score_hallucination.ipynb`; the tracked canonical notebooks remain output-free. The same temporary output directory is used in the private-log and live examples below.
 
-Set `DEEPGENOME_SCORE_TSV=/absolute/path/to/score.tsv` to fit the private rankings. Add `DEEPGENOME_SAVE_RESULTS=1` only to write `pl_elo_results.csv` and `pl_pairwise_probs.csv`; exports are disabled by default. If `DEEPGENOME_SCORE_TSV` is unset, the notebook completes its deterministic checks, reports `SKIPPED`, and does not fit or invent private benchmark results.
+Set `DEEPGENOME_SCORE_TSV=/absolute/path/to/score.tsv` to fit the private rankings. The five default model columns match the planned benchmark input; set `DEEPGENOME_MODEL_COLUMNS=Gemini,Claude,Model_X` to supply a different comma-separated set while retaining `Gemini` as the reference model. Add `DEEPGENOME_SAVE_RESULTS=1` only to write `pl_elo_results.csv` and `pl_pairwise_probs.csv`; exports are disabled by default. If `DEEPGENOME_SCORE_TSV` is unset, the notebook completes its deterministic checks, reports `SKIPPED`, and does not fit or invent private benchmark results.
 
 The hallucination notebook's default execution is offline, but its optional analysis dependencies are installed with the live-evaluation extra. To aggregate already frozen logs without contacting a service, leave live judging disabled and provide only the log directory:
 
