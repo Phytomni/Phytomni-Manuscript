@@ -1,3 +1,5 @@
+from collections import Counter
+from dataclasses import FrozenInstanceError
 from itertools import permutations
 
 import numpy as np
@@ -5,13 +7,271 @@ import pandas as pd
 import pytest
 
 from scripts.deepgenome_ranking_statistics import (
+    FLEISS_COLUMNS,
     MODEL_COLUMNS,
+    AgreementScope,
+    agreement_scope_registry,
     collapse_weighted_rankings,
     elo_outputs,
     fit_plackett_luce,
+    fleiss_kappa_from_counts,
+    fleiss_point_estimates,
     parse_rankings,
     pl_loglik_and_grad,
 )
+
+
+SPECIES = ("Rice", "Maize", "Wheat", "Soybean", "Arabidopsis")
+STATUSES = ("well_studied", "uncharacterized")
+FLEISS_1971_COUNTS = np.array(
+    [
+        [0, 0, 0, 0, 14],
+        [0, 2, 6, 4, 2],
+        [0, 0, 3, 5, 6],
+        [0, 3, 9, 2, 0],
+        [2, 2, 8, 1, 1],
+        [7, 7, 0, 0, 0],
+        [3, 2, 6, 3, 0],
+        [2, 5, 3, 2, 2],
+        [6, 5, 2, 1, 0],
+        [0, 2, 2, 3, 7],
+    ]
+)
+
+
+def categorized_ranking_fixture() -> pd.DataFrame:
+    rows: list[dict[str, str]] = []
+    for species_index, species in enumerate(SPECIES):
+        for status_index, status in enumerate(STATUSES):
+            for gene_index in range(2):
+                gene = f"{species[:2]}-{status_index}-{gene_index}"
+                for expert_index in range(3):
+                    shift = (
+                        species_index
+                        + status_index
+                        + 2 * gene_index
+                        + expert_index
+                    ) % len(MODEL_COLUMNS)
+                    order = (
+                        MODEL_COLUMNS[shift:] + MODEL_COLUMNS[:shift]
+                    )
+                    row = {
+                        "Species": species,
+                        "Gene": gene,
+                        "Expert": f"expert-{expert_index + 1}",
+                        "StudyStatus": status,
+                    }
+                    row.update(
+                        {
+                            model: f"R{rank}"
+                            for rank, model in enumerate(order, start=1)
+                        }
+                    )
+                    rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def test_fleiss_matches_published_fixture() -> None:
+    result = fleiss_kappa_from_counts(FLEISS_1971_COUNTS)
+
+    assert np.isclose(result["observed_agreement"], 0.378021978021978)
+    assert np.isclose(result["expected_agreement"], 0.212755102040816)
+    assert np.isclose(result["fleiss_kappa"], 0.20993070442195522)
+    np.testing.assert_allclose(
+        result["rank_marginals"],
+        FLEISS_1971_COUNTS.sum(axis=0) / FLEISS_1971_COUNTS.sum(),
+    )
+
+
+@pytest.mark.parametrize(
+    ("counts", "message"),
+    [
+        (np.array([1, 1]), "at least two items and categories"),
+        (np.array([[1, 1]]), "at least two items and categories"),
+        (np.array([[1], [1]]), "at least two items and categories"),
+        (
+            np.array([[2, 0], [np.nan, 2]]),
+            "finite and non-negative",
+        ),
+        (
+            np.array([[2, 0], [np.inf, 2]]),
+            "finite and non-negative",
+        ),
+        (np.array([[2, 0], [-1, 3]]), "finite and non-negative"),
+        (np.array([[1.5, 0.5], [1, 1]]), "integer-valued"),
+        (
+            np.array([[2, 1, 0], [1, 1, 0]]),
+            "same number of ratings",
+        ),
+        (np.array([[1, 0], [0, 1]]), "at least two ratings"),
+        (
+            np.array([[2, 0], [2, 0]]),
+            "expected agreement must be less than one",
+        ),
+    ],
+)
+def test_fleiss_rejects_invalid_counts(
+    counts: np.ndarray,
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        fleiss_kappa_from_counts(counts)
+
+
+def test_fleiss_preserves_negative_values() -> None:
+    counts = np.array(
+        [
+            [1, 1, 1, 0, 0],
+            [0, 1, 1, 1, 0],
+            [0, 0, 1, 1, 1],
+            [1, 0, 0, 1, 1],
+            [1, 1, 0, 0, 1],
+        ]
+    )
+
+    result = fleiss_kappa_from_counts(counts)
+
+    assert np.isclose(result["fleiss_kappa"], -0.25)
+
+
+def test_agreement_registry_has_exact_order_tiers_and_dimensions() -> None:
+    registry = agreement_scope_registry(SPECIES, STATUSES, MODEL_COLUMNS)
+    expected = [
+        AgreementScope("overall", "primary", "overall"),
+        *[
+            AgreementScope(
+                f"species.{species.casefold()}",
+                "locked_secondary",
+                "species",
+                species=species,
+            )
+            for species in SPECIES
+        ],
+        *[
+            AgreementScope(
+                f"study_status.{status}",
+                "locked_secondary",
+                "study_status",
+                study_status=status,
+            )
+            for status in STATUSES
+        ],
+        *[
+            AgreementScope(
+                f"model.{model.casefold()}",
+                "locked_secondary",
+                "model",
+                model=model,
+            )
+            for model in MODEL_COLUMNS
+        ],
+        *[
+            AgreementScope(
+                f"species_study_status.{species.casefold()}.{status}",
+                "locked_exploratory",
+                "species_study_status",
+                species=species,
+                study_status=status,
+            )
+            for species in SPECIES
+            for status in STATUSES
+        ],
+        *[
+            AgreementScope(
+                f"model_study_status.{model.casefold()}.{status}",
+                "locked_exploratory",
+                "model_study_status",
+                study_status=status,
+                model=model,
+            )
+            for model in MODEL_COLUMNS
+            for status in STATUSES
+        ],
+        *[
+            AgreementScope(
+                f"model_species.{model.casefold()}.{species.casefold()}",
+                "locked_exploratory",
+                "model_species",
+                species=species,
+                model=model,
+            )
+            for model in MODEL_COLUMNS
+            for species in SPECIES
+        ],
+    ]
+
+    assert registry == tuple(expected)
+    assert len(registry) == 58
+    assert len({scope.scope_id for scope in registry}) == 58
+    assert Counter(scope.scope_family for scope in registry) == {
+        "overall": 1,
+        "species": 5,
+        "study_status": 2,
+        "model": 5,
+        "species_study_status": 10,
+        "model_study_status": 10,
+        "model_species": 25,
+    }
+    assert all(
+        sum(
+            value != "all"
+            for value in (scope.species, scope.study_status, scope.model)
+        )
+        <= 2
+        for scope in registry
+    )
+    assert all(
+        value is not None
+        for scope in registry
+        for value in (scope.species, scope.study_status, scope.model)
+    )
+    with pytest.raises(FrozenInstanceError):
+        registry[0].scope_id = "changed"
+
+
+def test_fleiss_point_estimates_have_stable_schema_and_marginals() -> None:
+    frame = categorized_ranking_fixture()
+    registry = agreement_scope_registry(SPECIES, STATUSES, MODEL_COLUMNS)
+
+    estimates = fleiss_point_estimates(frame, registry, MODEL_COLUMNS)
+
+    assert tuple(estimates.columns) == FLEISS_COLUMNS
+    assert estimates["ScopeID"].tolist() == [
+        scope.scope_id for scope in registry
+    ]
+    assert len(estimates) == 58
+    assert estimates["ScopeID"].is_unique
+    assert (estimates["NRatings"] == 3 * estimates["NItems"]).all()
+    assert (estimates["RatingsPerItem"] == 3).all()
+    assert (estimates["NContributingExperts"] == 3).all()
+
+    rank_columns = [f"RankR{rank}Share" for rank in range(1, 6)]
+    all_model = estimates[estimates["Model"] == "all"]
+    np.testing.assert_allclose(all_model[rank_columns], 0.2, atol=1e-15)
+    np.testing.assert_allclose(
+        all_model["ExpectedAgreement"],
+        0.2,
+        atol=1e-15,
+    )
+    assert (all_model["NItems"] == 5 * all_model["NGenes"]).all()
+
+    gemini_scope = estimates.loc[
+        estimates["ScopeID"] == "model.gemini"
+    ].iloc[0]
+    observed_marginals = (
+        frame["Gemini"]
+        .value_counts(normalize=True)
+        .reindex([f"R{rank}" for rank in range(1, 6)], fill_value=0.0)
+    )
+    np.testing.assert_allclose(
+        gemini_scope[rank_columns].to_numpy(dtype=float),
+        observed_marginals.to_numpy(),
+    )
+    assert np.isclose(
+        gemini_scope["ExpectedAgreement"],
+        np.square(observed_marginals).sum(),
+    )
+    assert gemini_scope["ExpectedAgreement"] > 0.2
 
 
 def historical_fixture() -> tuple[list[str], list[list[str]]]:

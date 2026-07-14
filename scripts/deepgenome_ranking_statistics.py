@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
@@ -12,6 +14,257 @@ HESSIAN_EPSILON = 1e-5
 ELO_SCALE = 400.0 / np.log(10.0)
 ELO_CENTER = 1500.0
 CI_Z = 1.96
+FLEISS_COLUMNS = (
+    "ScopeID",
+    "AnalysisTier",
+    "ScopeFamily",
+    "Species",
+    "StudyStatus",
+    "Model",
+    "NGenes",
+    "NItems",
+    "RatingsPerItem",
+    "NRatings",
+    "NContributingExperts",
+    "ObservedAgreement",
+    "ExpectedAgreement",
+    "FleissKappa",
+    "RankR1Share",
+    "RankR2Share",
+    "RankR3Share",
+    "RankR4Share",
+    "RankR5Share",
+)
+
+
+@dataclass(frozen=True)
+class AgreementScope:
+    scope_id: str
+    analysis_tier: str
+    scope_family: str
+    species: str = "all"
+    study_status: str = "all"
+    model: str = "all"
+
+
+def agreement_scope_registry(
+    species: tuple[str, ...],
+    study_statuses: tuple[str, ...],
+    models: tuple[str, ...],
+) -> tuple[AgreementScope, ...]:
+    if not species or not study_statuses or not models:
+        raise ValueError("Agreement registry dimensions must not be empty.")
+    if any(
+        len(values) != len(set(values))
+        for values in (species, study_statuses, models)
+    ):
+        raise ValueError("Agreement registry dimensions must be unique.")
+
+    scopes = [AgreementScope("overall", "primary", "overall")]
+    scopes.extend(
+        AgreementScope(
+            f"species.{value.casefold()}",
+            "locked_secondary",
+            "species",
+            species=value,
+        )
+        for value in species
+    )
+    scopes.extend(
+        AgreementScope(
+            f"study_status.{value.casefold()}",
+            "locked_secondary",
+            "study_status",
+            study_status=value,
+        )
+        for value in study_statuses
+    )
+    scopes.extend(
+        AgreementScope(
+            f"model.{value.casefold()}",
+            "locked_secondary",
+            "model",
+            model=value,
+        )
+        for value in models
+    )
+    scopes.extend(
+        AgreementScope(
+            f"species_study_status.{species_value.casefold()}."
+            f"{status_value.casefold()}",
+            "locked_exploratory",
+            "species_study_status",
+            species=species_value,
+            study_status=status_value,
+        )
+        for species_value in species
+        for status_value in study_statuses
+    )
+    scopes.extend(
+        AgreementScope(
+            f"model_study_status.{model_value.casefold()}."
+            f"{status_value.casefold()}",
+            "locked_exploratory",
+            "model_study_status",
+            study_status=status_value,
+            model=model_value,
+        )
+        for model_value in models
+        for status_value in study_statuses
+    )
+    scopes.extend(
+        AgreementScope(
+            f"model_species.{model_value.casefold()}."
+            f"{species_value.casefold()}",
+            "locked_exploratory",
+            "model_species",
+            species=species_value,
+            model=model_value,
+        )
+        for model_value in models
+        for species_value in species
+    )
+    return tuple(scopes)
+
+
+def fleiss_kappa_from_counts(counts: np.ndarray) -> dict[str, object]:
+    matrix = np.asarray(counts, dtype=float)
+    if matrix.ndim != 2 or matrix.shape[0] < 2 or matrix.shape[1] < 2:
+        raise ValueError(
+            "Fleiss counts require at least two items and categories."
+        )
+    if not np.isfinite(matrix).all() or (matrix < 0).any():
+        raise ValueError("Fleiss counts must be finite and non-negative.")
+    if not np.equal(matrix, np.floor(matrix)).all():
+        raise ValueError("Fleiss counts must be integer-valued.")
+
+    ratings = matrix.sum(axis=1)
+    if not np.equal(ratings, ratings[0]).all():
+        raise ValueError("Every item must have the same number of ratings.")
+    if ratings[0] < 2:
+        raise ValueError("Every item requires at least two ratings.")
+
+    ratings_per_item = float(ratings[0])
+    item_agreement = (matrix * (matrix - 1.0)).sum(axis=1) / (
+        ratings_per_item * (ratings_per_item - 1.0)
+    )
+    marginals = matrix.sum(axis=0) / matrix.sum()
+    observed = float(item_agreement.mean())
+    expected = float(np.square(marginals).sum())
+    if expected >= 1.0:
+        raise ValueError("Fleiss expected agreement must be less than one.")
+    return {
+        "observed_agreement": observed,
+        "expected_agreement": expected,
+        "fleiss_kappa": float((observed - expected) / (1.0 - expected)),
+        "rank_marginals": marginals,
+    }
+
+
+def _scope_frame(frame: pd.DataFrame, scope: AgreementScope) -> pd.DataFrame:
+    selected = frame
+    if scope.species != "all":
+        selected = selected.loc[selected["Species"] == scope.species]
+    if scope.study_status != "all":
+        selected = selected.loc[
+            selected["StudyStatus"] == scope.study_status
+        ]
+    return selected
+
+
+def fleiss_point_estimates(
+    frame: pd.DataFrame,
+    registry: tuple[AgreementScope, ...],
+    model_columns: tuple[str, ...] = MODEL_COLUMNS,
+) -> pd.DataFrame:
+    required = {
+        "Species",
+        "Gene",
+        "Expert",
+        "StudyStatus",
+        *model_columns,
+    }
+    missing = sorted(required.difference(frame.columns))
+    if missing:
+        raise ValueError(
+            "Missing required agreement columns: " + ", ".join(missing)
+        )
+    if len(model_columns) != 5:
+        raise ValueError("Fleiss agreement requires exactly five models.")
+
+    ranks = tuple(f"R{rank}" for rank in range(1, 6))
+    expected_ranks = set(ranks)
+    for row in frame.loc[:, model_columns].itertuples(index=False, name=None):
+        if set(row) != expected_ranks or len(row) != len(set(row)):
+            raise ValueError(
+                "Every agreement row must contain one complete R1-R5 ranking."
+            )
+
+    records: list[dict[str, object]] = []
+    for scope in registry:
+        selected = _scope_frame(frame, scope)
+        if selected.empty:
+            raise ValueError(f"Agreement scope {scope.scope_id!r} is empty.")
+        selected_models = (
+            model_columns if scope.model == "all" else (scope.model,)
+        )
+        unknown_models = set(selected_models).difference(model_columns)
+        if unknown_models:
+            raise ValueError(
+                "Agreement scope references unknown models: "
+                + ", ".join(sorted(unknown_models))
+            )
+
+        long = selected.melt(
+            id_vars=["Species", "Gene", "Expert", "StudyStatus"],
+            value_vars=list(selected_models),
+            var_name="Model",
+            value_name="Rank",
+        )
+        rating_key = ["Species", "Gene", "Model", "Expert"]
+        if long.duplicated(rating_key).any():
+            raise ValueError(
+                f"Agreement scope {scope.scope_id!r} contains duplicate ratings."
+            )
+        item_key = ["Species", "Gene", "Model"]
+        counts = (
+            long.groupby(item_key + ["Rank"], sort=True)
+            .size()
+            .unstack("Rank", fill_value=0)
+            .reindex(columns=ranks, fill_value=0)
+        )
+        agreement = fleiss_kappa_from_counts(counts.to_numpy())
+        marginals = np.asarray(agreement["rank_marginals"], dtype=float)
+        records.append(
+            {
+                "ScopeID": scope.scope_id,
+                "AnalysisTier": scope.analysis_tier,
+                "ScopeFamily": scope.scope_family,
+                "Species": scope.species,
+                "StudyStatus": scope.study_status,
+                "Model": scope.model,
+                "NGenes": int(
+                    selected[["Species", "Gene"]]
+                    .drop_duplicates()
+                    .shape[0]
+                ),
+                "NItems": int(counts.shape[0]),
+                "RatingsPerItem": int(counts.sum(axis=1).iloc[0]),
+                "NRatings": int(counts.to_numpy().sum()),
+                "NContributingExperts": int(long["Expert"].nunique()),
+                "ObservedAgreement": agreement["observed_agreement"],
+                "ExpectedAgreement": agreement["expected_agreement"],
+                "FleissKappa": agreement["fleiss_kappa"],
+                **{
+                    f"RankR{rank}Share": float(marginals[rank - 1])
+                    for rank in range(1, 6)
+                },
+            }
+        )
+    result = pd.DataFrame.from_records(records, columns=FLEISS_COLUMNS)
+    if result["ScopeID"].duplicated().any():
+        raise ValueError("Agreement registry contains duplicate scope IDs.")
+    return result
 
 
 def resolve_model_columns(setting: str | None) -> tuple[str, ...]:
