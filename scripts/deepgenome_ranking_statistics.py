@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from itertools import combinations
+from typing import Sequence
 
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
+from scipy.stats import kendalltau
 
 
 MODEL_COLUMNS = ("Gemini", "Grok", "OpenAI", "Phytomni", "Claude")
@@ -36,6 +39,16 @@ FLEISS_COLUMNS = (
     "RankR3Share",
     "RankR4Share",
     "RankR5Share",
+)
+GENE_ORDINAL_COLUMNS = (
+    "Species",
+    "Gene",
+    "StudyStatus",
+    "NExperts",
+    "NModels",
+    "KendallW",
+    "MeanPairwiseKendallTau",
+    "Top1AgreementPattern",
 )
 
 
@@ -129,6 +142,209 @@ def agreement_scope_registry(
         for species_value in species
     )
     return tuple(scopes)
+
+
+def ordinal_scope_registry(
+    species: tuple[str, ...] = AGREEMENT_SPECIES,
+    study_statuses: tuple[str, ...] = AGREEMENT_STUDY_STATUSES,
+) -> tuple[AgreementScope, ...]:
+    if species != AGREEMENT_SPECIES or study_statuses != AGREEMENT_STUDY_STATUSES:
+        raise ValueError(
+            "Locked ordinal analysis requires canonical species and status "
+            "values in their fixed order."
+        )
+
+    scopes = [AgreementScope("overall", "primary", "overall")]
+    scopes.extend(
+        AgreementScope(
+            f"species.{value.casefold()}",
+            "locked_secondary",
+            "species",
+            species=value,
+        )
+        for value in species
+    )
+    scopes.extend(
+        AgreementScope(
+            f"study_status.{value.casefold()}",
+            "locked_secondary",
+            "study_status",
+            study_status=value,
+        )
+        for value in study_statuses
+    )
+    scopes.extend(
+        AgreementScope(
+            f"species_study_status.{species_value.casefold()}."
+            f"{status_value.casefold()}",
+            "locked_exploratory",
+            "species_study_status",
+            species=species_value,
+            study_status=status_value,
+        )
+        for species_value in species
+        for status_value in study_statuses
+    )
+    return tuple(scopes)
+
+
+def _validated_rank_matrix(rank_matrix: np.ndarray) -> np.ndarray:
+    try:
+        ranks = np.asarray(rank_matrix, dtype=float)
+    except (TypeError, ValueError) as error:
+        raise ValueError(
+            "Each Kendall W row must be a complete no-tie ranking."
+        ) from error
+    if ranks.ndim != 2 or ranks.shape[0] < 2 or ranks.shape[1] < 2:
+        raise ValueError("Kendall W requires at least two raters and items.")
+    expected = np.arange(1, ranks.shape[1] + 1, dtype=float)
+    if not all(np.array_equal(np.sort(row), expected) for row in ranks):
+        raise ValueError(
+            "Each Kendall W row must be a complete no-tie ranking."
+        )
+    return ranks
+
+
+def kendall_w(rank_matrix: np.ndarray) -> float:
+    ranks = _validated_rank_matrix(rank_matrix)
+    n_raters, n_items = ranks.shape
+    rank_sums = ranks.sum(axis=0)
+    squared_deviation = np.square(rank_sums - rank_sums.mean()).sum()
+    return float(
+        12
+        * squared_deviation
+        / (n_raters**2 * (n_items**3 - n_items))
+    )
+
+
+def mean_pairwise_kendall_tau(rank_matrix: np.ndarray) -> float:
+    ranks = _validated_rank_matrix(rank_matrix)
+    pairwise_taus = [
+        float(kendalltau(first, second).statistic)
+        for first, second in combinations(ranks, 2)
+    ]
+    return float(np.mean(pairwise_taus))
+
+
+def top1_pattern(top_models: Sequence[str]) -> str:
+    if isinstance(top_models, (str, bytes)):
+        raise ValueError("Top-1 agreement requires exactly three nonmissing labels.")
+    try:
+        labels = list(top_models)
+    except TypeError as error:
+        raise ValueError(
+            "Top-1 agreement requires exactly three nonmissing labels."
+        ) from error
+    if len(labels) != 3 or pd.isna(labels).any():
+        raise ValueError("Top-1 agreement requires exactly three nonmissing labels.")
+
+    counts = pd.Series(labels, dtype=object).value_counts()
+    if counts.iloc[0] == 3:
+        return "unanimous"
+    if counts.iloc[0] == 2:
+        return "majority_2_of_3"
+    return "all_different"
+
+
+def gene_ordinal_agreement(
+    frame: pd.DataFrame,
+    model_columns: tuple[str, ...] = MODEL_COLUMNS,
+) -> pd.DataFrame:
+    model_columns = tuple(model_columns)
+    if len(model_columns) != 5 or len(set(model_columns)) != 5:
+        raise ValueError(
+            "Gene ordinal agreement requires exactly five model columns."
+        )
+
+    identifier_columns = ("Species", "Gene", "Expert", "StudyStatus")
+    required = {*identifier_columns, *model_columns}
+    missing = sorted(required.difference(frame.columns))
+    if missing:
+        raise ValueError(
+            "Missing required ordinal agreement columns: "
+            + ", ".join(missing)
+        )
+    if frame.loc[:, identifier_columns].isna().any().any():
+        raise ValueError(
+            "Gene ordinal agreement identifiers must all be nonmissing."
+        )
+    if frame.duplicated(["Gene", "Expert"]).any():
+        raise ValueError(
+            "Gene ordinal agreement contains duplicate expert/gene rows."
+        )
+
+    gene_metadata = frame.groupby("Gene", sort=False, dropna=False)[
+        ["Species", "StudyStatus"]
+    ].nunique(dropna=False)
+    if (gene_metadata["Species"] != 1).any():
+        raise ValueError("Gene ordinal agreement contains mixed species within a gene.")
+    if (gene_metadata["StudyStatus"] != 1).any():
+        raise ValueError(
+            "Gene ordinal agreement contains mixed study status within a gene."
+        )
+
+    gene_experts = frame.groupby("Gene", sort=False, dropna=False)["Expert"].agg(
+        ["size", "nunique"]
+    )
+    if (gene_experts["size"] != 3).any() or (
+        gene_experts["nunique"] != 3
+    ).any():
+        raise ValueError(
+            "Gene ordinal agreement requires exactly three experts per gene."
+        )
+
+    expected_ranks = {f"R{rank}" for rank in range(1, 6)}
+    for row in frame.loc[:, model_columns].itertuples(index=False, name=None):
+        if (
+            any(pd.isna(value) for value in row)
+            or len(set(row)) != 5
+            or set(row) != expected_ranks
+        ):
+            raise ValueError(
+                "Every expert/gene row must contain one complete no-tie "
+                "R1-R5 ranking."
+            )
+
+    rank_values = {f"R{rank}": rank for rank in range(1, 6)}
+    records: list[dict[str, object]] = []
+    for gene, selected in frame.groupby("Gene", sort=True, dropna=False):
+        rank_matrix = np.array(
+            [
+                [rank_values[value] for value in row]
+                for row in selected.loc[:, model_columns].itertuples(
+                    index=False,
+                    name=None,
+                )
+            ],
+            dtype=float,
+        )
+        top_models = [
+            model_columns[row.index("R1")]
+            for row in selected.loc[:, model_columns].itertuples(
+                index=False,
+                name=None,
+            )
+        ]
+        records.append(
+            {
+                "Species": selected["Species"].iloc[0],
+                "Gene": gene,
+                "StudyStatus": selected["StudyStatus"].iloc[0],
+                "NExperts": int(selected["Expert"].nunique()),
+                "NModels": len(model_columns),
+                "KendallW": kendall_w(rank_matrix),
+                "MeanPairwiseKendallTau": mean_pairwise_kendall_tau(
+                    rank_matrix
+                ),
+                "Top1AgreementPattern": top1_pattern(top_models),
+            }
+        )
+
+    return (
+        pd.DataFrame.from_records(records, columns=GENE_ORDINAL_COLUMNS)
+        .sort_values(["Species", "Gene", "StudyStatus"], kind="stable")
+        .reset_index(drop=True)
+    )
 
 
 def fleiss_kappa_from_counts(counts: np.ndarray) -> dict[str, object]:

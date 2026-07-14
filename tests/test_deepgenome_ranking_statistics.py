@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import scripts.deepgenome_ranking_statistics as ranking_statistics
 from scripts.deepgenome_ranking_statistics import (
     FLEISS_COLUMNS,
     MODEL_COLUMNS,
@@ -69,6 +70,251 @@ def categorized_ranking_fixture() -> pd.DataFrame:
                     )
                     rows.append(row)
     return pd.DataFrame(rows)
+
+
+def test_kendall_w_perfect_and_zero_concordance() -> None:
+    identical = np.array([[1, 2, 3, 4, 5]] * 3)
+    zero_sum = np.array(
+        [
+            [1, 2, 3, 4, 5],
+            [3, 4, 5, 1, 2],
+            [5, 3, 1, 4, 2],
+        ]
+    )
+
+    assert np.isclose(ranking_statistics.kendall_w(identical), 1.0)
+    assert np.isclose(zero_sum.sum(axis=0), 9.0).all()
+    assert np.isclose(ranking_statistics.kendall_w(zero_sum), 0.0)
+
+
+def test_mean_pairwise_kendall_tau_identical_and_reversed() -> None:
+    ascending = np.array([1, 2, 3, 4, 5])
+
+    assert np.isclose(
+        ranking_statistics.mean_pairwise_kendall_tau(
+            np.vstack([ascending, ascending])
+        ),
+        1.0,
+    )
+    assert np.isclose(
+        ranking_statistics.mean_pairwise_kendall_tau(
+            np.vstack([ascending, ascending[::-1]])
+        ),
+        -1.0,
+    )
+
+
+@pytest.mark.parametrize(
+    ("rank_matrix", "message"),
+    [
+        (np.array([1, 2, 3]), "at least two raters and items"),
+        (np.array([[1, 2, 3]]), "at least two raters and items"),
+        (np.array([[1], [1]]), "at least two raters and items"),
+        (
+            np.array([[1, 1, 3], [1, 2, 3]]),
+            "complete no-tie ranking",
+        ),
+        (
+            np.array([[1, 2, 4], [1, 2, 3]]),
+            "complete no-tie ranking",
+        ),
+        (
+            np.array([[1, 2, np.nan], [1, 2, 3]]),
+            "complete no-tie ranking",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "function_name",
+    ["kendall_w", "mean_pairwise_kendall_tau"],
+)
+def test_kendall_statistics_reject_invalid_rank_matrices(
+    rank_matrix: np.ndarray,
+    message: str,
+    function_name: str,
+) -> None:
+    function = getattr(ranking_statistics, function_name)
+
+    with pytest.raises(ValueError, match=message):
+        function(rank_matrix)
+
+
+def test_top1_patterns_are_exhaustive() -> None:
+    assert ranking_statistics.top1_pattern(["A", "A", "A"]) == "unanimous"
+    assert (
+        ranking_statistics.top1_pattern(["A", "A", "B"])
+        == "majority_2_of_3"
+    )
+    assert (
+        ranking_statistics.top1_pattern(["A", "B", "C"])
+        == "all_different"
+    )
+
+
+@pytest.mark.parametrize(
+    "top_models",
+    [
+        [],
+        ["A", "B"],
+        ["A", "B", "C", "D"],
+        ["A", "B", None],
+        ["A", np.nan, "C"],
+        ["A", pd.NA, "C"],
+        "ABC",
+    ],
+)
+def test_top1_rejects_inputs_other_than_three_nonmissing_labels(
+    top_models: object,
+) -> None:
+    with pytest.raises(ValueError, match="exactly three nonmissing labels"):
+        ranking_statistics.top1_pattern(top_models)
+
+
+def test_ordinal_scope_registry_has_exact_18_canonical_scopes() -> None:
+    registry = ranking_statistics.ordinal_scope_registry(SPECIES, STATUSES)
+    expected = [
+        AgreementScope("overall", "primary", "overall"),
+        *[
+            AgreementScope(
+                f"species.{species.casefold()}",
+                "locked_secondary",
+                "species",
+                species=species,
+            )
+            for species in SPECIES
+        ],
+        *[
+            AgreementScope(
+                f"study_status.{status}",
+                "locked_secondary",
+                "study_status",
+                study_status=status,
+            )
+            for status in STATUSES
+        ],
+        *[
+            AgreementScope(
+                f"species_study_status.{species.casefold()}.{status}",
+                "locked_exploratory",
+                "species_study_status",
+                species=species,
+                study_status=status,
+            )
+            for species in SPECIES
+            for status in STATUSES
+        ],
+    ]
+
+    assert registry == tuple(expected)
+    assert len(registry) == 18
+    assert len({scope.scope_id for scope in registry}) == 18
+    assert Counter(scope.scope_family for scope in registry) == {
+        "overall": 1,
+        "species": 5,
+        "study_status": 2,
+        "species_study_status": 10,
+    }
+    assert all(scope.model == "all" for scope in registry)
+
+
+def test_ordinal_scope_registry_rejects_noncanonical_dimensions() -> None:
+    with pytest.raises(ValueError, match="canonical species and status"):
+        ranking_statistics.ordinal_scope_registry(SPECIES[:-1], STATUSES)
+    with pytest.raises(ValueError, match="canonical species and status"):
+        ranking_statistics.ordinal_scope_registry(
+            SPECIES,
+            tuple(reversed(STATUSES)),
+        )
+
+
+def test_gene_ordinal_agreement_has_stable_schema_and_order_invariance() -> None:
+    frame = categorized_ranking_fixture()
+
+    expected = ranking_statistics.gene_ordinal_agreement(frame, MODEL_COLUMNS)
+    permuted_models = tuple(reversed(MODEL_COLUMNS))
+    shuffled = frame.loc[
+        :,
+        ["Species", "Gene", "Expert", "StudyStatus", *permuted_models],
+    ].sample(frac=1.0, random_state=20260714)
+    observed = ranking_statistics.gene_ordinal_agreement(
+        shuffled,
+        permuted_models,
+    )
+
+    pd.testing.assert_frame_equal(observed, expected)
+    assert tuple(expected.columns) == (
+        "Species",
+        "Gene",
+        "StudyStatus",
+        "NExperts",
+        "NModels",
+        "KendallW",
+        "MeanPairwiseKendallTau",
+        "Top1AgreementPattern",
+    )
+    assert len(expected) == frame["Gene"].nunique() == 20
+    assert (expected["NExperts"] == 3).all()
+    assert (expected["NModels"] == 5).all()
+    assert expected["KendallW"].between(0.0, 1.0).all()
+    assert expected["MeanPairwiseKendallTau"].between(-1.0, 1.0).all()
+    assert set(expected["Top1AgreementPattern"]) == {"all_different"}
+
+
+def test_gene_ordinal_agreement_rejects_duplicate_expert_gene_rows() -> None:
+    frame = categorized_ranking_fixture()
+    duplicated = pd.concat([frame, frame.iloc[[0]]], ignore_index=True)
+
+    with pytest.raises(ValueError, match="duplicate expert/gene rows"):
+        ranking_statistics.gene_ordinal_agreement(duplicated, MODEL_COLUMNS)
+
+
+@pytest.mark.parametrize("invalid_rank", [None, "R2", "R6"])
+def test_gene_ordinal_agreement_rejects_incomplete_rankings(
+    invalid_rank: object,
+) -> None:
+    frame = categorized_ranking_fixture()
+    frame.loc[0, "Gemini"] = invalid_rank
+
+    with pytest.raises(ValueError, match="complete no-tie R1-R5 ranking"):
+        ranking_statistics.gene_ordinal_agreement(frame, MODEL_COLUMNS)
+
+
+@pytest.mark.parametrize(
+    ("column", "replacement", "message"),
+    [
+        ("Species", "NotRice", "mixed species"),
+        ("StudyStatus", "not_the_status", "mixed study status"),
+    ],
+)
+def test_gene_ordinal_agreement_rejects_mixed_gene_metadata(
+    column: str,
+    replacement: str,
+    message: str,
+) -> None:
+    frame = categorized_ranking_fixture()
+    frame.loc[0, column] = replacement
+
+    with pytest.raises(ValueError, match=message):
+        ranking_statistics.gene_ordinal_agreement(frame, MODEL_COLUMNS)
+
+
+def test_gene_ordinal_agreement_requires_three_experts_and_five_models() -> None:
+    frame = categorized_ranking_fixture()
+    first_gene = frame.loc[0, "Gene"]
+    missing_expert = frame.drop(
+        frame.index[(frame["Gene"] == first_gene)][0]
+    )
+
+    with pytest.raises(ValueError, match="exactly three experts"):
+        ranking_statistics.gene_ordinal_agreement(
+            missing_expert,
+            MODEL_COLUMNS,
+        )
+    with pytest.raises(ValueError, match="exactly five model columns"):
+        ranking_statistics.gene_ordinal_agreement(
+            frame,
+            MODEL_COLUMNS[:-1],
+        )
 
 
 def test_fleiss_matches_published_fixture() -> None:
