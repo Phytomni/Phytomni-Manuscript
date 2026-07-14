@@ -1,5 +1,6 @@
 from io import BytesIO
 from itertools import permutations
+import os
 from pathlib import Path
 import stat
 import subprocess
@@ -82,12 +83,15 @@ def private_fixture() -> tuple[pd.DataFrame, pd.DataFrame]:
 def write_crosswalk(tmp_path: Path, score: pd.DataFrame) -> Path:
     crosswalk = tmp_path / "crosswalk.tsv"
     raw_ids = sorted(score["Expert"].unique())
+    release_ids = list(
+        reversed(
+            [f"E{index:03d}" for index in range(1, len(raw_ids) + 1)]
+        )
+    )
     pd.DataFrame(
         {
             "Expert": raw_ids,
-            "AnonymousExpertID": [
-                f"E{index:03d}" for index in range(1, len(raw_ids) + 1)
-            ],
+            "AnonymousExpertID": release_ids,
         }
     ).to_csv(crosswalk, sep="\t", index=False)
     crosswalk.chmod(0o600)
@@ -826,6 +830,253 @@ def test_production_attachment_has_complete_balanced_panel_assignments() -> None
         .eq(20)
         .all()
     )
+
+
+@pytest.mark.skipif(
+    os.environ.get("PHYTOMNI_RUN_PRIVATE_LINEAGE") != "1",
+    reason="private production lineage is an explicit opt-in gate",
+)
+def test_private_production_lineage_matches_committed_attachment() -> None:
+    crosswalk_value = os.environ.get("PHYTOMNI_EXPERT_CROSSWALK")
+    if not crosswalk_value:
+        pytest.fail(
+            "Private lineage configuration failed: "
+            "PHYTOMNI_EXPERT_CROSSWALK is required.",
+            pytrace=False,
+        )
+
+    try:
+        score = pd.read_csv(
+            ROOT / "DeepGenomeAgent Evaluation" / "score.tsv",
+            sep="\t",
+            dtype=str,
+            keep_default_na=False,
+        )
+        categories = pd.read_csv(
+            ROOT
+            / "Supplementary Fig. 10-13"
+            / "PhytoBench-Gene-for_plot"
+            / "gene_categories.tsv",
+            sep="\t",
+            dtype=str,
+            keep_default_na=False,
+        )
+        committed_bytes, committed = read_production_attachment()
+        regenerated = build_release(
+            score,
+            categories,
+            Path(crosswalk_value),
+        )
+        byte_equivalent = (
+            canonical_tsv_bytes(regenerated) == committed_bytes
+        )
+
+        raw_ids = set(score["Expert"])
+        privacy_safe = not any(
+            raw_id in public_cell
+            for public_cell in committed.astype(str).to_numpy().ravel()
+            for raw_id in raw_ids
+        )
+
+        raw = score.merge(
+            categories,
+            on=["Species", "Gene"],
+            how="left",
+            validate="many_to_one",
+        ).loc[:, ["Species", "Gene", "Expert", "StudyStatus", *MODELS]]
+        public = committed.rename(
+            columns={"AnonymousExpertID": "Expert"}
+        ).loc[:, ["Species", "Gene", "Expert", "StudyStatus", *MODELS]]
+        rank_counts_equal = rank_counts(raw).equals(rank_counts(public))
+
+        raw_fit = ranking_statistics.fit_plackett_luce(
+            ranking_orders_from_frame(raw),
+            list(MODELS),
+        )
+        public_fit = ranking_statistics.fit_plackett_luce(
+            ranking_orders_from_frame(public),
+            list(MODELS),
+        )
+        pl_models_equal = raw_fit["models"] == public_fit["models"]
+        pl_fits_succeeded = bool(
+            raw_fit["optimizer_result"].success
+            and public_fit["optimizer_result"].success
+        )
+        pl_max_delta = (
+            float(
+                np.max(
+                    np.abs(
+                        np.asarray(raw_fit["elo"], dtype=float)
+                        - np.asarray(public_fit["elo"], dtype=float)
+                    )
+                )
+            )
+            if pl_models_equal
+            else float("inf")
+        )
+
+        registry = ranking_statistics.agreement_scope_registry(
+            CANONICAL_SPECIES,
+            CANONICAL_STATUSES,
+            MODELS,
+        )
+        raw_fleiss = ranking_statistics.fleiss_point_estimates(
+            raw,
+            registry,
+            MODELS,
+        )
+        public_fleiss = ranking_statistics.fleiss_point_estimates(
+            public,
+            registry,
+            MODELS,
+        )
+        fleiss_exact_columns = [
+            "ScopeID",
+            "AnalysisTier",
+            "ScopeFamily",
+            "Species",
+            "StudyStatus",
+            "Model",
+            "NGenes",
+            "NItems",
+            "RatingsPerItem",
+            "NRatings",
+            "NContributingExperts",
+        ]
+        fleiss_numeric_columns = [
+            "ObservedAgreement",
+            "ExpectedAgreement",
+            "FleissKappa",
+            "RankR1Share",
+            "RankR2Share",
+            "RankR3Share",
+            "RankR4Share",
+            "RankR5Share",
+        ]
+        fleiss_count_equal = (
+            len(raw_fleiss) == len(public_fleiss) == 58
+        )
+        fleiss_keys_equal = raw_fleiss.loc[
+            :, fleiss_exact_columns
+        ].equals(public_fleiss.loc[:, fleiss_exact_columns])
+        fleiss_max_delta = float(
+            np.max(
+                np.abs(
+                    raw_fleiss.loc[
+                        :, fleiss_numeric_columns
+                    ].to_numpy(dtype=float)
+                    - public_fleiss.loc[
+                        :, fleiss_numeric_columns
+                    ].to_numpy(dtype=float)
+                )
+            )
+        )
+
+        raw_gene = ranking_statistics.gene_ordinal_agreement(raw, MODELS)
+        public_gene = ranking_statistics.gene_ordinal_agreement(
+            public,
+            MODELS,
+        )
+        gene_exact_columns = [
+            "Species",
+            "Gene",
+            "StudyStatus",
+            "NExperts",
+            "NModels",
+            "Top1AgreementPattern",
+        ]
+        gene_numeric_columns = [
+            "KendallW",
+            "MeanPairwiseKendallTau",
+        ]
+        gene_count_equal = len(raw_gene) == len(public_gene) == 200
+        gene_keys_equal = raw_gene.loc[:, gene_exact_columns].equals(
+            public_gene.loc[:, gene_exact_columns]
+        )
+        gene_max_delta = float(
+            np.max(
+                np.abs(
+                    raw_gene.loc[
+                        :, gene_numeric_columns
+                    ].to_numpy(dtype=float)
+                    - public_gene.loc[
+                        :, gene_numeric_columns
+                    ].to_numpy(dtype=float)
+                )
+            )
+        )
+    except Exception as error:
+        pytest.fail(
+            "Private lineage execution failed: "
+            f"{type(error).__name__}.",
+            pytrace=False,
+        )
+
+    if not byte_equivalent:
+        pytest.fail(
+            "Private lineage byte equivalence failed.",
+            pytrace=False,
+        )
+    if not privacy_safe:
+        pytest.fail(
+            "Private lineage privacy scan failed.",
+            pytrace=False,
+        )
+    if not rank_counts_equal:
+        pytest.fail(
+            "Private lineage rank-count equivalence failed.",
+            pytrace=False,
+        )
+    if (
+        not pl_models_equal
+        or not pl_fits_succeeded
+        or not np.isfinite(pl_max_delta)
+        or pl_max_delta > 1e-8
+    ):
+        pytest.fail(
+            "Private lineage overall PL equivalence failed: "
+            f"max_abs_delta={pl_max_delta:.17g}.",
+            pytrace=False,
+        )
+    if not fleiss_count_equal:
+        pytest.fail(
+            "Private lineage Fleiss scope-count equivalence failed: "
+            f"private_count={len(raw_fleiss)}, "
+            f"public_count={len(public_fleiss)}.",
+            pytrace=False,
+        )
+    if not fleiss_keys_equal:
+        pytest.fail(
+            "Private lineage Fleiss key equivalence failed.",
+            pytrace=False,
+        )
+    if (
+        not np.isfinite(fleiss_max_delta)
+        or fleiss_max_delta > 1e-15
+    ):
+        pytest.fail(
+            "Private lineage Fleiss numeric equivalence failed: "
+            f"max_abs_delta={fleiss_max_delta:.17g}.",
+            pytrace=False,
+        )
+    if not gene_count_equal:
+        pytest.fail(
+            "Private lineage gene-count equivalence failed: "
+            f"private_count={len(raw_gene)}, "
+            f"public_count={len(public_gene)}.",
+            pytrace=False,
+        )
+    if not gene_keys_equal:
+        pytest.fail(
+            "Private lineage gene key/Top1 equivalence failed.",
+            pytrace=False,
+        )
+    if not np.isfinite(gene_max_delta) or gene_max_delta > 1e-15:
+        pytest.fail(
+            "Private lineage gene numeric equivalence failed: "
+            f"max_abs_delta={gene_max_delta:.17g}.",
+            pytrace=False,
+        )
 
 
 def test_synthetic_full_panel_regeneration_is_byte_deterministic(
