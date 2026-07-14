@@ -252,7 +252,11 @@ def test_gene_ordinal_agreement_has_stable_schema_and_order_invariance() -> None
         "MeanPairwiseKendallTau",
         "Top1AgreementPattern",
     )
-    assert len(expected) == frame["Gene"].nunique() == 20
+    assert (
+        len(expected)
+        == frame[["Species", "Gene"]].drop_duplicates().shape[0]
+        == 20
+    )
     assert (expected["NExperts"] == 3).all()
     assert (expected["NModels"] == 5).all()
     assert expected["KendallW"].between(0.0, 1.0).all()
@@ -266,6 +270,35 @@ def test_gene_ordinal_agreement_rejects_duplicate_expert_gene_rows() -> None:
 
     with pytest.raises(ValueError, match="duplicate expert/gene rows"):
         ranking_statistics.gene_ordinal_agreement(duplicated, MODEL_COLUMNS)
+
+
+def test_gene_ordinal_agreement_uses_species_gene_composite_key() -> None:
+    frame = categorized_ranking_fixture()
+    rice_gene = frame.loc[
+        (frame["Species"] == "Rice")
+        & (frame["StudyStatus"] == "well_studied"),
+        "Gene",
+    ].iloc[0]
+    maize_gene = frame.loc[
+        (frame["Species"] == "Maize")
+        & (frame["StudyStatus"] == "well_studied"),
+        "Gene",
+    ].iloc[0]
+    shared = frame.loc[
+        frame["Gene"].isin([rice_gene, maize_gene])
+    ].copy()
+    shared["Gene"] = "SHARED_GENE_LABEL"
+
+    observed = ranking_statistics.gene_ordinal_agreement(
+        shared,
+        MODEL_COLUMNS,
+    )
+
+    assert observed[["Species", "Gene"]].to_dict("records") == [
+        {"Species": "Maize", "Gene": "SHARED_GENE_LABEL"},
+        {"Species": "Rice", "Gene": "SHARED_GENE_LABEL"},
+    ]
+    assert (observed["NExperts"] == 3).all()
 
 
 @pytest.mark.parametrize("invalid_rank", [None, "R2", "R6"])
@@ -282,7 +315,7 @@ def test_gene_ordinal_agreement_rejects_incomplete_rankings(
 @pytest.mark.parametrize(
     ("column", "replacement", "message"),
     [
-        ("Species", "NotRice", "mixed species"),
+        ("Species", "NotRice", "exactly three experts"),
         ("StudyStatus", "not_the_status", "mixed study status"),
     ],
 )

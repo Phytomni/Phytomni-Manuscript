@@ -268,24 +268,27 @@ def gene_ordinal_agreement(
         raise ValueError(
             "Gene ordinal agreement identifiers must all be nonmissing."
         )
-    if frame.duplicated(["Gene", "Expert"]).any():
+    item_columns = ["Species", "Gene"]
+    if frame.duplicated([*item_columns, "Expert"]).any():
         raise ValueError(
             "Gene ordinal agreement contains duplicate expert/gene rows."
         )
 
-    gene_metadata = frame.groupby("Gene", sort=False, dropna=False)[
-        ["Species", "StudyStatus"]
-    ].nunique(dropna=False)
-    if (gene_metadata["Species"] != 1).any():
-        raise ValueError("Gene ordinal agreement contains mixed species within a gene.")
+    gene_metadata = frame.groupby(
+        item_columns,
+        sort=False,
+        dropna=False,
+    )[["StudyStatus"]].nunique(dropna=False)
     if (gene_metadata["StudyStatus"] != 1).any():
         raise ValueError(
             "Gene ordinal agreement contains mixed study status within a gene."
         )
 
-    gene_experts = frame.groupby("Gene", sort=False, dropna=False)["Expert"].agg(
-        ["size", "nunique"]
-    )
+    gene_experts = frame.groupby(
+        item_columns,
+        sort=False,
+        dropna=False,
+    )["Expert"].agg(["size", "nunique"])
     if (gene_experts["size"] != 3).any() or (
         gene_experts["nunique"] != 3
     ).any():
@@ -307,7 +310,11 @@ def gene_ordinal_agreement(
 
     rank_values = {f"R{rank}": rank for rank in range(1, 6)}
     records: list[dict[str, object]] = []
-    for gene, selected in frame.groupby("Gene", sort=True, dropna=False):
+    for (species, gene), selected in frame.groupby(
+        item_columns,
+        sort=True,
+        dropna=False,
+    ):
         rank_matrix = np.array(
             [
                 [rank_values[value] for value in row]
@@ -327,7 +334,7 @@ def gene_ordinal_agreement(
         ]
         records.append(
             {
-                "Species": selected["Species"].iloc[0],
+                "Species": species,
                 "Gene": gene,
                 "StudyStatus": selected["StudyStatus"].iloc[0],
                 "NExperts": int(selected["Expert"].nunique()),
