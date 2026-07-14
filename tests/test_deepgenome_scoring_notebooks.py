@@ -493,24 +493,80 @@ def test_hallucination_semantic_risk_threshold_is_strict() -> None:
 def test_plackett_luce_notebook_contract() -> None:
     assert PL_NOTEBOOK.exists()
     assert not (EVAL_DIR / "cal_score.ipynb").exists()
+    assert not (EVAL_DIR / "statistics.ipynb").exists()
     assert_clean_notebook(
         PL_NOTEBOOK,
         [
-            "# Plackett-Luce Scoring",
-            "## Scope and Method",
-            "## Reproducibility Configuration",
-            "## Load and Validate Rankings",
-            "## Fit the Plackett-Luce Model",
-            "## Elo-Like Scores and Uncertainty",
-            "## Pairwise Win Probabilities",
-            "## Reproducibility Checks",
-            "## Results and Optional Export",
+            "# Expert Ranking Analysis",
+            "## Scope and reviewer request",
+            "## Reproducibility configuration",
+            "## Public input validation",
+            "## Unchanged PL point estimates",
+            "## Crossed and one-way uncertainty",
+            "## Locked 58-scope Fleiss matrix",
+            "## Kendall and Top-1 agreement",
+            "## Optional private panel composition",
+            "## Reproducibility checks",
+            "## Optional export",
         ],
     )
-    text = notebook_text(load_notebook(PL_NOTEBOOK))
+    notebook = load_notebook(PL_NOTEBOOK)
+    text = notebook_text(notebook)
+    markdown = "\n".join(
+        cell.source for cell in notebook.cells if cell.cell_type == "markdown"
+    )
+    code = "\n\n".join(
+        cell.source for cell in notebook.cells if cell.cell_type == "code"
+    )
     assert "DEEPGENOME_SCORE_TSV" in text
-    assert "DEEPGENOME_SAVE_RESULTS" in text
+    assert "supplementary/Supplementary_Data_Expert_Rankings.tsv" in text
+    assert "DEEPGENOME_BOOTSTRAP_REPLICATES" in text
+    assert "DEEPGENOME_EXPERT_METADATA" in text
+    assert "DEEPGENOME_EXPORT_DIR" in text
     assert "Claude" in text
+    assert "crossed expert-by-gene bootstrap" in markdown.lower()
+    assert "exact rank-position agreement" in markdown.lower()
+    assert (
+        "The reporting matrix was locked before the final bootstrap "
+        "reanalysis and before manuscript interpretation."
+    ) in markdown
+    assert "pilot values were viewed" in markdown.lower()
+    assert "negative" in markdown.lower()
+    assert "cross-zero" in markdown.lower()
+    assert "unfavorable" in markdown.lower()
+    assert "demographic Fleiss" in markdown
+    assert "triple interaction" in markdown
+    assert "from scripts.deepgenome_ranking_statistics import (" in code
+    assert "from scripts.freeze_deepgenome_rankings import (" in code
+    assert "validate_public_ranking_release" in code
+    assert "canonicalize_analysis_frame" in code
+    assert "point_estimate_tables" in code
+    assert "bootstrap_plackett_luce_statistics" in code
+    assert "bootstrap_agreement" in code
+    assert "summarize_expert_panel" in code
+    assert "statsmodels" not in code
+    assert "reference-parameter approximation" not in markdown
+    assert "gene_level_fleiss_kappa.csv" not in code
+    assert "successful_replicates=BOOTSTRAP_REPLICATES" in code
+    assert "seed=20260714" in code
+    assert "max_failed_fits=10" in code
+    assert "IntervalAnalysis" in code
+    assert "crossed_expert_gene" in code
+    assert "expert_cluster" in code
+    assert "gene_cluster" in code
+    assert "len(score_frame) == 600" in code
+    assert "nunique() == 120" in code
+    assert "drop_duplicates().shape[0] == 200" in code
+    assert "len(point_tables[\"pl_scores\"]) == 90" in code
+    assert "len(pl_bootstrap[\"pl_scores_ci\"]) == 270" in code
+    assert "len(pl_bootstrap[\"rank_distribution_ci\"]) == 450" in code
+    assert "len(pl_bootstrap[\"pl_pairwise_ci\"]) == 360" in code
+    assert "len(agreement_results[\"fleiss_kappa\"]) == 58" in code
+    assert "[\"ScopeID\"].nunique() == 58" in code
+    assert "len(agreement_results[\"ordinal_summary\"]) == 18" in code
+    assert "len(agreement_results[\"top1_consensus\"]) == 54" in code
+    assert "len(kendall_by_gene) == 200" in code
+    assert "len(assignment_summary) == 18" in code
     core_source = code_cell_source(PL_NOTEBOOK, "plackett-luce-core")
     assert "from scripts.deepgenome_ranking_statistics import (" in core_source
     assert "resolve_model_columns" in core_source
@@ -524,7 +580,6 @@ def test_plackett_luce_notebook_contract() -> None:
         "Phytomni",
         "Claude",
     )
-    assert "reference-parameter approximation" in text
 
 
 def test_plackett_luce_numerical_equivalence() -> None:
