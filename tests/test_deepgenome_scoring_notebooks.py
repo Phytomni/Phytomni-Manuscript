@@ -511,6 +511,11 @@ def test_plackett_luce_notebook_contract() -> None:
     assert "DEEPGENOME_SCORE_TSV" in text
     assert "DEEPGENOME_SAVE_RESULTS" in text
     assert "Claude" in text
+    core_source = code_cell_source(PL_NOTEBOOK, "plackett-luce-core")
+    assert "from scripts.deepgenome_ranking_statistics import (" in core_source
+    assert "resolve_model_columns" in core_source
+    assert "def fit_plackett_luce" not in core_source
+    assert "def pl_loglik_and_grad" not in core_source
     namespace = execute_tagged_source(PL_NOTEBOOK, "plackett-luce-core")
     assert namespace["MODEL_COLUMNS"] == (
         "Gemini",
