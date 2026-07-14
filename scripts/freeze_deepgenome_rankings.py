@@ -3,6 +3,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import shutil
+import tempfile
+import uuid
+from io import BytesIO
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -36,6 +41,10 @@ from scripts.deepgenome_ranking_statistics import (
     ranking_scope_registry,
     summarize_assignments,
     summarize_expert_panel,
+)
+from scripts.release_deepgenome_rankings import (
+    PUBLIC_COLUMNS,
+    RELEASE_ID_PATTERN,
 )
 
 
@@ -139,12 +148,53 @@ OUTPUT_SORT_KEYS = {
 }
 
 
-def sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+def sha256_bytes(payload: bytes) -> str:
+    return hashlib.sha256(payload).hexdigest()
 
 
-def input_provenance(path: Path) -> dict[str, str]:
-    return {"sha256": sha256(path)}
+def input_provenance(payload: bytes) -> dict[str, str]:
+    return {"sha256": sha256_bytes(payload)}
+
+
+def validate_public_ranking_release(source: pd.DataFrame) -> None:
+    if tuple(source.columns) != PUBLIC_COLUMNS:
+        raise ValueError(
+            "The public ranking release must use the exact canonical schema."
+        )
+    if source.empty:
+        raise ValueError("The public ranking release is empty.")
+    valid_cells = source.map(
+        lambda value: (
+            isinstance(value, str)
+            and bool(value)
+            and value == value.strip()
+        )
+    )
+    if not valid_cells.to_numpy().all():
+        raise ValueError(
+            "The public ranking release must contain nonempty trimmed strings."
+        )
+    if set(source["Species"]) != set(AGREEMENT_SPECIES):
+        raise ValueError(
+            "The public ranking release must use canonical species values."
+        )
+    if set(source["StudyStatus"]) != set(AGREEMENT_STUDY_STATUSES):
+        raise ValueError(
+            "The public ranking release must use canonical study statuses."
+        )
+
+    release_ids = source["AnonymousExpertID"].drop_duplicates().tolist()
+    if not all(RELEASE_ID_PATTERN.fullmatch(value) for value in release_ids):
+        raise ValueError(
+            "The public ranking release must use canonical anonymous IDs."
+        )
+    expected_ids = {
+        f"E{index:03d}" for index in range(1, len(release_ids) + 1)
+    }
+    if set(release_ids) != expected_ids:
+        raise ValueError(
+            "The public ranking release must use contiguous anonymous IDs."
+        )
 
 
 def validate_score_frame(
@@ -458,6 +508,104 @@ def write_table(frame: pd.DataFrame, path: Path) -> None:
     )
 
 
+def _pl_failure_reason_code(reason: object) -> str:
+    normalized = str(reason).casefold()
+    if "zero effective weight" in normalized:
+        return "zero_effective_weight"
+    if "optimization failed" in normalized:
+        return "optimizer_failure"
+    if "nonfinite" in normalized:
+        return "nonfinite_output"
+    return "numerical_failure"
+
+
+def public_pl_diagnostics(diagnostics: dict[str, object]) -> dict[str, object]:
+    return {
+        "AttemptedReplicates": _json_safe(
+            diagnostics.get("AttemptedReplicates", 0)
+        ),
+        "SuccessfulReplicates": _json_safe(
+            diagnostics.get("SuccessfulReplicates", 0)
+        ),
+        "FailedFits": _json_safe(diagnostics.get("FailedFits", 0)),
+        "FailureReasonCodes": [
+            _pl_failure_reason_code(reason)
+            for reason in diagnostics.get("FailureReasons", ())
+        ],
+        "SeedStream": _json_safe(diagnostics.get("SeedStream", "")),
+        "ExpertSeedSpawnKey": _json_safe(
+            diagnostics.get("ExpertSeedSpawnKey", ())
+        ),
+        "GeneSeedSpawnKey": _json_safe(
+            diagnostics.get("GeneSeedSpawnKey", ())
+        ),
+        "HalfRunStability": _json_safe(
+            diagnostics.get("HalfRunStability", {"Applied": False})
+        ),
+    }
+
+
+def validate_staged_publication(staging_dir: Path) -> None:
+    expected_files = {*OUTPUT_FILENAMES.values(), "provenance.json"}
+    entries = list(staging_dir.iterdir())
+    if (
+        {entry.name for entry in entries} != expected_files
+        or not all(entry.is_file() for entry in entries)
+    ):
+        raise RuntimeError(
+            "The staged frozen publication must contain exactly 13 files."
+        )
+
+    provenance_bytes = (staging_dir / "provenance.json").read_bytes()
+    try:
+        provenance = json.loads(provenance_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise RuntimeError("The staged provenance is invalid.") from error
+    recorded_outputs = provenance.get("outputs")
+    if not isinstance(recorded_outputs, dict) or set(recorded_outputs) != set(
+        OUTPUT_FILENAMES.values()
+    ):
+        raise RuntimeError("The staged provenance output registry is incomplete.")
+    for filename, recorded_digest in recorded_outputs.items():
+        payload = (staging_dir / filename).read_bytes()
+        if not payload or sha256_bytes(payload) != recorded_digest:
+            raise RuntimeError("A staged output hash is inconsistent.")
+
+
+def _remove_path(path: Path) -> None:
+    if path.is_symlink() or path.is_file():
+        path.unlink()
+    elif path.exists():
+        shutil.rmtree(path)
+
+
+def _publish_staged_directory(staging_dir: Path, output_dir: Path) -> None:
+    if output_dir.exists() and (
+        not output_dir.is_dir() or output_dir.is_symlink()
+    ):
+        raise ValueError("The frozen output path must be a directory.")
+
+    backup_dir: Path | None = None
+    if output_dir.exists():
+        backup_dir = output_dir.parent / (
+            f".{output_dir.name}.backup-{uuid.uuid4().hex}"
+        )
+        os.replace(output_dir, backup_dir)
+    try:
+        os.replace(staging_dir, output_dir)
+    except Exception:
+        if backup_dir is not None:
+            try:
+                os.replace(backup_dir, output_dir)
+            except Exception as rollback_error:
+                raise RuntimeError(
+                    "Frozen output publication and rollback both failed."
+                ) from rollback_error
+        raise
+    if backup_dir is not None:
+        _remove_path(backup_dir)
+
+
 def freeze_rankings(
     *,
     score_path: Path,
@@ -472,6 +620,10 @@ def freeze_rankings(
 ) -> dict[str, Path]:
     config = bootstrap_config or BootstrapConfig()
     model_columns = tuple(model_columns)
+    if expert_column != "AnonymousExpertID" or model_columns != MODEL_COLUMNS:
+        raise ValueError(
+            "Frozen ranking analysis requires the canonical public schema."
+        )
     score_path = score_path.resolve()
     gene_categories_path = gene_categories_path.resolve()
     expert_metadata_path = expert_metadata_path.resolve()
@@ -482,40 +634,54 @@ def freeze_rankings(
         else None
     )
     output_dir = output_dir.resolve()
-    input_records = {
-        "public_ranking_release": input_provenance(score_path),
+    output_dir.parent.mkdir(parents=True, exist_ok=True)
+    if output_dir.exists() and (
+        not output_dir.is_dir() or output_dir.is_symlink()
+    ):
+        raise ValueError("The frozen output path must be a directory.")
+
+    input_snapshots: dict[str, bytes | None] = {
+        "public_ranking_release": score_path.read_bytes(),
         "private_lineage_score": (
-            input_provenance(lineage_path) if lineage_path is not None else None
+            lineage_path.read_bytes() if lineage_path is not None else None
         ),
-        "gene_categories": input_provenance(gene_categories_path),
-        "expert_metadata": input_provenance(expert_metadata_path),
-        "panel_category_map": input_provenance(panel_category_map_path),
-        "statistical_module": input_provenance(STATISTICS_MODULE),
-        "panel_category_audit_module": input_provenance(PANEL_AUDIT_MODULE),
-        "freezer_module": input_provenance(FREEZER_MODULE),
-        "narrative_notebook": input_provenance(PL_NOTEBOOK),
+        "gene_categories": gene_categories_path.read_bytes(),
+        "expert_metadata": expert_metadata_path.read_bytes(),
+        "panel_category_map": panel_category_map_path.read_bytes(),
+        "statistical_module": STATISTICS_MODULE.read_bytes(),
+        "panel_category_audit_module": PANEL_AUDIT_MODULE.read_bytes(),
+        "freezer_module": FREEZER_MODULE.read_bytes(),
+        "narrative_notebook": PL_NOTEBOOK.read_bytes(),
+    }
+    input_records = {
+        name: input_provenance(payload) if payload is not None else None
+        for name, payload in input_snapshots.items()
     }
 
-    source = pd.read_csv(score_path, sep="\t", dtype=str)
-    if expert_column not in source.columns:
-        raise ValueError("The public ranking table is missing its expert column.")
-    if expert_column != "Expert" and "Expert" in source.columns:
-        raise ValueError("The public ranking table has ambiguous expert columns.")
-    score_frame = source.rename(columns={expert_column: "Expert"})
-    retained_columns = [
-        "Expert",
-        "Species",
-        "Gene",
-        *( ["StudyStatus"] if "StudyStatus" in score_frame.columns else [] ),
-        *model_columns,
-    ]
-    score_frame = score_frame.loc[:, retained_columns].copy()
+    source = pd.read_csv(
+        BytesIO(input_snapshots["public_ranking_release"]),
+        sep="\t",
+        dtype=str,
+    )
+    validate_public_ranking_release(source)
+    score_frame = source.rename(columns={"AnonymousExpertID": "Expert"})
     validate_score_frame(score_frame, model_columns)
 
-    categories = pd.read_csv(gene_categories_path, sep="\t", dtype=str)
+    categories = pd.read_csv(
+        BytesIO(input_snapshots["gene_categories"]),
+        sep="\t",
+        dtype=str,
+    )
     categorized = attach_gene_categories(score_frame, categories)
-    metadata = pd.read_excel(expert_metadata_path, dtype=object)
-    category_map = pd.read_csv(panel_category_map_path, sep="\t", dtype=str)
+    metadata = pd.read_excel(
+        BytesIO(input_snapshots["expert_metadata"]),
+        dtype=object,
+    )
+    category_map = pd.read_csv(
+        BytesIO(input_snapshots["panel_category_map"]),
+        sep="\t",
+        dtype=str,
+    )
     panel = summarize_expert_panel(metadata, category_map)
     if metadata["Expert_ID"].nunique() != categorized["Expert"].nunique():
         raise ValueError(
@@ -571,14 +737,6 @@ def freeze_rankings(
         for name, table in tables.items()
     }
 
-    output_dir.mkdir(parents=True, exist_ok=True)
-    paths = {
-        key: output_dir / filename
-        for key, filename in OUTPUT_FILENAMES.items()
-    }
-    for key in OUTPUT_FILENAMES:
-        write_table(tables[key], paths[key])
-
     pl_diagnostics = pl_bootstrap["pl_scores_ci"].attrs.get(
         "bootstrap_diagnostics",
         {},
@@ -603,7 +761,7 @@ def freeze_rankings(
             "agreement_interval": "stratified_gene_block_percentile",
         },
         "bootstrap_diagnostics": {
-            "plackett_luce": _json_safe(pl_diagnostics),
+            "plackett_luce": public_pl_diagnostics(pl_diagnostics),
             "agreement": {
                 "attempted_replicates": int(
                     fleiss_first["BootstrapAttempted"]
@@ -616,26 +774,46 @@ def freeze_rankings(
             },
         },
         "inputs": input_records,
-        "outputs": {
-            path.name: sha256(path)
-            for path in paths.values()
-        },
     }
-    provenance_path = output_dir / "provenance.json"
-    provenance_path.write_text(
-        json.dumps(provenance, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
+    staging_dir = Path(
+        tempfile.mkdtemp(
+            prefix=f".{output_dir.name}.staging-",
+            dir=output_dir.parent,
+        )
     )
-    paths["provenance"] = provenance_path
+    staging_dir.chmod(0o755)
+    try:
+        staging_paths = {
+            key: staging_dir / filename
+            for key, filename in OUTPUT_FILENAMES.items()
+        }
+        for key in OUTPUT_FILENAMES:
+            write_table(tables[key], staging_paths[key])
+        provenance["outputs"] = {
+            path.name: sha256_bytes(path.read_bytes())
+            for path in staging_paths.values()
+        }
+        (staging_dir / "provenance.json").write_text(
+            json.dumps(provenance, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        validate_staged_publication(staging_dir)
+        _publish_staged_directory(staging_dir, output_dir)
+    finally:
+        _remove_path(staging_dir)
+
+    paths = {
+        key: output_dir / filename
+        for key, filename in OUTPUT_FILENAMES.items()
+    }
+    paths["provenance"] = output_dir / "provenance.json"
     return paths
 
 
 def parse_model_columns(value: str) -> tuple[str, ...]:
     columns = tuple(column.strip() for column in value.split(",") if column.strip())
-    if len(columns) < 2 or len(columns) != len(set(columns)):
-        raise argparse.ArgumentTypeError(
-            "Model columns must contain at least two unique names."
-        )
+    if columns != MODEL_COLUMNS:
+        raise ValueError("Model columns must use the canonical order.")
     return columns
 
 
@@ -655,14 +833,19 @@ def main() -> None:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument(
         "--model-columns",
-        type=parse_model_columns,
-        default=DEFAULT_MODEL_COLUMNS,
+        default=",".join(DEFAULT_MODEL_COLUMNS),
         help="Comma-separated ranking columns.",
     )
     parser.add_argument("--bootstrap-replicates", type=int, default=10_000)
     parser.add_argument("--seed", type=int, default=20260714)
     parser.add_argument("--max-failed-fits", type=int, default=10)
     args = parser.parse_args()
+    if args.expert_column != "AnonymousExpertID":
+        parser.error("Expert column must use the canonical public schema.")
+    try:
+        model_columns = parse_model_columns(args.model_columns)
+    except ValueError:
+        parser.error("Model columns must use the canonical order.")
     paths = freeze_rankings(
         score_path=args.score_tsv,
         gene_categories_path=args.gene_categories,
@@ -670,7 +853,7 @@ def main() -> None:
         private_lineage_score_path=args.private_lineage_score,
         panel_category_map_path=args.panel_category_map,
         output_dir=args.output_dir,
-        model_columns=args.model_columns,
+        model_columns=model_columns,
         expert_column=args.expert_column,
         bootstrap_config=BootstrapConfig(
             successful_replicates=args.bootstrap_replicates,

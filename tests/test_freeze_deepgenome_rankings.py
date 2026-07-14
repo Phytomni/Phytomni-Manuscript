@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 import scripts.freeze_deepgenome_rankings as freeze_module
+from scripts.release_deepgenome_rankings import PUBLIC_COLUMNS
 from scripts.deepgenome_ranking_statistics import (
     ASSIGNMENT_SUMMARY_COLUMNS,
     FLEISS_BOOTSTRAP_COLUMNS,
@@ -155,6 +156,7 @@ def write_crossed_fixture(
                 score_rows.append(row)
 
     score = pd.DataFrame(score_rows)
+    assert tuple(score.columns) == PUBLIC_COLUMNS
     assert (
         score.groupby(["Species", "AnonymousExpertID"]).size() == 5
     ).all()
@@ -306,6 +308,14 @@ def freeze_fixture(tmp_path: Path, output_dir: Path) -> tuple[Path, ...]:
     return paths
 
 
+def directory_bytes(directory: Path) -> dict[str, bytes]:
+    return {
+        str(path.relative_to(directory)): path.read_bytes()
+        for path in sorted(directory.rglob("*"))
+        if path.is_file()
+    }
+
+
 def test_freezer_writes_deterministic_reviewer_tables(tmp_path: Path) -> None:
     output_dir = tmp_path / "frozen"
     (
@@ -317,6 +327,10 @@ def test_freezer_writes_deterministic_reviewer_tables(tmp_path: Path) -> None:
     first_bytes = {
         path.name: path.read_bytes() for path in sorted(output_dir.iterdir())
     }
+    (output_dir / "stale-unexpected-file.txt").write_text(
+        "must be removed by transactional publication\n",
+        encoding="utf-8",
+    )
     freeze_rankings(
         score_path=score_path,
         gene_categories_path=categories_path,
@@ -762,7 +776,14 @@ def test_freezer_writes_deterministic_reviewer_tables(tmp_path: Path) -> None:
     assert pl_diagnostics["AttemptedReplicates"] >= 20
     assert pl_diagnostics["SuccessfulReplicates"] == 20
     assert pl_diagnostics["FailedFits"] <= 2
-    assert isinstance(pl_diagnostics["FailureReasons"], list)
+    assert "FailureReasons" not in pl_diagnostics
+    assert isinstance(pl_diagnostics["FailureReasonCodes"], list)
+    assert set(pl_diagnostics["FailureReasonCodes"]) <= {
+        "zero_effective_weight",
+        "optimizer_failure",
+        "nonfinite_output",
+        "numerical_failure",
+    }
     assert pl_diagnostics["SeedStream"] == "pl_expert_gene_components"
     assert isinstance(pl_diagnostics["ExpertSeedSpawnKey"], list)
     assert isinstance(pl_diagnostics["GeneSeedSpawnKey"], list)
@@ -807,6 +828,232 @@ def test_freezer_rejects_incomplete_rankings(tmp_path: Path) -> None:
             model_columns=MODELS,
             bootstrap_config=BOOTSTRAP_CONFIG,
         )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "extra_column",
+        "reordered_columns",
+        "malformed_id",
+        "noncontiguous_id",
+        "whitespace_id",
+        "invalid_status",
+    ],
+)
+def test_freezer_requires_exact_canonical_public_release_before_projection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+) -> None:
+    score_path, categories_path, metadata_path, category_map_path = (
+        write_crossed_fixture(tmp_path)
+    )
+    score = pd.read_csv(score_path, sep="\t", dtype=str)
+    private_sentinel = "private-invalid-sentinel"
+    bad_value: str | None = None
+    if mutation == "extra_column":
+        score["Unexpected"] = private_sentinel
+        bad_value = private_sentinel
+    elif mutation == "reordered_columns":
+        score = score.loc[:, [*score.columns[1:], score.columns[0]]]
+    elif mutation == "malformed_id":
+        score.loc[score["AnonymousExpertID"] == "E001", "AnonymousExpertID"] = (
+            private_sentinel
+        )
+        bad_value = private_sentinel
+    elif mutation == "noncontiguous_id":
+        score.loc[score["AnonymousExpertID"] == "E001", "AnonymousExpertID"] = (
+            "E999"
+        )
+        bad_value = "E999"
+    elif mutation == "whitespace_id":
+        score.loc[score["AnonymousExpertID"] == "E001", "AnonymousExpertID"] = (
+            " E001"
+        )
+        bad_value = " E001"
+    else:
+        score.loc[0, "StudyStatus"] = private_sentinel
+        bad_value = private_sentinel
+    score.to_csv(score_path, sep="\t", index=False)
+
+    def unexpected_bootstrap(*args: object, **kwargs: object) -> object:
+        raise AssertionError("Invalid public input reached the bootstrap")
+
+    monkeypatch.setattr(
+        freeze_module,
+        "bootstrap_plackett_luce_statistics",
+        unexpected_bootstrap,
+    )
+    with pytest.raises(ValueError) as error:
+        freeze_rankings(
+            score_path=score_path,
+            gene_categories_path=categories_path,
+            expert_metadata_path=metadata_path,
+            private_lineage_score_path=None,
+            panel_category_map_path=category_map_path,
+            output_dir=tmp_path / "frozen",
+            model_columns=MODELS,
+            bootstrap_config=BOOTSTRAP_CONFIG,
+        )
+    assert private_sentinel not in str(error.value)
+    if bad_value is not None:
+        assert bad_value not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    ("expert_column", "model_columns"),
+    [
+        ("Expert", MODELS),
+        ("AnonymousExpertID", tuple(reversed(MODELS))),
+    ],
+)
+def test_freezer_rejects_noncanonical_analysis_configuration_before_io(
+    tmp_path: Path,
+    expert_column: str,
+    model_columns: tuple[str, ...],
+) -> None:
+    missing = tmp_path / "must-not-be-read"
+    with pytest.raises(ValueError, match="canonical"):
+        freeze_rankings(
+            score_path=missing,
+            gene_categories_path=missing,
+            expert_metadata_path=missing,
+            private_lineage_score_path=None,
+            panel_category_map_path=missing,
+            output_dir=tmp_path / "frozen",
+            model_columns=model_columns,
+            expert_column=expert_column,
+            bootstrap_config=BOOTSTRAP_CONFIG,
+        )
+
+
+@pytest.mark.parametrize("failure_point", ["write", "validation", "swap"])
+def test_freezer_transaction_rolls_back_existing_output_on_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure_point: str,
+) -> None:
+    score_path, categories_path, metadata_path, category_map_path = (
+        write_crossed_fixture(tmp_path)
+    )
+    output_dir = tmp_path / "frozen"
+    output_dir.mkdir()
+    (output_dir / "rank_distribution.tsv").write_bytes(b"previous ranks\n")
+    (output_dir / "provenance.json").write_bytes(b"previous provenance\n")
+    (output_dir / "keep.bin").write_bytes(b"previous extra bytes\x00\x01")
+    previous = directory_bytes(output_dir)
+
+    def injected_failure(*args: object, **kwargs: object) -> object:
+        raise RuntimeError(f"injected {failure_point} failure")
+
+    if failure_point == "write":
+        original_write = freeze_module.write_table
+
+        def fail_after_write(frame: pd.DataFrame, path: Path) -> None:
+            original_write(frame, path)
+            injected_failure()
+
+        monkeypatch.setattr(freeze_module, "write_table", fail_after_write)
+    elif failure_point == "validation":
+        monkeypatch.setattr(
+            freeze_module,
+            "validate_staged_publication",
+            injected_failure,
+            raising=False,
+        )
+    else:
+        original_replace = freeze_module.os.replace
+        failed = False
+
+        def fail_new_directory_swap(source: Path, destination: Path) -> None:
+            nonlocal failed
+            source_path = Path(source)
+            destination_path = Path(destination)
+            if (
+                not failed
+                and destination_path == output_dir
+                and ".staging-" in source_path.name
+            ):
+                failed = True
+                injected_failure()
+            original_replace(source, destination)
+
+        monkeypatch.setattr(
+            freeze_module.os,
+            "replace",
+            fail_new_directory_swap,
+        )
+
+    with pytest.raises(RuntimeError, match=f"injected {failure_point} failure"):
+        freeze_rankings(
+            score_path=score_path,
+            gene_categories_path=categories_path,
+            expert_metadata_path=metadata_path,
+            private_lineage_score_path=None,
+            panel_category_map_path=category_map_path,
+            output_dir=output_dir,
+            model_columns=MODELS,
+            bootstrap_config=BootstrapConfig(
+                successful_replicates=1,
+                seed=20260714,
+                max_failed_fits=2,
+            ),
+        )
+
+    assert directory_bytes(output_dir) == previous
+    assert not list(tmp_path.glob(".frozen.staging-*"))
+    assert not list(tmp_path.glob(".frozen.backup-*"))
+
+
+def test_freezer_hashes_and_parses_the_same_single_read_snapshot(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    score_path, categories_path, metadata_path, category_map_path = (
+        write_crossed_fixture(tmp_path)
+    )
+    original_score = score_path.read_bytes()
+    original_read_bytes = Path.read_bytes
+    score_reads = 0
+
+    def replace_after_read(path: Path) -> bytes:
+        nonlocal score_reads
+        payload = original_read_bytes(path)
+        if path.resolve() == score_path.resolve():
+            score_reads += 1
+            if score_reads == 1:
+                score_path.write_text(
+                    "corrupted after immutable snapshot\n",
+                    encoding="utf-8",
+                )
+        return payload
+
+    monkeypatch.setattr(Path, "read_bytes", replace_after_read)
+    output_dir = tmp_path / "frozen"
+    freeze_rankings(
+        score_path=score_path,
+        gene_categories_path=categories_path,
+        expert_metadata_path=metadata_path,
+        private_lineage_score_path=None,
+        panel_category_map_path=category_map_path,
+        output_dir=output_dir,
+        model_columns=MODELS,
+        bootstrap_config=BootstrapConfig(
+            successful_replicates=1,
+            seed=20260714,
+            max_failed_fits=2,
+        ),
+    )
+
+    provenance = json.loads((output_dir / "provenance.json").read_text())
+    assert score_reads == 1
+    assert provenance["inputs"]["public_ranking_release"]["sha256"] == (
+        hashlib.sha256(original_score).hexdigest()
+    )
+    assert len(pd.read_csv(output_dir / "rank_distribution.tsv", sep="\t")) == (
+        18 * len(MODELS) ** 2
+    )
 
 
 def test_freezer_validates_lineage_before_bootstrap(
@@ -912,6 +1159,61 @@ def test_cli_requires_private_lineage_score(
         main()
 
     assert "--private-lineage-score" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("flag", "value"),
+    [
+        ("--expert-column", "Expert"),
+        ("--model-columns", ",".join(reversed(MODELS))),
+    ],
+)
+def test_cli_rejects_noncanonical_analysis_configuration_without_echoing_value(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    flag: str,
+    value: str,
+) -> None:
+    score_path, categories_path, metadata_path, category_map_path = (
+        write_crossed_fixture(tmp_path)
+    )
+    lineage_path = tmp_path / "private-lineage.tsv"
+    lineage_path.write_text("private lineage fixture\n", encoding="utf-8")
+
+    def unexpected_freeze(**kwargs: object) -> dict[str, Path]:
+        raise AssertionError("Noncanonical CLI configuration reached the freezer")
+
+    monkeypatch.setattr(freeze_module, "freeze_rankings", unexpected_freeze)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "freeze_deepgenome_rankings",
+            "--score-tsv",
+            str(score_path),
+            "--gene-categories",
+            str(categories_path),
+            "--expert-metadata",
+            str(metadata_path),
+            "--private-lineage-score",
+            str(lineage_path),
+            "--panel-category-map",
+            str(category_map_path),
+            "--output-dir",
+            str(tmp_path / "frozen"),
+            flag,
+            value,
+        ],
+    )
+
+    with pytest.raises(SystemExit):
+        main()
+
+    error = capsys.readouterr().err
+    assert "canonical" in error.casefold()
+    if flag == "--model-columns":
+        assert value not in error
 
 
 def test_cli_propagates_production_inputs_and_bootstrap_configuration(
