@@ -7,6 +7,7 @@ from typing import Sequence
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
+from scipy.special import expit, logsumexp
 from scipy.stats import kendalltau
 
 
@@ -108,6 +109,62 @@ TOP1_BOOTSTRAP_COLUMNS = (
 TOP1_PATTERNS = ("unanimous", "majority_2_of_3", "all_different")
 AGREEMENT_SEED_STREAM = "agreement_gene_blocks"
 BOOTSTRAP_STRATA_LABEL = "Species x StudyStatus"
+PL_INTERVAL_ANALYSES = (
+    "crossed_expert_gene",
+    "expert_cluster",
+    "gene_cluster",
+)
+PL_BOOTSTRAP_SEED_STREAM = "pl_expert_gene_components"
+PL_PRODUCTION_REPLICATES = 10_000
+PL_SCORE_COLUMNS = (
+    "Scope",
+    "StudyStatus",
+    "Species",
+    "Model",
+    "IntervalAnalysis",
+    "Estimate",
+    "CI95Lower",
+    "CI95Upper",
+    "NJudgments",
+    "NExperts",
+    "NGenes",
+    "SuccessfulReplicates",
+    "FailedFits",
+    "SeedStream",
+)
+PL_RANK_COLUMNS = (
+    "Scope",
+    "StudyStatus",
+    "Species",
+    "Model",
+    "Rank",
+    "Fraction",
+    "CI95Lower",
+    "CI95Upper",
+    "Count",
+    "NJudgments",
+    "NExperts",
+    "NGenes",
+    "SuccessfulReplicates",
+    "FailedFits",
+    "SeedStream",
+)
+PL_PAIRWISE_COLUMNS = (
+    "Scope",
+    "StudyStatus",
+    "Species",
+    "RowModel",
+    "ColumnModel",
+    "Probability",
+    "CI95Lower",
+    "CI95Upper",
+    "NJudgments",
+    "NExperts",
+    "NGenes",
+    "SuccessfulReplicates",
+    "FailedFits",
+    "SeedStream",
+)
 
 
 @dataclass(frozen=True)
@@ -118,6 +175,13 @@ class AgreementScope:
     species: str = "all"
     study_status: str = "all"
     model: str = "all"
+
+
+@dataclass(frozen=True)
+class RankingScope:
+    scope: str
+    study_status: str
+    species: str
 
 
 @dataclass(frozen=True)
@@ -170,6 +234,45 @@ def gene_bootstrap_multiplicities(
         sampled = rng.choice(positions, size=len(positions), replace=True)
         multiplicities += np.bincount(sampled, minlength=len(genes))
     return pd.Series(multiplicities, index=genes.index, dtype=int)
+
+
+def sample_within_strata(
+    units: pd.DataFrame,
+    *,
+    id_columns: tuple[str, ...],
+    strata: tuple[str, ...],
+    rng: np.random.Generator,
+) -> pd.Series:
+    """Draw cluster units with replacement within fixed strata."""
+    if not id_columns or not strata:
+        raise ValueError("Bootstrap IDs and strata must both be nonempty.")
+    key_columns = tuple(dict.fromkeys((*strata, *id_columns)))
+    missing = sorted(set(key_columns).difference(units.columns))
+    if missing:
+        raise ValueError(
+            "Missing cluster bootstrap columns: " + ", ".join(missing)
+        )
+    if units.empty:
+        raise ValueError("Cluster bootstrap requires at least one unit.")
+    if units.loc[:, key_columns].isna().any().any():
+        raise ValueError("Cluster bootstrap IDs and strata must be nonmissing.")
+    if units.duplicated(list(key_columns)).any():
+        raise ValueError(
+            "Cluster bootstrap units must be unique within each stratum."
+        )
+
+    multiplicities = np.zeros(len(units), dtype=int)
+    grouped_positions = units.groupby(
+        list(strata),
+        sort=False,
+        dropna=False,
+        observed=True,
+    ).indices
+    for positions in grouped_positions.values():
+        positions = np.asarray(positions, dtype=int)
+        sampled = rng.choice(positions, size=len(positions), replace=True)
+        multiplicities += np.bincount(sampled, minlength=len(units))
+    return pd.Series(multiplicities, index=units.index, dtype=int)
 
 
 def agreement_scope_registry(
@@ -294,6 +397,30 @@ def ordinal_scope_registry(
         )
         for species_value in species
         for status_value in study_statuses
+    )
+    return tuple(scopes)
+
+
+def ranking_scope_registry() -> tuple[RankingScope, ...]:
+    """Return the frozen ranking scopes in their publication order."""
+    scopes = [RankingScope("overall", "all", "all")]
+    for status in AGREEMENT_STUDY_STATUSES:
+        scopes.append(RankingScope(status, status, "all"))
+        scopes.extend(
+            RankingScope(
+                f"{status}.{species.casefold().replace(' ', '_')}",
+                status,
+                species,
+            )
+            for species in AGREEMENT_SPECIES
+        )
+    scopes.extend(
+        RankingScope(
+            species.casefold().replace(" ", "_"),
+            "all",
+            species,
+        )
+        for species in AGREEMENT_SPECIES
     )
     return tuple(scopes)
 
@@ -1284,3 +1411,675 @@ def elo_outputs(
     )
     probability_table.index.name = "Model"
     return score_table, probability_table
+
+
+def validate_half_run_stability(
+    first_score_bounds: np.ndarray,
+    second_score_bounds: np.ndarray,
+    first_probability_bounds: np.ndarray,
+    second_probability_bounds: np.ndarray,
+) -> dict[str, float]:
+    """Validate production-bootstrap bounds against the other half-run."""
+    first_scores = np.asarray(first_score_bounds, dtype=float)
+    second_scores = np.asarray(second_score_bounds, dtype=float)
+    first_probabilities = np.asarray(first_probability_bounds, dtype=float)
+    second_probabilities = np.asarray(second_probability_bounds, dtype=float)
+    if first_scores.shape != second_scores.shape:
+        raise ValueError("Score half-run bounds must have matching shapes.")
+    if first_probabilities.shape != second_probabilities.shape:
+        raise ValueError(
+            "Probability half-run bounds must have matching shapes."
+        )
+
+    with np.errstate(invalid="ignore"):
+        score_difference = float(
+            np.max(np.abs(first_scores - second_scores))
+        )
+        probability_difference = float(
+            np.max(
+                np.abs(first_probabilities - second_probabilities)
+            )
+        )
+    unstable: list[str] = []
+    if not np.isfinite(score_difference) or score_difference >= 2.0:
+        unstable.append("score bounds")
+    if (
+        not np.isfinite(probability_difference)
+        or probability_difference >= 0.01
+    ):
+        unstable.append("probability bounds")
+    if unstable:
+        raise RuntimeError(
+            "Unstable half-run bootstrap metrics: " + ", ".join(unstable)
+        )
+    return {
+        "ScoreMaxBoundDifference": score_difference,
+        "ProbabilityMaxBoundDifference": probability_difference,
+    }
+
+
+def _bootstrap_pl_fit(
+    rankings: np.ndarray,
+    weights: np.ndarray,
+    models: tuple[str, ...],
+    initial_vector: np.ndarray | None = None,
+) -> dict[str, object]:
+    """Fit a point-only PL model to collapsed, encoded rankings."""
+    encoded = np.asarray(rankings, dtype=int)
+    observation_weights = np.asarray(weights, dtype=float)
+    if encoded.ndim != 2 or encoded.shape[1] != len(models):
+        raise RuntimeError("Bootstrap rankings have an invalid shape.")
+    if observation_weights.shape != (len(encoded),):
+        raise RuntimeError("Bootstrap weights do not match rankings.")
+    if (
+        not np.isfinite(observation_weights).all()
+        or (observation_weights < 0).any()
+        or observation_weights.sum() <= 0
+    ):
+        raise RuntimeError("Bootstrap fit has invalid or zero weights.")
+
+    unique_rankings, inverse = np.unique(
+        encoded,
+        axis=0,
+        return_inverse=True,
+    )
+    collapsed_weights = np.bincount(
+        inverse,
+        weights=observation_weights,
+        minlength=len(unique_rankings),
+    )
+    retained = collapsed_weights > 0
+    encoded = unique_rankings[retained]
+    observation_weights = collapsed_weights[retained]
+
+    reference_index = models.index(REFERENCE_MODEL)
+    free_indices = np.array(
+        [index for index in range(len(models)) if index != reference_index],
+        dtype=int,
+    )
+    if initial_vector is None:
+        start = np.zeros(len(free_indices), dtype=float)
+    else:
+        start = np.asarray(initial_vector, dtype=float)
+        if start.shape != (len(free_indices),) or not np.isfinite(start).all():
+            raise RuntimeError("Bootstrap PL initial values are invalid.")
+
+    def objective(vector: np.ndarray) -> tuple[float, np.ndarray]:
+        xi = np.zeros(len(models), dtype=float)
+        xi[free_indices] = vector
+        log_likelihood = 0.0
+        gradient = np.zeros(len(models), dtype=float)
+        for stage in range(len(models) - 1):
+            remaining = encoded[:, stage:]
+            logits = xi[remaining]
+            log_denominator = logsumexp(logits, axis=1)
+            selected = encoded[:, stage]
+            log_likelihood += float(
+                observation_weights
+                @ (xi[selected] - log_denominator)
+            )
+            np.add.at(gradient, selected, observation_weights)
+            expected = observation_weights[:, None] * np.exp(
+                logits - log_denominator[:, None]
+            )
+            np.add.at(
+                gradient,
+                remaining.ravel(),
+                -expected.ravel(),
+            )
+        return -log_likelihood, -gradient[free_indices]
+
+    result = minimize(
+        objective,
+        start,
+        jac=True,
+        method="L-BFGS-B",
+        options=OPTIMIZER_OPTIONS,
+    )
+    if (
+        not result.success
+        or not np.isfinite(result.fun)
+        or not np.isfinite(result.x).all()
+    ):
+        raise RuntimeError(
+            "Bootstrap Plackett-Luce optimization failed: "
+            f"{result.message}"
+        )
+
+    xi = np.zeros(len(models), dtype=float)
+    xi[free_indices] = result.x
+    elo = ELO_SCALE * xi
+    elo += ELO_CENTER - float(elo.mean())
+    probabilities = expit(xi[:, None] - xi[None, :])
+    np.fill_diagonal(probabilities, np.nan)
+    off_diagonal = ~np.eye(len(models), dtype=bool)
+    if (
+        not np.isfinite(elo).all()
+        or not np.isfinite(probabilities[off_diagonal]).all()
+    ):
+        raise RuntimeError(
+            "Bootstrap Plackett-Luce fit produced nonfinite outputs."
+        )
+    return {
+        "optimizer_result": result,
+        "elo": elo,
+        "pairwise_probabilities": probabilities,
+    }
+
+
+def _validate_pl_bootstrap_frame(
+    frame: pd.DataFrame,
+    model_columns: tuple[str, ...],
+) -> pd.DataFrame:
+    _validate_agreement_bootstrap_frame(frame, model_columns)
+    expert_species = frame.groupby(
+        "Expert",
+        sort=False,
+        dropna=False,
+    )["Species"].nunique(dropna=False)
+    if (expert_species != 1).any():
+        raise ValueError(
+            "Crossed ranking bootstrap requires each expert to belong to "
+            "exactly one species."
+        )
+    expert_assignments = frame.groupby(
+        ["Species", "Expert"],
+        sort=False,
+        dropna=False,
+    ).size()
+    if not all(
+        group.nunique() == 1
+        for _, group in expert_assignments.groupby(level="Species")
+    ):
+        raise ValueError(
+            "Crossed ranking bootstrap requires balanced expert assignments "
+            "within every species."
+        )
+
+    species_order = {
+        species: index for index, species in enumerate(AGREEMENT_SPECIES)
+    }
+    status_order = {
+        status: index
+        for index, status in enumerate(AGREEMENT_STUDY_STATUSES)
+    }
+    working = frame.copy()
+    working["_SpeciesOrder"] = working["Species"].map(species_order)
+    working["_StatusOrder"] = working["StudyStatus"].map(status_order)
+    return (
+        working.sort_values(
+            [
+                "_SpeciesOrder",
+                "_StatusOrder",
+                "Gene",
+                "Expert",
+            ],
+            kind="stable",
+        )
+        .drop(columns=["_SpeciesOrder", "_StatusOrder"])
+        .reset_index(drop=True)
+    )
+
+
+def _ranking_scope_indices(
+    frame: pd.DataFrame,
+    registry: tuple[RankingScope, ...],
+) -> tuple[np.ndarray, ...]:
+    species = frame["Species"].to_numpy(dtype=object)
+    statuses = frame["StudyStatus"].to_numpy(dtype=object)
+    result: list[np.ndarray] = []
+    for scope in registry:
+        mask = np.ones(len(frame), dtype=bool)
+        if scope.study_status != "all":
+            mask &= statuses == scope.study_status
+        if scope.species != "all":
+            mask &= species == scope.species
+        indices = np.flatnonzero(mask)
+        if not len(indices):
+            raise ValueError(f"Ranking scope {scope.scope!r} is empty.")
+        result.append(indices)
+    return tuple(result)
+
+
+def _scope_point_statistics(
+    frame: pd.DataFrame,
+    model_columns: tuple[str, ...],
+    registry: tuple[RankingScope, ...],
+    scope_indices: tuple[np.ndarray, ...],
+    encoded_rankings: np.ndarray,
+) -> tuple[
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    tuple[np.ndarray, ...],
+]:
+    point_scores = np.empty(
+        (len(registry), len(model_columns)), dtype=float
+    )
+    point_probabilities = np.empty(
+        (len(registry), len(model_columns), len(model_columns)), dtype=float
+    )
+    point_rank_counts = np.empty(
+        (len(registry), len(model_columns), len(model_columns)), dtype=int
+    )
+    scope_metadata = np.empty((len(registry), 3), dtype=int)
+    initial_vectors: list[np.ndarray] = []
+    free_models = [
+        model for model in model_columns if model != REFERENCE_MODEL
+    ]
+
+    for scope_index, row_indices in enumerate(scope_indices):
+        selected = frame.iloc[row_indices]
+        rankings = [
+            [model_columns[index] for index in ranking]
+            for ranking in encoded_rankings[row_indices]
+        ]
+        collapsed, weights = collapse_weighted_rankings(rankings)
+        fit = fit_plackett_luce(
+            collapsed,
+            list(model_columns),
+            weights=weights,
+        )
+        optimizer = fit["optimizer_result"]
+        if not optimizer.success:
+            raise RuntimeError(
+                "Point Plackett-Luce optimization failed for scope "
+                f"{registry[scope_index].scope!r}: {optimizer.message}"
+            )
+        fit_index = {
+            model: index for index, model in enumerate(fit["models"])
+        }
+        point_scores[scope_index] = [
+            fit["elo"][fit_index[model]] for model in model_columns
+        ]
+        point_probabilities[scope_index] = [
+            [
+                fit["pairwise_probabilities"][
+                    fit_index[row_model], fit_index[column_model]
+                ]
+                for column_model in model_columns
+            ]
+            for row_model in model_columns
+        ]
+        initial_vectors.append(
+            np.array([fit["xi"][model] for model in free_models])
+        )
+        for model_index, model in enumerate(model_columns):
+            counts = selected[model].value_counts()
+            point_rank_counts[scope_index, model_index] = [
+                int(counts.get(f"R{rank}", 0))
+                for rank in range(1, len(model_columns) + 1)
+            ]
+        scope_metadata[scope_index] = (
+            len(selected),
+            len(selected[["Species", "Expert"]].drop_duplicates()),
+            len(selected[["Species", "Gene"]].drop_duplicates()),
+        )
+    return (
+        point_scores,
+        point_probabilities,
+        point_rank_counts,
+        scope_metadata,
+        tuple(initial_vectors),
+    )
+
+
+def bootstrap_plackett_luce_statistics(
+    frame: pd.DataFrame,
+    model_columns: tuple[str, ...] = MODEL_COLUMNS,
+    config: BootstrapConfig | None = None,
+) -> dict[str, pd.DataFrame]:
+    """Bootstrap crossed expert/gene uncertainty for the 18 PL scopes."""
+    model_columns = tuple(model_columns)
+    config = config or BootstrapConfig()
+    if model_columns != MODEL_COLUMNS:
+        raise ValueError(
+            "Crossed ranking bootstrap requires canonical model columns."
+        )
+    working = _validate_pl_bootstrap_frame(frame, model_columns)
+    registry = ranking_scope_registry()
+    scope_indices = _ranking_scope_indices(working, registry)
+
+    rank_lookup = {f"R{rank}": rank - 1 for rank in range(1, 6)}
+    rank_numbers = np.array(
+        [
+            [rank_lookup[value] for value in row]
+            for row in working.loc[:, model_columns].itertuples(
+                index=False,
+                name=None,
+            )
+        ],
+        dtype=int,
+    )
+    encoded_rankings = np.argsort(rank_numbers, axis=1, kind="stable")
+    unique_rankings, row_permutations = np.unique(
+        encoded_rankings,
+        axis=0,
+        return_inverse=True,
+    )
+    (
+        point_scores,
+        point_probabilities,
+        point_rank_counts,
+        scope_metadata,
+        initial_vectors,
+    ) = _scope_point_statistics(
+        working,
+        model_columns,
+        registry,
+        scope_indices,
+        encoded_rankings,
+    )
+
+    experts = (
+        working[["Species", "Expert"]]
+        .drop_duplicates()
+        .reset_index(drop=True)
+    )
+    genes = (
+        working[["Species", "Gene", "StudyStatus"]]
+        .drop_duplicates()
+        .reset_index(drop=True)
+    )
+    expert_keys = pd.MultiIndex.from_frame(experts[["Species", "Expert"]])
+    gene_keys = pd.MultiIndex.from_frame(genes[["Species", "Gene"]])
+    row_expert_indices = expert_keys.get_indexer(
+        pd.MultiIndex.from_frame(working[["Species", "Expert"]])
+    )
+    row_gene_indices = gene_keys.get_indexer(
+        pd.MultiIndex.from_frame(working[["Species", "Gene"]])
+    )
+    if (row_expert_indices < 0).any() or (row_gene_indices < 0).any():
+        raise ValueError("Crossed bootstrap could not index every cluster.")
+
+    seed_sequence = np.random.SeedSequence(config.seed)
+    expert_seed, gene_seed = seed_sequence.spawn(2)
+    expert_rng = np.random.default_rng(expert_seed)
+    gene_rng = np.random.default_rng(gene_seed)
+    score_samples: list[np.ndarray] = []
+    rank_samples: list[np.ndarray] = []
+    pairwise_samples: list[np.ndarray] = []
+    failed_fits = 0
+    failure_reasons: list[str] = []
+    off_diagonal_pairs = [
+        (row, column)
+        for row in range(len(model_columns))
+        for column in range(len(model_columns))
+        if row != column
+    ]
+
+    while len(score_samples) < config.successful_replicates:
+        expert_counts = sample_within_strata(
+            experts,
+            id_columns=("Expert",),
+            strata=("Species",),
+            rng=expert_rng,
+        ).to_numpy(dtype=float)
+        gene_counts = sample_within_strata(
+            genes,
+            id_columns=("Species", "Gene"),
+            strata=("Species", "StudyStatus"),
+            rng=gene_rng,
+        ).to_numpy(dtype=float)
+        expert_weights = expert_counts[row_expert_indices]
+        gene_weights = gene_counts[row_gene_indices]
+        analysis_weights = (
+            expert_weights * gene_weights,
+            expert_weights,
+            gene_weights,
+        )
+
+        replicate_scores = np.empty(
+            (
+                len(registry),
+                len(PL_INTERVAL_ANALYSES),
+                len(model_columns),
+            ),
+            dtype=float,
+        )
+        replicate_ranks = np.empty(
+            (len(registry), len(model_columns), len(model_columns)),
+            dtype=float,
+        )
+        replicate_probabilities = np.empty(
+            (len(registry), len(off_diagonal_pairs)), dtype=float
+        )
+        try:
+            for scope_index, row_indices in enumerate(scope_indices):
+                for analysis_index, row_weights in enumerate(
+                    analysis_weights
+                ):
+                    selected_weights = row_weights[row_indices]
+                    permutation_weights = np.bincount(
+                        row_permutations[row_indices],
+                        weights=selected_weights,
+                        minlength=len(unique_rankings),
+                    )
+                    retained = permutation_weights > 0
+                    if not retained.any():
+                        raise RuntimeError(
+                            "Bootstrap scope has zero effective weight."
+                        )
+                    fit = _bootstrap_pl_fit(
+                        unique_rankings[retained],
+                        permutation_weights[retained],
+                        model_columns,
+                        initial_vectors[scope_index],
+                    )
+                    replicate_scores[
+                        scope_index, analysis_index
+                    ] = fit["elo"]
+                    if analysis_index == 0:
+                        probabilities = fit["pairwise_probabilities"]
+                        replicate_probabilities[scope_index] = [
+                            probabilities[row, column]
+                            for row, column in off_diagonal_pairs
+                        ]
+                        total_weight = float(selected_weights.sum())
+                        if total_weight <= 0:
+                            raise RuntimeError(
+                                "Bootstrap scope has zero effective weight."
+                            )
+                        for model_index in range(len(model_columns)):
+                            replicate_ranks[scope_index, model_index] = (
+                                np.bincount(
+                                    rank_numbers[
+                                        row_indices, model_index
+                                    ],
+                                    weights=selected_weights,
+                                    minlength=len(model_columns),
+                                )
+                                / total_weight
+                            )
+            if (
+                not np.isfinite(replicate_scores).all()
+                or not np.isfinite(replicate_ranks).all()
+                or not np.isfinite(replicate_probabilities).all()
+            ):
+                raise RuntimeError(
+                    "Bootstrap replicate produced nonfinite outputs."
+                )
+            score_samples.append(replicate_scores)
+            rank_samples.append(replicate_ranks)
+            pairwise_samples.append(replicate_probabilities)
+        except (RuntimeError, FloatingPointError, np.linalg.LinAlgError) as error:
+            failed_fits += 1
+            failure_reasons.append(str(error))
+            if failed_fits > config.max_failed_fits:
+                raise RuntimeError(
+                    "Crossed ranking bootstrap exceeded max_failed_fits "
+                    "before reaching the requested successful replicates."
+                ) from error
+
+    scores_array = np.stack(score_samples)
+    ranks_array = np.stack(rank_samples)
+    pairwise_array = np.stack(pairwise_samples)
+    score_lower, score_upper = np.quantile(
+        scores_array,
+        [0.025, 0.975],
+        axis=0,
+    )
+    rank_lower, rank_upper = np.quantile(
+        ranks_array,
+        [0.025, 0.975],
+        axis=0,
+    )
+    pairwise_lower, pairwise_upper = np.quantile(
+        pairwise_array,
+        [0.025, 0.975],
+        axis=0,
+    )
+
+    half_run_diagnostics: dict[str, object] = {"Applied": False}
+    if config.successful_replicates >= PL_PRODUCTION_REPLICATES:
+        half = config.successful_replicates // 2
+        first_score_bounds = np.quantile(
+            scores_array[:half], [0.025, 0.975], axis=0
+        )
+        second_score_bounds = np.quantile(
+            scores_array[half:], [0.025, 0.975], axis=0
+        )
+        first_probability_bounds = np.quantile(
+            pairwise_array[:half], [0.025, 0.975], axis=0
+        )
+        second_probability_bounds = np.quantile(
+            pairwise_array[half:], [0.025, 0.975], axis=0
+        )
+        half_run_diagnostics = {
+            "Applied": True,
+            **validate_half_run_stability(
+                first_score_bounds,
+                second_score_bounds,
+                first_probability_bounds,
+                second_probability_bounds,
+            ),
+        }
+
+    common_metadata = {
+        "SuccessfulReplicates": config.successful_replicates,
+        "FailedFits": failed_fits,
+        "SeedStream": PL_BOOTSTRAP_SEED_STREAM,
+    }
+    score_records: list[dict[str, object]] = []
+    rank_records: list[dict[str, object]] = []
+    pairwise_records: list[dict[str, object]] = []
+    for scope_index, scope in enumerate(registry):
+        n_judgments, n_experts, n_genes = scope_metadata[scope_index]
+        scope_metadata_record = {
+            "Scope": scope.scope,
+            "StudyStatus": scope.study_status,
+            "Species": scope.species,
+            "NJudgments": int(n_judgments),
+            "NExperts": int(n_experts),
+            "NGenes": int(n_genes),
+            **common_metadata,
+        }
+        for model_index, model in enumerate(model_columns):
+            for analysis_index, analysis in enumerate(
+                PL_INTERVAL_ANALYSES
+            ):
+                score_records.append(
+                    {
+                        **scope_metadata_record,
+                        "Model": model,
+                        "IntervalAnalysis": analysis,
+                        "Estimate": float(
+                            point_scores[scope_index, model_index]
+                        ),
+                        "CI95Lower": float(
+                            score_lower[
+                                scope_index,
+                                analysis_index,
+                                model_index,
+                            ]
+                        ),
+                        "CI95Upper": float(
+                            score_upper[
+                                scope_index,
+                                analysis_index,
+                                model_index,
+                            ]
+                        ),
+                    }
+                )
+            for rank_index in range(len(model_columns)):
+                count = int(
+                    point_rank_counts[
+                        scope_index, model_index, rank_index
+                    ]
+                )
+                rank_records.append(
+                    {
+                        **scope_metadata_record,
+                        "Model": model,
+                        "Rank": f"R{rank_index + 1}",
+                        "Fraction": count / int(n_judgments),
+                        "CI95Lower": float(
+                            rank_lower[
+                                scope_index, model_index, rank_index
+                            ]
+                        ),
+                        "CI95Upper": float(
+                            rank_upper[
+                                scope_index, model_index, rank_index
+                            ]
+                        ),
+                        "Count": count,
+                    }
+                )
+            pair_offset = model_index * (len(model_columns) - 1)
+            column_offset = 0
+            for column_index, column_model in enumerate(model_columns):
+                if model_index == column_index:
+                    continue
+                pair_index = pair_offset + column_offset
+                column_offset += 1
+                pairwise_records.append(
+                    {
+                        **scope_metadata_record,
+                        "RowModel": model,
+                        "ColumnModel": column_model,
+                        "Probability": float(
+                            point_probabilities[
+                                scope_index, model_index, column_index
+                            ]
+                        ),
+                        "CI95Lower": float(
+                            pairwise_lower[scope_index, pair_index]
+                        ),
+                        "CI95Upper": float(
+                            pairwise_upper[scope_index, pair_index]
+                        ),
+                    }
+                )
+
+    outputs = {
+        "pl_scores_ci": pd.DataFrame.from_records(
+            score_records,
+            columns=PL_SCORE_COLUMNS,
+        ),
+        "rank_distribution_ci": pd.DataFrame.from_records(
+            rank_records,
+            columns=PL_RANK_COLUMNS,
+        ),
+        "pl_pairwise_ci": pd.DataFrame.from_records(
+            pairwise_records,
+            columns=PL_PAIRWISE_COLUMNS,
+        ),
+    }
+    diagnostics = {
+        "AttemptedReplicates": (
+            config.successful_replicates + failed_fits
+        ),
+        "SuccessfulReplicates": config.successful_replicates,
+        "FailedFits": failed_fits,
+        "FailureReasons": tuple(failure_reasons),
+        "SeedStream": PL_BOOTSTRAP_SEED_STREAM,
+        "ExpertSeedSpawnKey": expert_seed.spawn_key,
+        "GeneSeedSpawnKey": gene_seed.spawn_key,
+        "HalfRunStability": half_run_diagnostics,
+    }
+    for output in outputs.values():
+        output.attrs["bootstrap_diagnostics"] = diagnostics.copy()
+    return outputs

@@ -75,7 +75,7 @@ def categorized_ranking_fixture() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def crossed_fixture() -> pd.DataFrame:
     assignments = (
         (0, 1, 2),
@@ -1264,3 +1264,522 @@ def test_elo_output_tables_preserve_stable_contract() -> None:
     assert probability_table.index.tolist() == models
     assert probability_table.columns.tolist() == models
     assert probability_table.index.name == "Model"
+
+
+RANKING_SCOPE_KEYS = (
+    ("overall", "all", "all"),
+    ("well_studied", "well_studied", "all"),
+    *(
+        (f"well_studied.{species.casefold()}", "well_studied", species)
+        for species in SPECIES
+    ),
+    ("uncharacterized", "uncharacterized", "all"),
+    *(
+        (
+            f"uncharacterized.{species.casefold()}",
+            "uncharacterized",
+            species,
+        )
+        for species in SPECIES
+    ),
+    *((species.casefold(), "all", species) for species in SPECIES),
+)
+INTERVAL_ANALYSES = (
+    "crossed_expert_gene",
+    "expert_cluster",
+    "gene_cluster",
+)
+
+
+@pytest.fixture(scope="module")
+def crossed_pl_bootstrap_result(
+    crossed_fixture: pd.DataFrame,
+) -> dict[str, pd.DataFrame]:
+    return ranking_statistics.bootstrap_plackett_luce_statistics(
+        crossed_fixture,
+        MODEL_COLUMNS,
+        BootstrapConfig(
+            successful_replicates=30,
+            seed=20260714,
+            max_failed_fits=2,
+        ),
+    )
+
+
+def test_crossed_pl_bootstrap_has_exact_schemas_cardinalities_and_order(
+    crossed_pl_bootstrap_result: dict[str, pd.DataFrame],
+) -> None:
+    scores = crossed_pl_bootstrap_result["pl_scores_ci"]
+    ranks = crossed_pl_bootstrap_result["rank_distribution_ci"]
+    pairwise = crossed_pl_bootstrap_result["pl_pairwise_ci"]
+
+    assert tuple(scores.columns) == (
+        "Scope",
+        "StudyStatus",
+        "Species",
+        "Model",
+        "IntervalAnalysis",
+        "Estimate",
+        "CI95Lower",
+        "CI95Upper",
+        "NJudgments",
+        "NExperts",
+        "NGenes",
+        "SuccessfulReplicates",
+        "FailedFits",
+        "SeedStream",
+    )
+    assert tuple(ranks.columns) == (
+        "Scope",
+        "StudyStatus",
+        "Species",
+        "Model",
+        "Rank",
+        "Fraction",
+        "CI95Lower",
+        "CI95Upper",
+        "Count",
+        "NJudgments",
+        "NExperts",
+        "NGenes",
+        "SuccessfulReplicates",
+        "FailedFits",
+        "SeedStream",
+    )
+    assert tuple(pairwise.columns) == (
+        "Scope",
+        "StudyStatus",
+        "Species",
+        "RowModel",
+        "ColumnModel",
+        "Probability",
+        "CI95Lower",
+        "CI95Upper",
+        "NJudgments",
+        "NExperts",
+        "NGenes",
+        "SuccessfulReplicates",
+        "FailedFits",
+        "SeedStream",
+    )
+    assert len(scores) == 18 * 5 * 3
+    assert len(ranks) == 18 * 5 * 5
+    assert len(pairwise) == 18 * 5 * 4
+
+    score_keys = list(
+        scores[["Scope", "StudyStatus", "Species", "Model", "IntervalAnalysis"]]
+        .itertuples(index=False, name=None)
+    )
+    assert score_keys == [
+        (*scope, model, analysis)
+        for scope in RANKING_SCOPE_KEYS
+        for model in MODEL_COLUMNS
+        for analysis in INTERVAL_ANALYSES
+    ]
+    rank_keys = list(
+        ranks[["Scope", "StudyStatus", "Species", "Model", "Rank"]]
+        .itertuples(index=False, name=None)
+    )
+    assert rank_keys == [
+        (*scope, model, f"R{rank}")
+        for scope in RANKING_SCOPE_KEYS
+        for model in MODEL_COLUMNS
+        for rank in range(1, 6)
+    ]
+    pair_keys = list(
+        pairwise[
+            ["Scope", "StudyStatus", "Species", "RowModel", "ColumnModel"]
+        ].itertuples(index=False, name=None)
+    )
+    assert pair_keys == [
+        (*scope, row_model, column_model)
+        for scope in RANKING_SCOPE_KEYS
+        for row_model in MODEL_COLUMNS
+        for column_model in MODEL_COLUMNS
+        if row_model != column_model
+    ]
+
+
+def test_crossed_pl_bootstrap_has_finite_centered_ordered_intervals(
+    crossed_pl_bootstrap_result: dict[str, pd.DataFrame],
+) -> None:
+    scores = crossed_pl_bootstrap_result["pl_scores_ci"]
+    ranks = crossed_pl_bootstrap_result["rank_distribution_ci"]
+    pairwise = crossed_pl_bootstrap_result["pl_pairwise_ci"]
+
+    assert tuple(scores["IntervalAnalysis"].drop_duplicates()) == (
+        INTERVAL_ANALYSES
+    )
+    assert np.isfinite(
+        scores[["Estimate", "CI95Lower", "CI95Upper"]]
+    ).all().all()
+    assert np.isfinite(
+        ranks[["Fraction", "CI95Lower", "CI95Upper"]]
+    ).all().all()
+    assert np.isfinite(
+        pairwise[["Probability", "CI95Lower", "CI95Upper"]]
+    ).all().all()
+    for output, point in (
+        (scores, "Estimate"),
+        (ranks, "Fraction"),
+        (pairwise, "Probability"),
+    ):
+        assert (output["CI95Lower"] <= output["CI95Upper"]).all()
+        assert (output["CI95Lower"] <= output[point]).all()
+        assert (output[point] <= output["CI95Upper"]).all()
+
+    means = scores.groupby(
+        ["Scope", "IntervalAnalysis"], sort=False
+    )["Estimate"].mean()
+    assert (means.sub(1500.0).abs() < 1e-8).all()
+    assert (ranks["Fraction"].between(0.0, 1.0)).all()
+    assert (pairwise["Probability"].between(0.0, 1.0)).all()
+    assert (pairwise["RowModel"] != pairwise["ColumnModel"]).all()
+    for output in crossed_pl_bootstrap_result.values():
+        assert (output["SuccessfulReplicates"] == 30).all()
+        assert (output["FailedFits"] >= 0).all()
+        assert output["SeedStream"].nunique() == 1
+        assert output["SeedStream"].iloc[0]
+
+
+def _ranking_scope_frame(
+    frame: pd.DataFrame,
+    study_status: str,
+    species: str,
+) -> pd.DataFrame:
+    selected = frame
+    if study_status != "all":
+        selected = selected.loc[selected["StudyStatus"] == study_status]
+    if species != "all":
+        selected = selected.loc[selected["Species"] == species]
+    return selected
+
+
+def test_crossed_pl_bootstrap_preserves_unweighted_point_estimates(
+    crossed_fixture: pd.DataFrame,
+    crossed_pl_bootstrap_result: dict[str, pd.DataFrame],
+) -> None:
+    scores = crossed_pl_bootstrap_result["pl_scores_ci"]
+    ranks = crossed_pl_bootstrap_result["rank_distribution_ci"]
+    pairwise = crossed_pl_bootstrap_result["pl_pairwise_ci"]
+
+    for scope, study_status, species in RANKING_SCOPE_KEYS:
+        selected = _ranking_scope_frame(
+            crossed_fixture,
+            study_status,
+            species,
+        )
+        rankings, skipped = parse_rankings(selected, MODEL_COLUMNS)
+        assert skipped == 0
+        fit = fit_plackett_luce(rankings, list(MODEL_COLUMNS))
+        fit_index = {
+            model: index for index, model in enumerate(fit["models"])
+        }
+        selected_scores = scores.loc[
+            (scores["Scope"] == scope)
+            & (scores["IntervalAnalysis"] == "crossed_expert_gene")
+        ]
+        np.testing.assert_allclose(
+            selected_scores["Estimate"],
+            [fit["elo"][fit_index[model]] for model in MODEL_COLUMNS],
+            atol=1e-8,
+            rtol=0.0,
+        )
+        selected_pairwise = pairwise.loc[pairwise["Scope"] == scope]
+        np.testing.assert_allclose(
+            selected_pairwise["Probability"],
+            [
+                fit["pairwise_probabilities"][
+                    fit_index[row_model], fit_index[column_model]
+                ]
+                for row_model in MODEL_COLUMNS
+                for column_model in MODEL_COLUMNS
+                if row_model != column_model
+            ],
+            atol=1e-8,
+            rtol=0.0,
+        )
+        selected_ranks = ranks.loc[ranks["Scope"] == scope]
+        expected_counts = [
+            int((selected[model] == f"R{rank}").sum())
+            for model in MODEL_COLUMNS
+            for rank in range(1, 6)
+        ]
+        assert selected_ranks["Count"].tolist() == expected_counts
+        np.testing.assert_allclose(
+            selected_ranks["Fraction"],
+            np.asarray(expected_counts) / len(selected),
+        )
+
+        expected_experts = selected[["Species", "Expert"]].drop_duplicates()
+        expected_genes = selected[["Species", "Gene"]].drop_duplicates()
+        for output in (selected_scores, selected_ranks, selected_pairwise):
+            assert (output["NJudgments"] == len(selected)).all()
+            assert (output["NExperts"] == len(expected_experts)).all()
+            assert (output["NGenes"] == len(expected_genes)).all()
+
+
+def test_crossed_pl_bootstrap_is_same_seed_reproducible(
+    crossed_fixture: pd.DataFrame,
+    crossed_pl_bootstrap_result: dict[str, pd.DataFrame],
+) -> None:
+    repeated = ranking_statistics.bootstrap_plackett_luce_statistics(
+        crossed_fixture,
+        MODEL_COLUMNS,
+        BootstrapConfig(
+            successful_replicates=30,
+            seed=20260714,
+            max_failed_fits=2,
+        ),
+    )
+
+    assert repeated.keys() == crossed_pl_bootstrap_result.keys()
+    for name in repeated:
+        pd.testing.assert_frame_equal(
+            repeated[name], crossed_pl_bootstrap_result[name]
+        )
+        assert repeated[name].to_csv(index=False) == (
+            crossed_pl_bootstrap_result[name].to_csv(index=False)
+        )
+
+
+def test_sample_within_strata_preserves_cluster_draw_sizes(
+    crossed_fixture: pd.DataFrame,
+) -> None:
+    experts = crossed_fixture[["Species", "Expert"]].drop_duplicates()
+    genes = crossed_fixture[
+        ["Species", "Gene", "StudyStatus"]
+    ].drop_duplicates()
+    seed = np.random.SeedSequence(20260714)
+    expert_seed, gene_seed = seed.spawn(2)
+
+    expert_counts = ranking_statistics.sample_within_strata(
+        experts,
+        id_columns=("Expert",),
+        strata=("Species",),
+        rng=np.random.default_rng(expert_seed),
+    )
+    gene_counts = ranking_statistics.sample_within_strata(
+        genes,
+        id_columns=("Species", "Gene"),
+        strata=("Species", "StudyStatus"),
+        rng=np.random.default_rng(gene_seed),
+    )
+
+    assert expert_counts.index.equals(experts.index)
+    assert gene_counts.index.equals(genes.index)
+    pd.testing.assert_series_equal(
+        expert_counts.groupby(experts["Species"], sort=False).sum(),
+        experts.groupby("Species", sort=False).size(),
+        check_names=False,
+    )
+    pd.testing.assert_series_equal(
+        gene_counts.groupby(
+            [genes["Species"], genes["StudyStatus"]], sort=False
+        ).sum(),
+        genes.groupby(["Species", "StudyStatus"], sort=False).size(),
+        check_names=False,
+    )
+
+
+def test_crossed_pl_bootstrap_reuses_one_expert_and_gene_draw_per_attempt(
+    crossed_fixture: pd.DataFrame,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed: list[tuple[tuple[str, ...], pd.DataFrame, pd.Series]] = []
+    implementation = ranking_statistics.sample_within_strata
+
+    def record_draw(
+        units: pd.DataFrame,
+        *,
+        id_columns: tuple[str, ...],
+        strata: tuple[str, ...],
+        rng: np.random.Generator,
+    ) -> pd.Series:
+        draw = implementation(
+            units,
+            id_columns=id_columns,
+            strata=strata,
+            rng=rng,
+        )
+        observed.append((strata, units.copy(), draw.copy()))
+        return draw
+
+    monkeypatch.setattr(
+        ranking_statistics,
+        "sample_within_strata",
+        record_draw,
+    )
+    ranking_statistics.bootstrap_plackett_luce_statistics(
+        crossed_fixture,
+        MODEL_COLUMNS,
+        BootstrapConfig(successful_replicates=3, max_failed_fits=0),
+    )
+
+    assert [strata for strata, _, _ in observed] == [
+        ("Species",),
+        ("Species", "StudyStatus"),
+    ] * 3
+    for strata, units, draw in observed:
+        sampled_sizes = draw.groupby(
+            [units[column] for column in strata],
+            sort=False,
+        ).sum()
+        original_sizes = units.groupby(list(strata), sort=False).size()
+        pd.testing.assert_series_equal(
+            sampled_sizes,
+            original_sizes,
+            check_names=False,
+        )
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("missing_expert", "exactly three experts"),
+        ("duplicate_expert_gene", "duplicate expert/gene rows"),
+        ("incomplete_ranking", "complete no-tie R1-R5 ranking"),
+        ("missing_stratum", "all 10 Species x StudyStatus strata"),
+        ("noncanonical_species", "canonical species and study statuses"),
+        ("cross_species_expert", "exactly one species"),
+        ("unbalanced_expert", "balanced expert assignments"),
+    ],
+)
+def test_crossed_pl_bootstrap_validates_exact_assignment_boundary(
+    crossed_fixture: pd.DataFrame,
+    mutation: str,
+    message: str,
+) -> None:
+    frame = crossed_fixture.copy()
+    if mutation == "missing_expert":
+        frame = frame.drop(frame.index[0])
+    elif mutation == "duplicate_expert_gene":
+        frame = pd.concat([frame, frame.iloc[[0]]], ignore_index=True)
+    elif mutation == "incomplete_ranking":
+        frame.loc[0, "Gemini"] = "R2"
+    elif mutation == "missing_stratum":
+        frame = frame.loc[
+            ~(
+                (frame["Species"] == SPECIES[0])
+                & (frame["StudyStatus"] == STATUSES[0])
+            )
+        ]
+    elif mutation == "noncanonical_species":
+        frame.loc[frame["Species"] == SPECIES[0], "Species"] = "Barley"
+    elif mutation == "cross_species_expert":
+        frame.loc[0, "Expert"] = frame.loc[
+            frame["Species"] == SPECIES[1], "Expert"
+        ].iloc[0]
+    elif mutation == "unbalanced_expert":
+        frame.loc[0, "Expert"] = f"{SPECIES[0]}-expert-4"
+
+    with pytest.raises(ValueError, match=message):
+        ranking_statistics.bootstrap_plackett_luce_statistics(
+            frame,
+            MODEL_COLUMNS,
+            BootstrapConfig(successful_replicates=1),
+        )
+
+
+def test_crossed_pl_bootstrap_uses_species_gene_composite_keys(
+    crossed_fixture: pd.DataFrame,
+) -> None:
+    frame = crossed_fixture.copy()
+    for species in SPECIES:
+        first_gene = frame.loc[frame["Species"] == species, "Gene"].iloc[0]
+        frame.loc[
+            (frame["Species"] == species) & (frame["Gene"] == first_gene),
+            "Gene",
+        ] = "SHARED_GENE_LABEL"
+
+    result = ranking_statistics.bootstrap_plackett_luce_statistics(
+        frame,
+        MODEL_COLUMNS,
+        BootstrapConfig(successful_replicates=2, max_failed_fits=0),
+    )
+    overall = result["pl_scores_ci"].loc[
+        result["pl_scores_ci"]["Scope"] == "overall"
+    ]
+    assert (overall["NGenes"] == 50).all()
+
+
+def test_crossed_pl_bootstrap_records_failures_and_enforces_threshold(
+    crossed_fixture: pd.DataFrame,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    implementation = ranking_statistics._bootstrap_pl_fit
+    calls = 0
+
+    def fail_once(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise RuntimeError("synthetic optimizer failure")
+        return implementation(*args, **kwargs)
+
+    monkeypatch.setattr(ranking_statistics, "_bootstrap_pl_fit", fail_once)
+    result = ranking_statistics.bootstrap_plackett_luce_statistics(
+        crossed_fixture,
+        MODEL_COLUMNS,
+        BootstrapConfig(successful_replicates=2, max_failed_fits=1),
+    )
+    for output in result.values():
+        assert (output["SuccessfulReplicates"] == 2).all()
+        assert (output["FailedFits"] == 1).all()
+        diagnostics = output.attrs["bootstrap_diagnostics"]
+        assert diagnostics["AttemptedReplicates"] == 3
+        assert diagnostics["SuccessfulReplicates"] == 2
+        assert diagnostics["FailedFits"] == 1
+        assert diagnostics["FailureReasons"] == (
+            "synthetic optimizer failure",
+        )
+        assert diagnostics["HalfRunStability"] == {"Applied": False}
+
+    def always_fail(*args, **kwargs):
+        raise RuntimeError("synthetic optimizer failure")
+
+    monkeypatch.setattr(ranking_statistics, "_bootstrap_pl_fit", always_fail)
+    with pytest.raises(RuntimeError, match="exceeded max_failed_fits"):
+        ranking_statistics.bootstrap_plackett_luce_statistics(
+            crossed_fixture,
+            MODEL_COLUMNS,
+            BootstrapConfig(successful_replicates=1, max_failed_fits=2),
+        )
+
+
+def test_validate_half_run_stability_passes_below_thresholds() -> None:
+    ranking_statistics.validate_half_run_stability(
+        np.array([[1400.0, 1600.0], [1450.0, 1550.0]]),
+        np.array([[1401.999, 1598.001], [1451.0, 1549.0]]),
+        np.array([[0.25, 0.75], [0.40, 0.60]]),
+        np.array([[0.259, 0.741], [0.399, 0.601]]),
+    )
+
+
+@pytest.mark.parametrize(
+    ("second_scores", "second_probabilities", "message"),
+    [
+        (
+            np.array([[1402.0, 1600.0]]),
+            np.array([[0.25, 0.75]]),
+            "score",
+        ),
+        (
+            np.array([[1400.0, 1600.0]]),
+            np.array([[0.26, 0.75]]),
+            "probability",
+        ),
+    ],
+)
+def test_validate_half_run_stability_names_unstable_metrics(
+    second_scores: np.ndarray,
+    second_probabilities: np.ndarray,
+    message: str,
+) -> None:
+    with pytest.raises(RuntimeError, match=message):
+        ranking_statistics.validate_half_run_stability(
+            np.array([[1400.0, 1600.0]]),
+            second_scores,
+            np.array([[0.25, 0.75]]),
+            second_probabilities,
+        )
