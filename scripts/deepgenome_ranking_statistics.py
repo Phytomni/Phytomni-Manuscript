@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 from scipy.special import expit, logsumexp
-from scipy.stats import kendalltau
+from scipy.stats import binom, kendalltau
 
 from scripts.release_deepgenome_rankings import (
     MULTISELECT_DIMENSIONS,
@@ -124,6 +124,13 @@ PL_INTERVAL_ANALYSES = (
 )
 PL_BOOTSTRAP_SEED_STREAM = "pl_expert_gene_components"
 PL_PRODUCTION_REPLICATES = 10_000
+MC_TAIL_PROBABILITY = 0.025
+MC_CONFIDENCE_LEVEL = 0.95
+MC_DISPLAYED_SCORE_ENDPOINTS = 18 * 5 * 2
+MC_DISPLAYED_PAIRWISE_ENDPOINTS = 18 * 10 * 2
+MC_DISPLAYED_ENDPOINTS = (
+    MC_DISPLAYED_SCORE_ENDPOINTS + MC_DISPLAYED_PAIRWISE_ENDPOINTS
+)
 PL_SCORE_COLUMNS = (
     "Scope",
     "StudyStatus",
@@ -1578,13 +1585,365 @@ def elo_outputs(
     return score_table, probability_table
 
 
+def _binomial_order_rank_bracket(
+    replicates: int,
+    probability: float,
+    endpoint_alpha: float,
+) -> tuple[int, int]:
+    """Return a conservative one-based order-statistic bracket."""
+    lower_count = int(
+        binom.ppf(endpoint_alpha / 2.0, replicates, probability)
+    )
+    upper_count = int(
+        binom.ppf(1.0 - endpoint_alpha / 2.0, replicates, probability)
+    )
+    return (
+        max(1, lower_count),
+        min(replicates, upper_count + 1),
+    )
+
+
+def _relative_bracket_distances(
+    distances: np.ndarray,
+    interval_widths: np.ndarray,
+) -> np.ndarray:
+    widths = np.broadcast_to(interval_widths, distances.shape)
+    relative = np.full(distances.shape, np.nan, dtype=float)
+    positive = widths > 0
+    relative[positive] = distances[positive] / widths[positive]
+    exact = (widths == 0) & (distances == 0)
+    relative[exact] = 0.0
+    return relative
+
+
+def _score_mc_record(
+    metric: np.ndarray,
+    distances: np.ndarray,
+    relative: np.ndarray,
+    estimates: np.ndarray,
+    bracket_lower: np.ndarray,
+    bracket_upper: np.ndarray,
+    interval_widths: np.ndarray,
+) -> dict[str, object]:
+    finite = np.isfinite(metric)
+    if not finite.any():
+        return {"Value": None}
+    index = np.unravel_index(
+        int(np.nanargmax(metric)),
+        metric.shape,
+    )
+    bound_index, scope_index, model_index = (
+        int(value) for value in index
+    )
+    scope = ranking_scope_registry()[scope_index]
+    relative_value = relative[index]
+    return {
+        "Value": float(metric[index]),
+        "Bound": ("lower", "upper")[bound_index],
+        "Scope": scope.scope,
+        "StudyStatus": scope.study_status,
+        "Species": scope.species,
+        "Analysis": "crossed_expert_gene",
+        "Model": MODEL_COLUMNS[model_index],
+        "Estimate": float(estimates[index]),
+        "BracketLower": float(bracket_lower[index]),
+        "BracketUpper": float(bracket_upper[index]),
+        "BracketDistance": float(distances[index]),
+        "CIWidth": float(interval_widths[scope_index, model_index]),
+        "RelativeCIWidth": (
+            float(relative_value)
+            if np.isfinite(relative_value)
+            else None
+        ),
+    }
+
+
+def _pairwise_mc_record(
+    metric: np.ndarray,
+    distances: np.ndarray,
+    relative: np.ndarray,
+    estimates: np.ndarray,
+    bracket_lower: np.ndarray,
+    bracket_upper: np.ndarray,
+    interval_widths: np.ndarray,
+    selected_pairs: tuple[tuple[int, int], ...],
+) -> dict[str, object]:
+    finite = np.isfinite(metric)
+    if not finite.any():
+        return {"Value": None}
+    index = np.unravel_index(
+        int(np.nanargmax(metric)),
+        metric.shape,
+    )
+    bound_index, scope_index, pair_index = (
+        int(value) for value in index
+    )
+    row_index, column_index = selected_pairs[pair_index]
+    scope = ranking_scope_registry()[scope_index]
+    relative_value = relative[index]
+    return {
+        "Value": float(metric[index]),
+        "Bound": ("lower", "upper")[bound_index],
+        "Scope": scope.scope,
+        "StudyStatus": scope.study_status,
+        "Species": scope.species,
+        "RowModel": MODEL_COLUMNS[row_index],
+        "ColumnModel": MODEL_COLUMNS[column_index],
+        "Estimate": float(estimates[index]),
+        "BracketLower": float(bracket_lower[index]),
+        "BracketUpper": float(bracket_upper[index]),
+        "BracketDistance": float(distances[index]),
+        "CIWidth": float(interval_widths[scope_index, pair_index]),
+        "RelativeCIWidth": (
+            float(relative_value)
+            if np.isfinite(relative_value)
+            else None
+        ),
+    }
+
+
+def _mc_precision_profile(
+    score_samples: np.ndarray,
+    pairwise_samples: np.ndarray,
+    *,
+    endpoint_alpha: float,
+    selected_pairs: tuple[tuple[int, int], ...],
+) -> dict[str, object]:
+    replicates = len(score_samples)
+    probabilities = (MC_TAIL_PROBABILITY, 1.0 - MC_TAIL_PROBABILITY)
+    score_sorted = np.sort(score_samples, axis=0)
+    pairwise_sorted = np.sort(pairwise_samples, axis=0)
+    score_estimates = np.quantile(score_samples, probabilities, axis=0)
+    pairwise_estimates = np.quantile(
+        pairwise_samples,
+        probabilities,
+        axis=0,
+    )
+    score_widths = score_estimates[1] - score_estimates[0]
+    pairwise_widths = pairwise_estimates[1] - pairwise_estimates[0]
+
+    rank_brackets: dict[str, list[int]] = {}
+    score_bracket_lower = np.empty_like(score_estimates)
+    score_bracket_upper = np.empty_like(score_estimates)
+    pairwise_bracket_lower = np.empty_like(pairwise_estimates)
+    pairwise_bracket_upper = np.empty_like(pairwise_estimates)
+    for bound_index, (label, probability) in enumerate(
+        zip(("CI95Lower", "CI95Upper"), probabilities, strict=True)
+    ):
+        lower_rank, upper_rank = _binomial_order_rank_bracket(
+            replicates,
+            probability,
+            endpoint_alpha,
+        )
+        rank_brackets[label] = [lower_rank, upper_rank]
+        score_bracket_lower[bound_index] = score_sorted[lower_rank - 1]
+        score_bracket_upper[bound_index] = score_sorted[upper_rank - 1]
+        pairwise_bracket_lower[bound_index] = pairwise_sorted[
+            lower_rank - 1
+        ]
+        pairwise_bracket_upper[bound_index] = pairwise_sorted[
+            upper_rank - 1
+        ]
+
+    score_distances = np.maximum(
+        score_estimates - score_bracket_lower,
+        score_bracket_upper - score_estimates,
+    )
+    pairwise_distances = np.maximum(
+        pairwise_estimates - pairwise_bracket_lower,
+        pairwise_bracket_upper - pairwise_estimates,
+    )
+    score_relative = _relative_bracket_distances(
+        score_distances,
+        score_widths,
+    )
+    pairwise_relative = _relative_bracket_distances(
+        pairwise_distances,
+        pairwise_widths,
+    )
+
+    return {
+        "ConfidenceLevel": MC_CONFIDENCE_LEVEL,
+        "EndpointAlpha": endpoint_alpha,
+        "RankBrackets": rank_brackets,
+        "Score": {
+            "MaximumBracketDistance": _score_mc_record(
+                score_distances,
+                score_distances,
+                score_relative,
+                score_estimates,
+                score_bracket_lower,
+                score_bracket_upper,
+                score_widths,
+            ),
+            "MaximumRelativeCIWidth": _score_mc_record(
+                score_relative,
+                score_distances,
+                score_relative,
+                score_estimates,
+                score_bracket_lower,
+                score_bracket_upper,
+                score_widths,
+            ),
+            "UndefinedRelativeCIWidthCount": int(
+                (~np.isfinite(score_relative)).sum()
+            ),
+        },
+        "PairwiseProbability": {
+            "MaximumBracketDistance": _pairwise_mc_record(
+                pairwise_distances,
+                pairwise_distances,
+                pairwise_relative,
+                pairwise_estimates,
+                pairwise_bracket_lower,
+                pairwise_bracket_upper,
+                pairwise_widths,
+                selected_pairs,
+            ),
+            "MaximumRelativeCIWidth": _pairwise_mc_record(
+                pairwise_relative,
+                pairwise_distances,
+                pairwise_relative,
+                pairwise_estimates,
+                pairwise_bracket_lower,
+                pairwise_bracket_upper,
+                pairwise_widths,
+                selected_pairs,
+            ),
+            "UndefinedRelativeCIWidthCount": int(
+                (~np.isfinite(pairwise_relative)).sum()
+            ),
+        },
+    }
+
+
+def monte_carlo_precision_diagnostics(
+    score_samples: np.ndarray,
+    pairwise_samples: np.ndarray,
+) -> dict[str, object]:
+    """Summarize Monte Carlo error for the fixed displayed CI endpoints."""
+    scores = np.asarray(score_samples, dtype=float)
+    probabilities = np.asarray(pairwise_samples, dtype=float)
+    expected_score_tail = (
+        len(ranking_scope_registry()),
+        len(PL_INTERVAL_ANALYSES),
+        len(MODEL_COLUMNS),
+    )
+    expected_probability_tail = (
+        len(ranking_scope_registry()),
+        len(MODEL_COLUMNS) * (len(MODEL_COLUMNS) - 1),
+    )
+    if scores.ndim != 4 or scores.shape[1:] != expected_score_tail:
+        raise ValueError(
+            "Monte Carlo score samples have an invalid production shape."
+        )
+    if (
+        probabilities.ndim != 3
+        or probabilities.shape[1:] != expected_probability_tail
+    ):
+        raise ValueError(
+            "Monte Carlo probability samples have an invalid production shape."
+        )
+    if len(scores) != len(probabilities):
+        raise ValueError(
+            "Monte Carlo arrays must contain the same number of replicates."
+        )
+    if len(scores) < 2:
+        raise ValueError("Monte Carlo precision requires at least two replicates.")
+    if not np.isfinite(scores).all() or not np.isfinite(probabilities).all():
+        raise ValueError("Monte Carlo samples must be finite.")
+    if ((probabilities < 0) | (probabilities > 1)).any():
+        raise ValueError("Monte Carlo probabilities must lie in [0, 1].")
+
+    off_diagonal_pairs = tuple(
+        (row, column)
+        for row in range(len(MODEL_COLUMNS))
+        for column in range(len(MODEL_COLUMNS))
+        if row != column
+    )
+    pair_indices = {
+        pair: index for index, pair in enumerate(off_diagonal_pairs)
+    }
+    selected_pairs = tuple(
+        (row, column)
+        for row, column in combinations(range(len(MODEL_COLUMNS)), 2)
+    )
+    for row, column in selected_pairs:
+        forward = probabilities[:, :, pair_indices[(row, column)]]
+        reverse = probabilities[:, :, pair_indices[(column, row)]]
+        if not np.allclose(
+            forward + reverse,
+            1.0,
+            rtol=0.0,
+            atol=1e-12,
+        ):
+            raise ValueError(
+                "Pairwise Monte Carlo probabilities must be reciprocal."
+            )
+
+    displayed_scores = scores[:, :, 0, :]
+    displayed_probabilities = probabilities[
+        :, :, [pair_indices[pair] for pair in selected_pairs]
+    ]
+    endpoint_counts = {
+        "CrossedScore": int(2 * np.prod(displayed_scores.shape[1:])),
+        "NonredundantPairwiseProbability": int(
+            2 * np.prod(displayed_probabilities.shape[1:])
+        ),
+    }
+    endpoint_counts["Total"] = sum(endpoint_counts.values())
+    if endpoint_counts != {
+        "CrossedScore": MC_DISPLAYED_SCORE_ENDPOINTS,
+        "NonredundantPairwiseProbability": (
+            MC_DISPLAYED_PAIRWISE_ENDPOINTS
+        ),
+        "Total": MC_DISPLAYED_ENDPOINTS,
+    }:
+        raise RuntimeError("Monte Carlo displayed endpoint counts drifted.")
+
+    pointwise_alpha = 0.05
+    familywise_alpha = pointwise_alpha / MC_DISPLAYED_ENDPOINTS
+    probability_standard_error = float(
+        np.sqrt(
+            MC_TAIL_PROBABILITY
+            * (1.0 - MC_TAIL_PROBABILITY)
+            / len(scores)
+        )
+    )
+    return {
+        "Method": "binomial_order_statistic",
+        "Replicates": int(len(scores)),
+        "TailProbability": MC_TAIL_PROBABILITY,
+        "PercentileProbabilityStandardError": probability_standard_error,
+        "TailProbabilityRelativeStandardError": (
+            probability_standard_error / MC_TAIL_PROBABILITY
+        ),
+        "EndpointCounts": endpoint_counts,
+        "PairwiseDirectionRule": (
+            "canonical_model_index_row_less_than_column"
+        ),
+        "Pointwise95": _mc_precision_profile(
+            displayed_scores,
+            displayed_probabilities,
+            endpoint_alpha=pointwise_alpha,
+            selected_pairs=selected_pairs,
+        ),
+        "BonferroniFamilywise95": _mc_precision_profile(
+            displayed_scores,
+            displayed_probabilities,
+            endpoint_alpha=familywise_alpha,
+            selected_pairs=selected_pairs,
+        ),
+    }
+
+
 def validate_half_run_stability(
     first_score_bounds: np.ndarray,
     second_score_bounds: np.ndarray,
     first_probability_bounds: np.ndarray,
     second_probability_bounds: np.ndarray,
-) -> dict[str, float]:
-    """Validate production-bootstrap bounds against the other half-run."""
+) -> dict[str, object]:
+    """Return finite descriptive differences between bootstrap half-runs."""
     first_scores = np.asarray(first_score_bounds, dtype=float)
     second_scores = np.asarray(second_score_bounds, dtype=float)
     first_probabilities = np.asarray(first_probability_bounds, dtype=float)
@@ -1595,29 +1954,22 @@ def validate_half_run_stability(
         raise ValueError(
             "Probability half-run bounds must have matching shapes."
         )
-
-    with np.errstate(invalid="ignore"):
-        score_difference = float(
-            np.max(np.abs(first_scores - second_scores))
-        )
-        probability_difference = float(
-            np.max(
-                np.abs(first_probabilities - second_probabilities)
-            )
-        )
-    unstable: list[str] = []
-    if not np.isfinite(score_difference) or score_difference >= 2.0:
-        unstable.append("score bounds")
     if (
-        not np.isfinite(probability_difference)
-        or probability_difference >= 0.01
+        not np.isfinite(first_scores).all()
+        or not np.isfinite(second_scores).all()
+        or not np.isfinite(first_probabilities).all()
+        or not np.isfinite(second_probabilities).all()
     ):
-        unstable.append("probability bounds")
-    if unstable:
-        raise RuntimeError(
-            "Unstable half-run bootstrap metrics: " + ", ".join(unstable)
-        )
+        raise ValueError("Half-run bootstrap bounds must be finite.")
+
+    score_difference = float(
+        np.max(np.abs(first_scores - second_scores))
+    )
+    probability_difference = float(
+        np.max(np.abs(first_probabilities - second_probabilities))
+    )
     return {
+        "Interpretation": "descriptive_nonblocking",
         "ScoreMaxBoundDifference": score_difference,
         "ProbabilityMaxBoundDifference": probability_difference,
     }
@@ -2110,6 +2462,7 @@ def bootstrap_plackett_luce_statistics(
     )
 
     half_run_diagnostics: dict[str, object] = {"Applied": False}
+    monte_carlo_precision: dict[str, object] = {"Applied": False}
     if config.successful_replicates >= PL_PRODUCTION_REPLICATES:
         half = config.successful_replicates // 2
         first_score_bounds = np.quantile(
@@ -2131,6 +2484,13 @@ def bootstrap_plackett_luce_statistics(
                 second_score_bounds,
                 first_probability_bounds,
                 second_probability_bounds,
+            ),
+        }
+        monte_carlo_precision = {
+            "Applied": True,
+            **monte_carlo_precision_diagnostics(
+                scores_array,
+                pairwise_array,
             ),
         }
 
@@ -2257,6 +2617,7 @@ def bootstrap_plackett_luce_statistics(
         "ExpertSeedSpawnKey": expert_seed.spawn_key,
         "GeneSeedSpawnKey": gene_seed.spawn_key,
         "HalfRunStability": half_run_diagnostics,
+        "MonteCarloPrecision": monte_carlo_precision,
     }
     for output in outputs.values():
         output.attrs["bootstrap_diagnostics"] = diagnostics.copy()

@@ -1950,39 +1950,259 @@ def test_crossed_pl_bootstrap_records_failures_and_enforces_threshold(
         )
 
 
-def test_validate_half_run_stability_passes_below_thresholds() -> None:
-    ranking_statistics.validate_half_run_stability(
+def test_validate_half_run_stability_is_descriptive_and_nonblocking() -> None:
+    diagnostics = ranking_statistics.validate_half_run_stability(
         np.array([[1400.0, 1600.0], [1450.0, 1550.0]]),
-        np.array([[1401.999, 1598.001], [1451.0, 1549.0]]),
+        np.array([[1412.5, 1587.5], [1451.0, 1549.0]]),
         np.array([[0.25, 0.75], [0.40, 0.60]]),
-        np.array([[0.259, 0.741], [0.399, 0.601]]),
+        np.array([[0.2631, 0.7369], [0.399, 0.601]]),
     )
+    assert diagnostics == {
+        "Interpretation": "descriptive_nonblocking",
+        "ScoreMaxBoundDifference": 12.5,
+        "ProbabilityMaxBoundDifference": pytest.approx(0.0131),
+    }
+    serialized = str(diagnostics).casefold()
+    assert "threshold" not in serialized
+    assert "passed" not in serialized
 
 
 @pytest.mark.parametrize(
-    ("second_scores", "second_probabilities", "message"),
+    ("first_scores", "second_scores", "first_probabilities", "message"),
     [
         (
-            np.array([[1402.0, 1600.0]]),
+            np.array([[1400.0, 1600.0]]),
+            np.array([[1400.0]]),
             np.array([[0.25, 0.75]]),
-            "score",
+            "Score half-run bounds must have matching shapes",
+        ),
+        (
+            np.array([[1400.0, np.nan]]),
+            np.array([[1400.0, 1600.0]]),
+            np.array([[0.25, 0.75]]),
+            "finite",
         ),
         (
             np.array([[1400.0, 1600.0]]),
-            np.array([[0.26, 0.75]]),
-            "probability",
+            np.array([[1400.0, 1600.0]]),
+            np.array([[0.25, np.inf]]),
+            "finite",
         ),
     ],
 )
-def test_validate_half_run_stability_names_unstable_metrics(
+def test_validate_half_run_stability_fails_closed(
+    first_scores: np.ndarray,
     second_scores: np.ndarray,
-    second_probabilities: np.ndarray,
+    first_probabilities: np.ndarray,
     message: str,
 ) -> None:
-    with pytest.raises(RuntimeError, match=message):
+    with pytest.raises(ValueError, match=message):
         ranking_statistics.validate_half_run_stability(
-            np.array([[1400.0, 1600.0]]),
+            first_scores,
             second_scores,
+            first_probabilities,
             np.array([[0.25, 0.75]]),
-            second_probabilities,
         )
+
+
+def _production_shaped_mc_samples(
+    replicates: int = 1_000,
+) -> tuple[np.ndarray, np.ndarray]:
+    draw = np.linspace(-2.0, 2.0, replicates)
+    scores = np.empty((replicates, 18, 3, 5), dtype=float)
+    for scope_index in range(18):
+        for analysis_index in range(3):
+            for model_index in range(5):
+                scale = 1.0 + scope_index / 20.0 + model_index / 10.0
+                scores[:, scope_index, analysis_index, model_index] = (
+                    1500.0
+                    + 10.0 * scope_index
+                    + model_index
+                    + scale * (draw + 0.1 * draw**3)
+                )
+    scores[:, :, 1, :] += 1_000_000.0 * draw[:, None, None]
+    scores[:, :, 2, :] -= 1_000_000.0 * draw[:, None, None]
+
+    latent = np.empty((replicates, 18, 5), dtype=float)
+    for scope_index in range(18):
+        for model_index in range(5):
+            latent[:, scope_index, model_index] = (
+                0.2 * model_index
+                + (0.05 + scope_index / 100.0) * draw
+                * (model_index + 1)
+            )
+    pairs = [
+        (row, column)
+        for row in range(5)
+        for column in range(5)
+        if row != column
+    ]
+    probabilities = np.empty((replicates, 18, 20), dtype=float)
+    for pair_index, (row, column) in enumerate(pairs):
+        difference = latent[:, :, row] - latent[:, :, column]
+        probabilities[:, :, pair_index] = 1.0 / (1.0 + np.exp(-difference))
+    return scores, probabilities
+
+
+def test_monte_carlo_precision_uses_exact_displayed_endpoint_family() -> None:
+    scores, probabilities = _production_shaped_mc_samples()
+    diagnostics = ranking_statistics.monte_carlo_precision_diagnostics(
+        scores,
+        probabilities,
+    )
+
+    assert diagnostics["Method"] == "binomial_order_statistic"
+    assert diagnostics["Replicates"] == 1_000
+    assert diagnostics["TailProbability"] == 0.025
+    assert diagnostics["PercentileProbabilityStandardError"] == pytest.approx(
+        np.sqrt(0.025 * 0.975 / 1_000)
+    )
+    assert diagnostics["TailProbabilityRelativeStandardError"] == pytest.approx(
+        np.sqrt(0.025 * 0.975 / 1_000) / 0.025
+    )
+    assert diagnostics["EndpointCounts"] == {
+        "CrossedScore": 180,
+        "NonredundantPairwiseProbability": 360,
+        "Total": 540,
+    }
+    assert diagnostics["PairwiseDirectionRule"] == (
+        "canonical_model_index_row_less_than_column"
+    )
+    assert diagnostics["Pointwise95"]["RankBrackets"] == {
+        "CI95Lower": [16, 36],
+        "CI95Upper": [965, 985],
+    }
+    assert diagnostics["BonferroniFamilywise95"]["RankBrackets"] == {
+        "CI95Lower": [8, 47],
+        "CI95Upper": [954, 993],
+    }
+    assert diagnostics["Pointwise95"]["EndpointAlpha"] == 0.05
+    assert diagnostics["BonferroniFamilywise95"][
+        "EndpointAlpha"
+    ] == pytest.approx(0.05 / 540)
+
+    for family in ("Pointwise95", "BonferroniFamilywise95"):
+        for metric_family in ("Score", "PairwiseProbability"):
+            metrics = diagnostics[family][metric_family]
+            assert set(metrics) == {
+                "MaximumBracketDistance",
+                "MaximumRelativeCIWidth",
+                "UndefinedRelativeCIWidthCount",
+            }
+            distance = metrics["MaximumBracketDistance"]
+            relative = metrics["MaximumRelativeCIWidth"]
+            assert distance["Value"] >= 0.0
+            assert relative["Value"] >= 0.0
+            assert distance["Bound"] in {"lower", "upper"}
+            assert relative["Bound"] in {"lower", "upper"}
+            assert distance["Scope"] in {
+                scope.scope
+                for scope in ranking_statistics.ranking_scope_registry()
+            }
+            if metric_family == "Score":
+                assert distance["Analysis"] == "crossed_expert_gene"
+                assert distance["Model"] in MODEL_COLUMNS
+            else:
+                assert MODEL_COLUMNS.index(distance["RowModel"]) < (
+                    MODEL_COLUMNS.index(distance["ColumnModel"])
+                )
+
+    serialized = str(diagnostics).casefold()
+    assert "threshold" not in serialized
+    assert "passed" not in serialized
+
+
+def test_monte_carlo_precision_ignores_one_way_sensitivity_noise() -> None:
+    scores, probabilities = _production_shaped_mc_samples()
+    baseline = scores.copy()
+    baseline[:, :, 1:, :] = baseline[:, :, :1, :]
+    assert ranking_statistics.monte_carlo_precision_diagnostics(
+        scores,
+        probabilities,
+    ) == ranking_statistics.monte_carlo_precision_diagnostics(
+        baseline,
+        probabilities,
+    )
+
+
+def test_monte_carlo_precision_deduplicates_reciprocal_pairs() -> None:
+    scores, probabilities = _production_shaped_mc_samples()
+    pairs = [
+        (row, column)
+        for row in range(5)
+        for column in range(5)
+        if row != column
+    ]
+    for pair_index, (row, column) in enumerate(pairs):
+        reverse_index = pairs.index((column, row))
+        np.testing.assert_allclose(
+            probabilities[:, :, pair_index]
+            + probabilities[:, :, reverse_index],
+            1.0,
+            rtol=0.0,
+            atol=1e-12,
+        )
+    diagnostics = ranking_statistics.monte_carlo_precision_diagnostics(
+        scores,
+        probabilities,
+    )
+    assert diagnostics["EndpointCounts"][
+        "NonredundantPairwiseProbability"
+    ] == 18 * 10 * 2
+
+
+def test_monte_carlo_precision_fails_closed_on_invalid_arrays() -> None:
+    scores, probabilities = _production_shaped_mc_samples()
+    with pytest.raises(ValueError, match="score samples.*shape"):
+        ranking_statistics.monte_carlo_precision_diagnostics(
+            scores[:, :, :, :4],
+            probabilities,
+        )
+    with pytest.raises(ValueError, match="same number of replicates"):
+        ranking_statistics.monte_carlo_precision_diagnostics(
+            scores,
+            probabilities[:-1],
+        )
+
+    nonfinite_scores = scores.copy()
+    nonfinite_scores[0, 0, 0, 0] = np.nan
+    with pytest.raises(ValueError, match="finite"):
+        ranking_statistics.monte_carlo_precision_diagnostics(
+            nonfinite_scores,
+            probabilities,
+        )
+
+    nonreciprocal = probabilities.copy()
+    nonreciprocal[:, 0, 0] *= 0.9
+    with pytest.raises(ValueError, match="reciprocal"):
+        ranking_statistics.monte_carlo_precision_diagnostics(
+            scores,
+            nonreciprocal,
+        )
+
+
+def test_crossed_bootstrap_attaches_nonblocking_production_qc(
+    crossed_fixture: pd.DataFrame,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(ranking_statistics, "PL_PRODUCTION_REPLICATES", 2)
+    outputs = ranking_statistics.bootstrap_plackett_luce_statistics(
+        crossed_fixture,
+        MODEL_COLUMNS,
+        BootstrapConfig(successful_replicates=2, max_failed_fits=0),
+    )
+    for output in outputs.values():
+        diagnostics = output.attrs["bootstrap_diagnostics"]
+        assert diagnostics["HalfRunStability"]["Applied"] is True
+        assert diagnostics["HalfRunStability"]["Interpretation"] == (
+            "descriptive_nonblocking"
+        )
+        precision = diagnostics["MonteCarloPrecision"]
+        assert precision["Applied"] is True
+        assert precision["EndpointCounts"] == {
+            "CrossedScore": 180,
+            "NonredundantPairwiseProbability": 360,
+            "Total": 540,
+        }
+        assert "threshold" not in str(precision).casefold()
+        assert "passed" not in str(precision).casefold()

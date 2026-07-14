@@ -65,6 +65,12 @@ REPORTING_MATRIX_STATEMENT = (
     "The reporting matrix was locked before the final bootstrap reanalysis "
     "and before manuscript interpretation."
 )
+MONTE_CARLO_QC_AMENDMENT_STATEMENT = (
+    "The Monte Carlo quality-control rule was amended after the prespecified "
+    "half-run tolerance failed and before final result interpretation; the "
+    "estimands, reporting matrix, resampling scheme, seed, and replicate "
+    "target remained unchanged."
+)
 OUTPUT_FILENAMES = {
     "rank_distribution": "rank_distribution.tsv",
     "pl_scores": "pl_scores.tsv",
@@ -569,6 +575,9 @@ def public_pl_diagnostics(diagnostics: dict[str, object]) -> dict[str, object]:
         ),
         "HalfRunStability": _json_safe(
             diagnostics.get("HalfRunStability", {"Applied": False})
+        ),
+        "MonteCarloPrecision": _json_safe(
+            diagnostics.get("MonteCarloPrecision", {"Applied": False})
         ),
     }
 
@@ -1175,6 +1184,9 @@ def freeze_rankings(
         "schema_version": 2,
         "reporting_matrix_status": "locked_before_final_bootstrap_reanalysis",
         "reporting_matrix_statement": REPORTING_MATRIX_STATEMENT,
+        "monte_carlo_qc_amendment_statement": (
+            MONTE_CARLO_QC_AMENDMENT_STATEMENT
+        ),
         "pilot_kappa_values_viewed": True,
         "agreement_item_definition": "Species + Gene + Model",
         "agreement_categories": ["R1", "R2", "R3", "R4", "R5"],

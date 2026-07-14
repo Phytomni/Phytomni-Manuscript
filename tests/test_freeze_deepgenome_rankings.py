@@ -806,6 +806,12 @@ def test_freezer_writes_deterministic_reviewer_tables(tmp_path: Path) -> None:
         "The reporting matrix was locked before the final bootstrap "
         "reanalysis and before manuscript interpretation."
     )
+    assert provenance["monte_carlo_qc_amendment_statement"] == (
+        "The Monte Carlo quality-control rule was amended after the "
+        "prespecified half-run tolerance failed and before final result "
+        "interpretation; the estimands, reporting matrix, resampling scheme, "
+        "seed, and replicate target remained unchanged."
+    )
     assert provenance["agreement_item_definition"] == "Species + Gene + Model"
     assert provenance["agreement_categories"] == [
         "R1",
@@ -867,6 +873,7 @@ def test_freezer_writes_deterministic_reviewer_tables(tmp_path: Path) -> None:
     assert isinstance(pl_diagnostics["ExpertSeedSpawnKey"], list)
     assert isinstance(pl_diagnostics["GeneSeedSpawnKey"], list)
     assert pl_diagnostics["HalfRunStability"] == {"Applied": False}
+    assert pl_diagnostics["MonteCarloPrecision"] == {"Applied": False}
     agreement_diagnostics = provenance["bootstrap_diagnostics"]["agreement"]
     assert agreement_diagnostics == {
         "attempted_replicates": int(fleiss["BootstrapAttempted"].iloc[0]),
@@ -886,6 +893,22 @@ def test_freezer_writes_deterministic_reviewer_tables(tmp_path: Path) -> None:
     assert not {"rows", "used_rows", "skipped_rows", "scopes"} & set(
         provenance
     )
+
+
+def test_public_pl_diagnostics_preserves_monte_carlo_precision() -> None:
+    monte_carlo_precision = {
+        "Applied": True,
+        "Method": "binomial_order_statistic",
+        "EndpointCounts": {
+            "CrossedScore": 180,
+            "NonredundantPairwiseProbability": 360,
+            "Total": 540,
+        },
+    }
+    public = freeze_module.public_pl_diagnostics(
+        {"MonteCarloPrecision": monte_carlo_precision}
+    )
+    assert public["MonteCarloPrecision"] == monte_carlo_precision
 
 
 def test_freezer_rejects_incomplete_rankings(tmp_path: Path) -> None:
