@@ -1,0 +1,10 @@
+Column	Description	AllowedValues
+AnonymousExpertID	Random release identifier with no public crosswalk	E001-E120
+Species	Benchmark species	Arabidopsis; Maize; Rice; Soybean; Wheat
+Gene	Public benchmark gene identifier	Non-empty string
+StudyStatus	Gene knowledge stratum	well_studied; uncharacterized
+Gemini	Exact rank position	R1-R5
+Grok	Exact rank position	R1-R5
+OpenAI	Exact rank position	R1-R5
+Phytomni	Exact rank position	R1-R5
+Claude	Exact rank position	R1-R5

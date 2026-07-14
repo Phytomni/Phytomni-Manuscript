@@ -1,0 +1,67 @@
+Dimension	SourceValue	PublicCategory	DisplayOrder
+Species	Arabidopsis	Arabidopsis	1
+Species	Maize	Maize	2
+Species	Rice	Rice	3
+Species	Soybean	Soybean	4
+Species	Wheat	Wheat	5
+Country/Region	China	Asia	1
+Country/Region	Japan	Asia	1
+Country/Region	Malaysia	Asia	1
+Country/Region	Philippines	Asia	1
+Country/Region	Singapore	Asia	1
+Country/Region	Vietnam	Asia	1
+Country/Region	Austria	Europe	2
+Country/Region	Belgium	Europe	2
+Country/Region	Denmark	Europe	2
+Country/Region	Germany	Europe	2
+Country/Region	Netherlands	Europe	2
+Country/Region	Norway	Europe	2
+Country/Region	Spain	Europe	2
+Country/Region	United Kingdom	Europe	2
+Country/Region	Canada	North America	3
+Country/Region	USA	North America	3
+Country/Region	Australia	Other regions	4
+Country/Region	Western Australia	Other regions	4
+Country/Region	Egypt	Other regions	4
+Country/Region	Nigeria	Other regions	4
+Institution_type	University	University	1
+Institution_type	Research institute	Research institute	2
+Current_position	Full Professor / Full researcher	Full Professor / Full researcher	1
+Current_position	Associate Professor / Associate researcher	Associate Professor / Associate researcher	2
+Current_position	Postdoc / Assistant researcher	Postdoc / Assistant researcher	3
+Current_position	PhD student	PhD student	4
+Current_position	Master's student	Other career stages	5
+Current_position	Other	Other career stages	5
+Years_experience	< 3	<= 5 years	1
+Years_experience	3–5	<= 5 years	1
+Years_experience	6–10	6–10	2
+Years_experience	11–20	11–20	3
+Years_experience	> 20	> 20	4
+Gender	Female	Female	1
+Gender	Male	Male	2
+Gender	Prefer not to say	Prefer not to say	3
+Research_domains	Bioinformatics / Computational biology	Bioinformatics / Computational biology	1
+Research_domains	Crop genetics & breeding	Crop genetics & breeding	2
+Research_domains	Developmental biology	Developmental biology	3
+Research_domains	Epigenetics	Epigenetics	4
+Research_domains	Functional genomics	Functional genomics	5
+Research_domains	Molecular biology	Molecular biology	6
+Research_domains	Plant hormone / Signal transduction	Plant hormone / Signal transduction	7
+Research_domains	Plant pathology / Stress biology	Plant pathology / Stress biology	8
+Research_domains	Population / Evolutionary genetics	Population, metabolomics, or other	9
+Research_domains	Metabolomics / Proteomics	Population, metabolomics, or other	9
+Research_domains	Other	Population, metabolomics, or other	9
+Study_species	Arabidopsis	Arabidopsis	1
+Study_species	Maize	Maize	2
+Study_species	Rice	Rice	3
+Study_species	Soybean	Soybean	4
+Study_species	Wheat	Wheat	5
+Study_species	Vegetable crops	Vegetable crops	6
+Study_species	Cotton	Other crop systems	7
+Study_species	Fruit / Tree crops	Other crop systems	7
+Study_species	Other	Other crop systems	7
+Annotation_experience	Frequent	Frequent	1
+Annotation_experience	Occasional	Occasional	2
+Ai_experience	Frequent	Frequent	1
+Ai_experience	Occasional	Occasional	2
+Conflict_interest	No	No	1
