@@ -8,6 +8,8 @@ from scipy.optimize import minimize
 
 
 MODEL_COLUMNS = ("Gemini", "Grok", "OpenAI", "Phytomni", "Claude")
+AGREEMENT_SPECIES = ("Rice", "Maize", "Wheat", "Soybean", "Arabidopsis")
+AGREEMENT_STUDY_STATUSES = ("well_studied", "uncharacterized")
 REFERENCE_MODEL = "Gemini"
 OPTIMIZER_OPTIONS = {"ftol": 1e-10, "gtol": 1e-8, "maxiter": 1000}
 HESSIAN_EPSILON = 1e-5
@@ -52,13 +54,15 @@ def agreement_scope_registry(
     study_statuses: tuple[str, ...],
     models: tuple[str, ...],
 ) -> tuple[AgreementScope, ...]:
-    if not species or not study_statuses or not models:
-        raise ValueError("Agreement registry dimensions must not be empty.")
-    if any(
-        len(values) != len(set(values))
-        for values in (species, study_statuses, models)
+    if (
+        species != AGREEMENT_SPECIES
+        or study_statuses != AGREEMENT_STUDY_STATUSES
+        or models != MODEL_COLUMNS
     ):
-        raise ValueError("Agreement registry dimensions must be unique.")
+        raise ValueError(
+            "Locked agreement analysis requires canonical species, status, "
+            "and model values in their fixed order."
+        )
 
     scopes = [AgreementScope("overall", "primary", "overall")]
     scopes.extend(
@@ -172,11 +176,60 @@ def _scope_frame(frame: pd.DataFrame, scope: AgreementScope) -> pd.DataFrame:
     return selected
 
 
+def _validate_agreement_registry(
+    registry: tuple[AgreementScope, ...],
+) -> None:
+    allowed_tiers = {"primary", "locked_secondary", "locked_exploratory"}
+    allowed_families = {
+        "overall",
+        "species",
+        "study_status",
+        "model",
+        "species_study_status",
+        "model_study_status",
+        "model_species",
+    }
+    for scope in registry:
+        restricted = sum(
+            value != "all"
+            for value in (scope.species, scope.study_status, scope.model)
+        )
+        if restricted == 3:
+            raise ValueError(
+                "Fleiss agreement forbids scopes with three restricted "
+                "dimensions."
+            )
+        if scope.analysis_tier not in allowed_tiers:
+            raise ValueError(
+                f"Unknown agreement analysis tier: {scope.analysis_tier!r}."
+            )
+        if scope.scope_family not in allowed_families:
+            raise ValueError(
+                f"Unknown agreement scope family: {scope.scope_family!r}."
+            )
+
+    canonical = agreement_scope_registry(
+        AGREEMENT_SPECIES,
+        AGREEMENT_STUDY_STATUSES,
+        MODEL_COLUMNS,
+    )
+    if registry != canonical:
+        raise ValueError(
+            "Fleiss point estimates require the exact canonical 58-scope "
+            "registry."
+        )
+
+
 def fleiss_point_estimates(
     frame: pd.DataFrame,
     registry: tuple[AgreementScope, ...],
     model_columns: tuple[str, ...] = MODEL_COLUMNS,
 ) -> pd.DataFrame:
+    _validate_agreement_registry(registry)
+    if model_columns != MODEL_COLUMNS:
+        raise ValueError(
+            "Fleiss point estimates require the canonical model columns."
+        )
     required = {
         "Species",
         "Gene",
@@ -189,9 +242,6 @@ def fleiss_point_estimates(
         raise ValueError(
             "Missing required agreement columns: " + ", ".join(missing)
         )
-    if len(model_columns) != 5:
-        raise ValueError("Fleiss agreement requires exactly five models.")
-
     ranks = tuple(f"R{rank}" for rank in range(1, 6))
     expected_ranks = set(ranks)
     for row in frame.loc[:, model_columns].itertuples(index=False, name=None):

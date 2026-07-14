@@ -229,6 +229,46 @@ def test_agreement_registry_has_exact_order_tiers_and_dimensions() -> None:
         registry[0].scope_id = "changed"
 
 
+def test_agreement_registry_rejects_noncanonical_dimensions() -> None:
+    with pytest.raises(ValueError, match="canonical species, status, and model"):
+        agreement_scope_registry(SPECIES[:-1], STATUSES, MODEL_COLUMNS)
+    with pytest.raises(ValueError, match="canonical species, status, and model"):
+        agreement_scope_registry(
+            tuple(reversed(SPECIES)),
+            STATUSES,
+            MODEL_COLUMNS,
+        )
+
+
+def test_fleiss_point_estimates_rejects_noncanonical_registry() -> None:
+    frame = categorized_ranking_fixture()
+    registry = agreement_scope_registry(SPECIES, STATUSES, MODEL_COLUMNS)
+
+    with pytest.raises(ValueError, match="exact canonical 58-scope registry"):
+        fleiss_point_estimates(frame, registry[:-1], MODEL_COLUMNS)
+    with pytest.raises(ValueError, match="exact canonical 58-scope registry"):
+        fleiss_point_estimates(
+            frame,
+            (registry[1], registry[0], *registry[2:]),
+            MODEL_COLUMNS,
+        )
+
+
+def test_fleiss_point_estimates_rejects_triple_interaction() -> None:
+    frame = categorized_ranking_fixture()
+    forbidden = AgreementScope(
+        "forbidden.triple",
+        "locked_exploratory",
+        "model_species_study_status",
+        species=SPECIES[0],
+        study_status=STATUSES[0],
+        model=MODEL_COLUMNS[0],
+    )
+
+    with pytest.raises(ValueError, match="three restricted dimensions"):
+        fleiss_point_estimates(frame, (forbidden,), MODEL_COLUMNS)
+
+
 def test_fleiss_point_estimates_have_stable_schema_and_marginals() -> None:
     frame = categorized_ranking_fixture()
     registry = agreement_scope_registry(SPECIES, STATUSES, MODEL_COLUMNS)
