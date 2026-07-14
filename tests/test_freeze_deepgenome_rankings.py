@@ -1392,7 +1392,7 @@ def test_successful_install_survives_backup_cleanup_failure_and_recovers(
         raising=False,
     )
 
-    with pytest.warns(RuntimeWarning, match="retained a verified backup"):
+    with pytest.warns(RuntimeWarning, match="retained a transaction artifact"):
         paths = freeze_fixture_once(tmp_path, output_dir)
 
     assert paths
@@ -1411,6 +1411,221 @@ def test_successful_install_survives_backup_cleanup_failure_and_recovers(
 
     assert directory_bytes(output_dir) == installed
     assert not list(tmp_path.glob(".frozen.backup-*"))
+
+
+def test_partial_backup_cleanup_isolated_in_tombstone_and_next_freeze_succeeds(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    score_path, categories_path, metadata_path, category_map_path = (
+        write_crossed_fixture(tmp_path)
+    )
+    output_dir = tmp_path / "frozen"
+    write_legacy_publication(output_dir)
+    original_unlink = freeze_module.os.unlink
+    unlink_calls = 0
+
+    def fail_second_unlink(
+        path: str,
+        *,
+        dir_fd: int | None = None,
+    ) -> None:
+        nonlocal unlink_calls
+        unlink_calls += 1
+        if unlink_calls == 2:
+            raise OSError("injected second unlink failure")
+        original_unlink(path, dir_fd=dir_fd)
+
+    monkeypatch.setattr(freeze_module.os, "unlink", fail_second_unlink)
+
+    with pytest.warns(RuntimeWarning, match="retained a transaction artifact"):
+        freeze_rankings(
+            score_path=score_path,
+            gene_categories_path=categories_path,
+            expert_metadata_path=metadata_path,
+            private_lineage_score_path=None,
+            panel_category_map_path=category_map_path,
+            output_dir=output_dir,
+            model_columns=MODELS,
+            bootstrap_config=BootstrapConfig(
+                successful_replicates=1,
+                seed=20260714,
+                max_failed_fits=2,
+            ),
+        )
+
+    freeze_module._validate_schema2_publication(output_dir)
+    assert not list(tmp_path.glob(".frozen.backup-*"))
+    tombstones = list(tmp_path.glob(".frozen.cleanup-*"))
+    assert len(tombstones) == 1
+    assert tombstones[0].is_dir()
+    retained = directory_bytes(tombstones[0])
+
+    monkeypatch.setattr(freeze_module.os, "unlink", original_unlink)
+    freeze_rankings(
+        score_path=score_path,
+        gene_categories_path=categories_path,
+        expert_metadata_path=metadata_path,
+        private_lineage_score_path=None,
+        panel_category_map_path=category_map_path,
+        output_dir=output_dir,
+        model_columns=MODELS,
+        bootstrap_config=BootstrapConfig(
+            successful_replicates=1,
+            seed=20260714,
+            max_failed_fits=2,
+        ),
+    )
+
+    freeze_module._validate_schema2_publication(output_dir)
+    assert not list(tmp_path.glob(".frozen.backup-*"))
+    assert list(tmp_path.glob(".frozen.cleanup-*")) == tombstones
+    assert directory_bytes(tombstones[0]) == retained
+
+
+def test_cleanup_tombstone_paths_are_strictly_scoped(tmp_path: Path) -> None:
+    output_dir = tmp_path / "frozen"
+    valid = tmp_path / f".frozen.cleanup-{'d' * 32}"
+
+    assert (
+        freeze_module._validate_transaction_path(
+            valid,
+            output_dir,
+            kind="cleanup",
+        )
+        == valid
+    )
+    with pytest.raises(ValueError):
+        freeze_module._validate_transaction_path(
+            tmp_path / f".not-frozen.cleanup-{'d' * 32}",
+            output_dir,
+            kind="cleanup",
+        )
+    other = tmp_path / "other"
+    other.mkdir()
+    with pytest.raises(ValueError):
+        freeze_module._validate_transaction_path(
+            other / f".frozen.cleanup-{'d' * 32}",
+            output_dir,
+            kind="cleanup",
+        )
+
+
+def test_cleanup_refuses_preexisting_symlink_tombstone(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_dir = tmp_path / "frozen"
+    staging = tmp_path / f".frozen.staging-{'e' * 32}"
+    staging.mkdir()
+    (staging / "partial.tsv").write_bytes(b"partial\n")
+    staging_identity = freeze_module._path_identity(staging)
+    target = tmp_path / "cleanup-target"
+    target.mkdir()
+    sentinel = target / "sentinel.bin"
+    sentinel.write_bytes(b"target\x00bytes")
+    tombstone = tmp_path / f".frozen.cleanup-{'f' * 32}"
+    tombstone.symlink_to(target, target_is_directory=True)
+
+    class FixedUuid:
+        hex = "f" * 32
+
+    monkeypatch.setattr(freeze_module.uuid, "uuid4", lambda: FixedUuid())
+
+    with pytest.raises(ValueError):
+        freeze_module._cleanup_transaction_directory(
+            staging,
+            output_dir,
+            kind="staging",
+            require_publication=False,
+            expected_identity=staging_identity,
+        )
+
+    assert staging.is_dir()
+    assert (staging / "partial.tsv").read_bytes() == b"partial\n"
+    assert tombstone.is_symlink()
+    assert sentinel.read_bytes() == b"target\x00bytes"
+
+
+def test_cleanup_rejects_symlinked_transaction_parent(
+    tmp_path: Path,
+) -> None:
+    target_parent = tmp_path / "target-parent"
+    target_parent.mkdir()
+    linked_parent = tmp_path / "linked-parent"
+    linked_parent.symlink_to(target_parent, target_is_directory=True)
+    output_dir = linked_parent / "frozen"
+    staging = linked_parent / f".frozen.staging-{'c' * 32}"
+    real_staging = target_parent / staging.name
+    real_staging.mkdir()
+    sentinel = real_staging / "sentinel.bin"
+    sentinel.write_bytes(b"transaction\x00bytes")
+    identity = freeze_module._path_identity(staging)
+
+    with pytest.raises(ValueError):
+        freeze_module._cleanup_transaction_directory(
+            staging,
+            output_dir,
+            kind="staging",
+            require_publication=False,
+            expected_identity=identity,
+        )
+
+    assert linked_parent.is_symlink()
+    assert sentinel.read_bytes() == b"transaction\x00bytes"
+    assert not list(target_parent.glob(".frozen.cleanup-*"))
+
+
+def test_cleanup_rename_failure_preserves_original_transaction_byte_identically(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_dir = tmp_path / "frozen"
+    backup = tmp_path / f".frozen.backup-{'b' * 32}"
+    write_legacy_publication(backup)
+    before = directory_bytes(backup)
+    identity = freeze_module._path_identity(backup)
+    original_replace = freeze_module.os.replace
+
+    def fail_cleanup_rename(source: Path, destination: Path) -> None:
+        if Path(destination).name.startswith(".frozen.cleanup-"):
+            raise OSError("injected cleanup rename failure")
+        original_replace(source, destination)
+
+    monkeypatch.setattr(freeze_module.os, "replace", fail_cleanup_rename)
+
+    with pytest.raises(OSError, match="cleanup rename failure"):
+        freeze_module._cleanup_transaction_directory(
+            backup,
+            output_dir,
+            kind="backup",
+            require_publication=True,
+            expected_identity=identity,
+        )
+
+    assert directory_bytes(backup) == before
+    assert not list(tmp_path.glob(".frozen.cleanup-*"))
+
+
+def test_preflight_ignores_historical_cleanup_symlink(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "frozen"
+    write_legacy_publication(output_dir)
+    live = directory_bytes(output_dir)
+    target = tmp_path / "historical-cleanup-target"
+    target.mkdir()
+    sentinel = target / "sentinel.bin"
+    sentinel.write_bytes(b"historical\x00bytes")
+    tombstone = tmp_path / f".frozen.cleanup-{'a' * 32}"
+    tombstone.symlink_to(target, target_is_directory=True)
+
+    with pytest.raises(FileNotFoundError):
+        freeze_with_missing_inputs(output_dir)
+
+    assert directory_bytes(output_dir) == live
+    assert tombstone.is_symlink()
+    assert sentinel.read_bytes() == b"historical\x00bytes"
 
 
 def test_module_provenance_uses_import_time_hashes_and_notebook_freeze_snapshot(

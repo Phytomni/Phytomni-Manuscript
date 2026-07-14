@@ -761,7 +761,7 @@ def _validate_transaction_path(
     lexical = _lexical_absolute(path)
     expected_output = _lexical_absolute(output_dir)
     if (
-        kind not in {"staging", "backup"}
+        kind not in {"staging", "backup", "cleanup"}
         or lexical.parent != expected_output.parent
         or not _transaction_pattern(expected_output, kind).fullmatch(lexical.name)
     ):
@@ -802,9 +802,25 @@ def _cleanup_transaction_directory(
         raise ValueError("The frozen transaction directory changed identity.")
     if require_publication:
         _validate_replaceable_publication(transaction_path)
+    _flat_regular_entries(transaction_path)
 
-    directory_fd = os.open(transaction_path, DIRECTORY_OPEN_FLAGS)
-    parent_fd = os.open(transaction_path.parent, DIRECTORY_OPEN_FLAGS)
+    cleanup_path = _validate_transaction_path(
+        transaction_path.parent
+        / f".{expected_output.name}.cleanup-{uuid.uuid4().hex}",
+        expected_output,
+        kind="cleanup",
+    )
+    _reject_symlink_components(cleanup_path.parent)
+    if cleanup_path.exists() or cleanup_path.is_symlink():
+        raise ValueError("The frozen cleanup tombstone already exists.")
+    os.replace(transaction_path, cleanup_path)
+    if transaction_path.exists() or transaction_path.is_symlink():
+        raise ValueError("The frozen transaction rename was incomplete.")
+    if _path_identity(cleanup_path) != current_identity:
+        raise ValueError("The frozen cleanup tombstone changed identity.")
+
+    directory_fd = os.open(cleanup_path, DIRECTORY_OPEN_FLAGS)
+    parent_fd = os.open(cleanup_path.parent, DIRECTORY_OPEN_FLAGS)
     try:
         opened_stat = os.fstat(directory_fd)
         if (opened_stat.st_dev, opened_stat.st_ino) != current_identity:
@@ -818,10 +834,10 @@ def _cleanup_transaction_directory(
                 )
         for name in names:
             os.unlink(name, dir_fd=directory_fd)
-        final_stat = transaction_path.lstat()
+        final_stat = cleanup_path.lstat()
         if (final_stat.st_dev, final_stat.st_ino) != current_identity:
-            raise ValueError("The frozen transaction directory changed identity.")
-        os.rmdir(transaction_path.name, dir_fd=parent_fd)
+            raise ValueError("The frozen cleanup tombstone changed identity.")
+        os.rmdir(cleanup_path.name, dir_fd=parent_fd)
     finally:
         os.close(parent_fd)
         os.close(directory_fd)
@@ -1009,7 +1025,7 @@ def _publish_staged_directory(
             )
         except Exception:
             warnings.warn(
-                "Frozen output installed; retained a verified backup for recovery.",
+                "Frozen output installed; retained a transaction artifact.",
                 RuntimeWarning,
                 stacklevel=2,
             )
@@ -1236,7 +1252,7 @@ def freeze_rankings(
             )
         except Exception:
             warnings.warn(
-                "Retained a frozen staging directory after safe cleanup failed.",
+                "Retained a frozen transaction artifact after safe cleanup failed.",
                 RuntimeWarning,
                 stacklevel=2,
             )
