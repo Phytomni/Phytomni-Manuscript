@@ -29,27 +29,70 @@ def test_pl_point_estimates_match_historical_fixture() -> None:
     assert np.isclose(
         fit["negative_log_likelihood"],
         93.43927901604626,
-        atol=1e-6,
+        rtol=0.0,
+        atol=1e-8,
     )
     np.testing.assert_allclose(
         [fit["xi"][model] for model in models],
-        [0.0, 0.3126965119, 0.4923752789, 0.6228591999],
-        atol=1e-6,
+        [
+            0.0,
+            0.3126965119014714,
+            0.49237527893347205,
+            0.6228591998928711,
+        ],
+        rtol=0.0,
+        atol=1e-8,
     )
     np.testing.assert_allclose(
         fit["elo"],
-        [1437.9857450, 1492.3066929, 1523.5200917, 1546.1874704],
-        atol=1e-6,
+        [
+            1437.9857450188267,
+            1492.3066928705082,
+            1523.5200916853792,
+            1546.1874704252862,
+        ],
+        rtol=0.0,
+        atol=1e-8,
     )
     np.testing.assert_allclose(
         fit["elo_standard_error"],
-        [0.0, 56.4574659, 58.3740115, 59.6279150],
-        atol=1e-5,
+        [0.0, 56.457465939984594, 58.374011490354356, 59.62791502570149],
+        rtol=0.0,
+        atol=1e-8,
     )
-    probabilities = fit["pairwise_probabilities"]
-    assert np.isclose(probabilities[3, 0], 0.6508685493, atol=1e-6)
-    assert np.isclose(probabilities[3, 2], 0.5325747750, atol=1e-6)
-    assert np.isclose(probabilities[2, 1], 0.5447992300, atol=1e-6)
+    np.testing.assert_allclose(
+        fit["elo_lower"],
+        [
+            1437.9857450188267,
+            1381.6500596281385,
+            1409.1070291642845,
+            1429.3167569749112,
+        ],
+        rtol=0.0,
+        atol=1e-8,
+    )
+    np.testing.assert_allclose(
+        fit["elo_upper"],
+        [
+            1437.9857450188267,
+            1602.963326112878,
+            1637.9331542064738,
+            1663.0581838756611,
+        ],
+        rtol=0.0,
+        atol=1e-8,
+    )
+    np.testing.assert_allclose(
+        fit["pairwise_probabilities"],
+        [
+            [np.nan, 0.42245668772758843, 0.3793341724914228, 0.34913145067062423],
+            [0.5775433122724115, np.nan, 0.45520077001606085, 0.4230750290714746],
+            [0.6206658275085771, 0.5447992299839391, np.nan, 0.4674252249724183],
+            [0.6508685493293758, 0.5769249709285255, 0.5325747750275817, np.nan],
+        ],
+        rtol=0.0,
+        atol=1e-8,
+    )
 
 
 def test_integer_weights_equal_expanded_rankings() -> None:
@@ -69,6 +112,12 @@ def test_integer_weights_equal_expanded_rankings() -> None:
     assert np.isclose(
         weighted["negative_log_likelihood"],
         expanded["negative_log_likelihood"],
+        atol=1e-8,
+        rtol=0.0,
+    )
+    np.testing.assert_allclose(
+        [weighted["xi"][model] for model in weighted["models"]],
+        [expanded["xi"][model] for model in expanded["models"]],
         atol=1e-8,
         rtol=0.0,
     )
@@ -147,8 +196,18 @@ def test_pl_likelihood_preserves_historical_fixture() -> None:
         "Gemini",
     )
 
-    assert np.isclose(log_likelihood, -95.34161491043835, atol=1e-12)
-    np.testing.assert_allclose(gradient, [-0.5, 2.5, 4.5], atol=1e-12)
+    assert np.isclose(
+        log_likelihood,
+        -95.34161491043835,
+        rtol=0.0,
+        atol=1e-12,
+    )
+    np.testing.assert_allclose(
+        gradient,
+        [-0.5, 2.5, 4.5],
+        rtol=0.0,
+        atol=1e-12,
+    )
 
 
 @pytest.mark.parametrize("model_count", [2, 3, 5, 6])
