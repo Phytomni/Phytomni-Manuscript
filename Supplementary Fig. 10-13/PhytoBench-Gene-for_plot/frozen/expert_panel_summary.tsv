@@ -1,0 +1,45 @@
+Dimension	PublicCategory	DisplayOrder	N	DenominatorN	Percent	MissingN	PercentageBasis
+Species	Arabidopsis	1	24	120	20	0	nonmissing_experts
+Species	Maize	2	24	120	20	0	nonmissing_experts
+Species	Rice	3	24	120	20	0	nonmissing_experts
+Species	Soybean	4	24	120	20	0	nonmissing_experts
+Species	Wheat	5	24	120	20	0	nonmissing_experts
+Country/Region	Asia	1	52	120	43.3333333333333	0	nonmissing_experts
+Country/Region	Europe	2	36	120	30	0	nonmissing_experts
+Country/Region	North America	3	19	120	15.8333333333333	0	nonmissing_experts
+Country/Region	Other regions	4	13	120	10.8333333333333	0	nonmissing_experts
+Institution_type	University	1	74	120	61.6666666666667	0	nonmissing_experts
+Institution_type	Research institute	2	46	120	38.3333333333333	0	nonmissing_experts
+Current_position	Full Professor / Full researcher	1	26	120	21.6666666666667	0	nonmissing_experts
+Current_position	Associate Professor / Associate researcher	2	26	120	21.6666666666667	0	nonmissing_experts
+Current_position	Postdoc / Assistant researcher	3	44	120	36.6666666666667	0	nonmissing_experts
+Current_position	PhD student	4	19	120	15.8333333333333	0	nonmissing_experts
+Current_position	Other career stages	5	5	120	4.16666666666667	0	nonmissing_experts
+Years_experience	<= 5 years	1	13	120	10.8333333333333	0	nonmissing_experts
+Years_experience	6–10	2	37	120	30.8333333333333	0	nonmissing_experts
+Years_experience	11–20	3	44	120	36.6666666666667	0	nonmissing_experts
+Years_experience	> 20	4	26	120	21.6666666666667	0	nonmissing_experts
+Gender	Female	1	41	120	34.1666666666667	0	nonmissing_experts
+Gender	Male	2	70	120	58.3333333333333	0	nonmissing_experts
+Gender	Prefer not to say	3	9	120	7.5	0	nonmissing_experts
+Research_domains	Bioinformatics / Computational biology	1	24	120	20	0	all_experts
+Research_domains	Crop genetics & breeding	2	64	120	53.3333333333333	0	all_experts
+Research_domains	Developmental biology	3	26	120	21.6666666666667	0	all_experts
+Research_domains	Epigenetics	4	18	120	15	0	all_experts
+Research_domains	Functional genomics	5	47	120	39.1666666666667	0	all_experts
+Research_domains	Molecular biology	6	61	120	50.8333333333333	0	all_experts
+Research_domains	Plant hormone / Signal transduction	7	15	120	12.5	0	all_experts
+Research_domains	Plant pathology / Stress biology	8	18	120	15	0	all_experts
+Research_domains	Population, metabolomics, or other	9	14	120	11.6666666666667	0	all_experts
+Study_species	Arabidopsis	1	33	120	27.5	0	all_experts
+Study_species	Maize	2	34	120	28.3333333333333	0	all_experts
+Study_species	Rice	3	43	120	35.8333333333333	0	all_experts
+Study_species	Soybean	4	24	120	20	0	all_experts
+Study_species	Wheat	5	31	120	25.8333333333333	0	all_experts
+Study_species	Vegetable crops	6	7	120	5.83333333333333	0	all_experts
+Study_species	Other crop systems	7	21	120	17.5	0	all_experts
+Annotation_experience	Frequent	1	76	109	69.7247706422018	11	nonmissing_experts
+Annotation_experience	Occasional	2	33	109	30.2752293577982	11	nonmissing_experts
+Ai_experience	Frequent	1	41	101	40.5940594059406	19	nonmissing_experts
+Ai_experience	Occasional	2	60	101	59.4059405940594	19	nonmissing_experts
+Conflict_interest	No	1	120	120	100	0	nonmissing_experts

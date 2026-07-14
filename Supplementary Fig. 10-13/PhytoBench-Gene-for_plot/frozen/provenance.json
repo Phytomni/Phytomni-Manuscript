@@ -1,8 +1,249 @@
 {
-  "gene_categories": {
-    "name": "gene_categories.tsv",
-    "rows": 200,
-    "sha256": "bcb5695c5efaba3faeedd9efa636accd4cbba69a98a996de2eea2900a692fe52"
+  "agreement_categories": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "R5"
+  ],
+  "agreement_item_definition": "Species + Gene + Model",
+  "bootstrap": {
+    "agreement_interval": "stratified_gene_block_percentile",
+    "master_seed": 20260714,
+    "maximum_failed_fits": 10,
+    "primary_pl_interval": "crossed_expert_gene_percentile",
+    "successful_replicates": 10000
+  },
+  "bootstrap_diagnostics": {
+    "agreement": {
+      "attempted_replicates": 10000,
+      "invalid_replicates": 0,
+      "seed_stream": "agreement_gene_blocks",
+      "successful_replicates": 10000
+    },
+    "plackett_luce": {
+      "AttemptedReplicates": 10000,
+      "ExpertSeedSpawnKey": [
+        0
+      ],
+      "FailedFits": 0,
+      "FailureReasonCodes": [],
+      "GeneSeedSpawnKey": [
+        1
+      ],
+      "HalfRunStability": {
+        "Applied": true,
+        "Interpretation": "descriptive_nonblocking",
+        "ProbabilityMaxBoundDifference": 0.013095437435215185,
+        "ScoreMaxBoundDifference": 12.483900008886167
+      },
+      "MonteCarloPrecision": {
+        "Applied": true,
+        "BonferroniFamilywise95": {
+          "ConfidenceLevel": 0.95,
+          "EndpointAlpha": 9.25925925925926e-05,
+          "PairwiseProbability": {
+            "MaximumBracketDistance": {
+              "Bound": "lower",
+              "BracketDistance": 0.022162754757644676,
+              "BracketLower": 0.3886642222034411,
+              "BracketUpper": 0.4245293490201218,
+              "CIWidth": 0.4779271612915151,
+              "ColumnModel": "OpenAI",
+              "Estimate": 0.4108269769610858,
+              "RelativeCIWidth": 0.04637266209719842,
+              "RowModel": "Gemini",
+              "Scope": "well_studied.arabidopsis",
+              "Species": "Arabidopsis",
+              "StudyStatus": "well_studied",
+              "Value": 0.022162754757644676
+            },
+            "MaximumRelativeCIWidth": {
+              "Bound": "upper",
+              "BracketDistance": 0.014639030679160892,
+              "BracketLower": 0.26368019574705687,
+              "BracketUpper": 0.29084215911857325,
+              "CIWidth": 0.2542301238308038,
+              "ColumnModel": "Phytomni",
+              "Estimate": 0.27831922642621776,
+              "RelativeCIWidth": 0.057581809970338196,
+              "RowModel": "Grok",
+              "Scope": "uncharacterized.arabidopsis",
+              "Species": "Arabidopsis",
+              "StudyStatus": "uncharacterized",
+              "Value": 0.057581809970338196
+            },
+            "UndefinedRelativeCIWidthCount": 0
+          },
+          "RankBrackets": {
+            "CI95Lower": [
+              191,
+              314
+            ],
+            "CI95Upper": [
+              9687,
+              9810
+            ]
+          },
+          "Score": {
+            "MaximumBracketDistance": {
+              "Analysis": "crossed_expert_gene",
+              "Bound": "lower",
+              "BracketDistance": 15.507841333111855,
+              "BracketLower": 1055.36106424035,
+              "BracketUpper": 1084.238000499043,
+              "CIWidth": 351.0358902731,
+              "Estimate": 1070.868905573462,
+              "Model": "Grok",
+              "RelativeCIWidth": 0.04417736693831225,
+              "Scope": "uncharacterized.rice",
+              "Species": "Rice",
+              "StudyStatus": "uncharacterized",
+              "Value": 15.507841333111855
+            },
+            "MaximumRelativeCIWidth": {
+              "Analysis": "crossed_expert_gene",
+              "Bound": "lower",
+              "BracketDistance": 9.097759429566622,
+              "BracketLower": 1363.909735681409,
+              "BracketUpper": 1377.433350000357,
+              "CIWidth": 173.8848565176388,
+              "Estimate": 1373.0074951109757,
+              "Model": "OpenAI",
+              "RelativeCIWidth": 0.05232059658193265,
+              "Scope": "well_studied.rice",
+              "Species": "Rice",
+              "StudyStatus": "well_studied",
+              "Value": 0.05232059658193265
+            },
+            "UndefinedRelativeCIWidthCount": 0
+          }
+        },
+        "EndpointCounts": {
+          "CrossedScore": 180,
+          "NonredundantPairwiseProbability": 360,
+          "Total": 540
+        },
+        "Method": "binomial_order_statistic",
+        "PairwiseDirectionRule": "canonical_model_index_row_less_than_column",
+        "PercentileProbabilityStandardError": 0.0015612494995995996,
+        "Pointwise95": {
+          "ConfidenceLevel": 0.95,
+          "EndpointAlpha": 0.05,
+          "PairwiseProbability": {
+            "MaximumBracketDistance": {
+              "Bound": "lower",
+              "BracketDistance": 0.010507577006010904,
+              "BracketLower": 0.4003193999550749,
+              "BracketUpper": 0.4169156120411219,
+              "CIWidth": 0.4779271612915151,
+              "ColumnModel": "OpenAI",
+              "Estimate": 0.4108269769610858,
+              "RelativeCIWidth": 0.021985728908179236,
+              "RowModel": "Gemini",
+              "Scope": "well_studied.arabidopsis",
+              "Species": "Arabidopsis",
+              "StudyStatus": "well_studied",
+              "Value": 0.010507577006010904
+            },
+            "MaximumRelativeCIWidth": {
+              "Bound": "upper",
+              "BracketDistance": 0.007006042849728195,
+              "BracketLower": 0.21514366883795777,
+              "BracketUpper": 0.2270370390398888,
+              "CIWidth": 0.2119503466007043,
+              "ColumnModel": "Phytomni",
+              "Estimate": 0.22214971168768596,
+              "RelativeCIWidth": 0.03305511390800865,
+              "RowModel": "Grok",
+              "Scope": "well_studied.rice",
+              "Species": "Rice",
+              "StudyStatus": "well_studied",
+              "Value": 0.03305511390800865
+            },
+            "UndefinedRelativeCIWidthCount": 0
+          },
+          "RankBrackets": {
+            "CI95Lower": [
+              220,
+              282
+            ],
+            "CI95Upper": [
+              9719,
+              9781
+            ]
+          },
+          "Score": {
+            "MaximumBracketDistance": {
+              "Analysis": "crossed_expert_gene",
+              "Bound": "lower",
+              "BracketDistance": 8.98168288699867,
+              "BracketLower": 1062.678460291666,
+              "BracketUpper": 1079.4625081410004,
+              "CIWidth": 328.80913114339114,
+              "Estimate": 1071.6601431786646,
+              "Model": "Grok",
+              "RelativeCIWidth": 0.027315795202420418,
+              "Scope": "well_studied.rice",
+              "Species": "Rice",
+              "StudyStatus": "well_studied",
+              "Value": 8.98168288699867
+            },
+            "MaximumRelativeCIWidth": {
+              "Analysis": "crossed_expert_gene",
+              "Bound": "lower",
+              "BracketDistance": 6.901723921303756,
+              "BracketLower": 1228.7588625449603,
+              "BracketUpper": 1240.7184676393179,
+              "CIWidth": 251.58852831630202,
+              "Estimate": 1235.660586466264,
+              "Model": "Grok",
+              "RelativeCIWidth": 0.027432585927076824,
+              "Scope": "well_studied.maize",
+              "Species": "Maize",
+              "StudyStatus": "well_studied",
+              "Value": 0.027432585927076824
+            },
+            "UndefinedRelativeCIWidthCount": 0
+          }
+        },
+        "Replicates": 10000,
+        "TailProbability": 0.025,
+        "TailProbabilityRelativeStandardError": 0.06244997998398398
+      },
+      "SeedStream": "pl_expert_gene_components",
+      "SuccessfulReplicates": 10000
+    }
+  },
+  "fleiss_scope_count": 58,
+  "inputs": {
+    "expert_metadata": {
+      "sha256": "dc8048fed6200709f40646d5ed62d4e7aab5d94d3c4a528a07cde85e7243242f"
+    },
+    "freezer_module": {
+      "sha256": "30eb8a9618af07ab338696ee8823f4c4cccd5e43ce4d0ca427cf081f725a5962"
+    },
+    "gene_categories": {
+      "sha256": "bcb5695c5efaba3faeedd9efa636accd4cbba69a98a996de2eea2900a692fe52"
+    },
+    "narrative_notebook": {
+      "sha256": "8e2f1c1b83aa96c7261928fd2cc9e59327e305ce9ec19dfb3654edbf73aabec8"
+    },
+    "panel_category_audit_module": {
+      "sha256": "d5a1dcb7535c85c1945431e9ecdb8ab13ba990eb61f7c6137075bbdbe20103fe"
+    },
+    "panel_category_map": {
+      "sha256": "5d4d110830859149ee16fc7f5c49dc1ba6117a7b4adc1c30df0c1132ff937489"
+    },
+    "private_lineage_score": {
+      "sha256": "bf24408d8e3d68ca11cc7319b25c407a29d2e26301fdc812896dd451818adcbe"
+    },
+    "public_ranking_release": {
+      "sha256": "9c8fefddc4cdc83da8701ba7e142d6f62a158824c19576ac3155664d34cb51b2"
+    },
+    "statistical_module": {
+      "sha256": "7c90b123ef407f0ae1ed421fe8693dfae84938533f1602f29cf6ec00ac5b0b84"
+    }
   },
   "model_columns": [
     "Gemini",
@@ -11,128 +252,25 @@
     "Phytomni",
     "Claude"
   ],
+  "monte_carlo_qc_amendment_statement": "The Monte Carlo quality-control rule was amended after the prespecified half-run tolerance failed and before final result interpretation; the estimands, reporting matrix, resampling scheme, seed, and replicate target remained unchanged.",
+  "ordinal_scope_count": 18,
+  "outputs": {
+    "assignment_summary.tsv": "43f28be39b821c9af33d25642147922f16e35d7e7b35b4fed9f92cd8cdd9ad93",
+    "expert_panel_summary.tsv": "5f3ca0ab73341b5eb8a9f7dd86312957f7633ed05a1a8a9ffa774fc773265a4a",
+    "fleiss_kappa.tsv": "ac4deb33fca14569541a272bdfb6abd569ca1811ab6f04a85df74f098af387bb",
+    "kendall_by_gene.tsv": "8475133be70cb071c4e98cce03ca38aa5de2a3f298773ed36b0cab7b79249030",
+    "ordinal_agreement_summary.tsv": "ab5734e63eab5853e48f3522670959f602a13a82a101a50bb84fc6319a163a9c",
+    "pl_pairwise.tsv": "1ffb16e39bc599ff749eeeb940aa37a1fd9924a3e7b0045d4489cd2409dc3ba0",
+    "pl_pairwise_ci.tsv": "e85d2a15ff556ce2841c5527b5c495723237764feabc8e22d9564b84a42e6bbf",
+    "pl_scores.tsv": "bc3d40bf24696cc3779f8ff8489a856e137a5d104d8901bd909a1affcdacb9c1",
+    "pl_scores_ci.tsv": "3d4a87b54fa323b504db55617db60a13537cbe6ea18bbd4b852bfe793108c771",
+    "rank_distribution.tsv": "837017db3098b9f998db06073b907b875540c73cc8cc8e8e4f83249cea283e28",
+    "rank_distribution_ci.tsv": "7466c1d316b5514c6176bb11c6eee53419879af9d6997d0b6017ff7b677f5740",
+    "top1_consensus.tsv": "a0c42b2ea149e0b7ba17d9388d1c4a547b164e165909ef5f8bb2bfd71b872bbb"
+  },
+  "pilot_kappa_values_viewed": true,
   "reference_model": "Gemini",
-  "schema_version": 1,
-  "scopes": [
-    {
-      "rows": 600,
-      "scope": "overall",
-      "species": "all",
-      "study_status": "all"
-    },
-    {
-      "rows": 300,
-      "scope": "well_studied",
-      "species": "all",
-      "study_status": "well_studied"
-    },
-    {
-      "rows": 60,
-      "scope": "well_studied.rice",
-      "species": "Rice",
-      "study_status": "well_studied"
-    },
-    {
-      "rows": 60,
-      "scope": "well_studied.maize",
-      "species": "Maize",
-      "study_status": "well_studied"
-    },
-    {
-      "rows": 60,
-      "scope": "well_studied.wheat",
-      "species": "Wheat",
-      "study_status": "well_studied"
-    },
-    {
-      "rows": 60,
-      "scope": "well_studied.soybean",
-      "species": "Soybean",
-      "study_status": "well_studied"
-    },
-    {
-      "rows": 60,
-      "scope": "well_studied.arabidopsis",
-      "species": "Arabidopsis",
-      "study_status": "well_studied"
-    },
-    {
-      "rows": 300,
-      "scope": "uncharacterized",
-      "species": "all",
-      "study_status": "uncharacterized"
-    },
-    {
-      "rows": 60,
-      "scope": "uncharacterized.rice",
-      "species": "Rice",
-      "study_status": "uncharacterized"
-    },
-    {
-      "rows": 60,
-      "scope": "uncharacterized.maize",
-      "species": "Maize",
-      "study_status": "uncharacterized"
-    },
-    {
-      "rows": 60,
-      "scope": "uncharacterized.wheat",
-      "species": "Wheat",
-      "study_status": "uncharacterized"
-    },
-    {
-      "rows": 60,
-      "scope": "uncharacterized.soybean",
-      "species": "Soybean",
-      "study_status": "uncharacterized"
-    },
-    {
-      "rows": 60,
-      "scope": "uncharacterized.arabidopsis",
-      "species": "Arabidopsis",
-      "study_status": "uncharacterized"
-    },
-    {
-      "rows": 120,
-      "scope": "rice",
-      "species": "Rice",
-      "study_status": "all"
-    },
-    {
-      "rows": 120,
-      "scope": "maize",
-      "species": "Maize",
-      "study_status": "all"
-    },
-    {
-      "rows": 120,
-      "scope": "wheat",
-      "species": "Wheat",
-      "study_status": "all"
-    },
-    {
-      "rows": 120,
-      "scope": "soybean",
-      "species": "Soybean",
-      "study_status": "all"
-    },
-    {
-      "rows": 120,
-      "scope": "arabidopsis",
-      "species": "Arabidopsis",
-      "study_status": "all"
-    }
-  ],
-  "scoring_notebook": {
-    "name": "score_plackett_luce.ipynb",
-    "sha256": "9293648fc575174ca886857e51c0f6ac246a82da604376eaafaf1e4ac65bbc2a"
-  },
-  "skipped_rows": 0,
-  "source": {
-    "name": "score.tsv",
-    "rows": 600,
-    "sha256": "bf24408d8e3d68ca11cc7319b25c407a29d2e26301fdc812896dd451818adcbe"
-  },
-  "uncertainty_method": "reference-parameter approximation",
-  "used_rows": 600
+  "reporting_matrix_statement": "The reporting matrix was locked before the final bootstrap reanalysis and before manuscript interpretation.",
+  "reporting_matrix_status": "locked_before_final_bootstrap_reanalysis",
+  "schema_version": 2
 }
