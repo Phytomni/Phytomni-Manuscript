@@ -1,0 +1,451 @@
+Scope	StudyStatus	Species	RowModel	ColumnModel	Probability	N
+overall	all	all	Gemini	Gemini		600
+overall	all	all	Gemini	Grok	0.78747570468521	600
+overall	all	all	Gemini	OpenAI	0.585548014368565	600
+overall	all	all	Gemini	Phytomni	0.408041375781492	600
+overall	all	all	Gemini	Claude	0.521787996859812	600
+overall	all	all	Grok	Gemini	0.21252429531479	600
+overall	all	all	Grok	Grok		600
+overall	all	all	Grok	OpenAI	0.276041040693841	600
+overall	all	all	Grok	Phytomni	0.15685139875916	600
+overall	all	all	Grok	Claude	0.2274846716073	600
+overall	all	all	OpenAI	Gemini	0.414451985631435	600
+overall	all	all	OpenAI	Grok	0.723958959306159	600
+overall	all	all	OpenAI	OpenAI		600
+overall	all	all	OpenAI	Phytomni	0.327908647897888	600
+overall	all	all	OpenAI	Claude	0.435761037376201	600
+overall	all	all	Phytomni	Gemini	0.591958624218508	600
+overall	all	all	Phytomni	Grok	0.84314860124084	600
+overall	all	all	Phytomni	OpenAI	0.672091352102112	600
+overall	all	all	Phytomni	Phytomni		600
+overall	all	all	Phytomni	Claude	0.612842260675216	600
+overall	all	all	Claude	Gemini	0.478212003140188	600
+overall	all	all	Claude	Grok	0.7725153283927	600
+overall	all	all	Claude	OpenAI	0.564238962623799	600
+overall	all	all	Claude	Phytomni	0.387157739324784	600
+overall	all	all	Claude	Claude		600
+well_studied	well_studied	all	Gemini	Gemini		300
+well_studied	well_studied	all	Gemini	Grok	0.790552814268529	300
+well_studied	well_studied	all	Gemini	OpenAI	0.604162712296038	300
+well_studied	well_studied	all	Gemini	Phytomni	0.428845842652422	300
+well_studied	well_studied	all	Gemini	Claude	0.526071239727392	300
+well_studied	well_studied	all	Grok	Gemini	0.209447185731471	300
+well_studied	well_studied	all	Grok	Grok		300
+well_studied	well_studied	all	Grok	OpenAI	0.287937849914382	300
+well_studied	well_studied	all	Grok	Phytomni	0.165920149999919	300
+well_studied	well_studied	all	Grok	Claude	0.227254147496172	300
+well_studied	well_studied	all	OpenAI	Gemini	0.395837287703962	300
+well_studied	well_studied	all	OpenAI	Grok	0.712062150085618	300
+well_studied	well_studied	all	OpenAI	OpenAI		300
+well_studied	well_studied	all	OpenAI	Phytomni	0.329731000060876	300
+well_studied	well_studied	all	OpenAI	Claude	0.421050934988407	300
+well_studied	well_studied	all	Phytomni	Gemini	0.571154157347578	300
+well_studied	well_studied	all	Phytomni	Grok	0.834079850000081	300
+well_studied	well_studied	all	Phytomni	OpenAI	0.670268999939124	300
+well_studied	well_studied	all	Phytomni	Phytomni		300
+well_studied	well_studied	all	Phytomni	Claude	0.596509268541325	300
+well_studied	well_studied	all	Claude	Gemini	0.473928760272608	300
+well_studied	well_studied	all	Claude	Grok	0.772745852503828	300
+well_studied	well_studied	all	Claude	OpenAI	0.578949065011593	300
+well_studied	well_studied	all	Claude	Phytomni	0.403490731458675	300
+well_studied	well_studied	all	Claude	Claude		300
+well_studied.rice	well_studied	Rice	Gemini	Gemini		60
+well_studied.rice	well_studied	Rice	Gemini	Grok	0.82906732288769	60
+well_studied.rice	well_studied	Rice	Gemini	OpenAI	0.618358541252965	60
+well_studied.rice	well_studied	Rice	Gemini	Phytomni	0.288181713280162	60
+well_studied.rice	well_studied	Rice	Gemini	Claude	0.578473682834616	60
+well_studied.rice	well_studied	Rice	Grok	Gemini	0.17093267711231	60
+well_studied.rice	well_studied	Rice	Grok	Grok		60
+well_studied.rice	well_studied	Rice	Grok	OpenAI	0.250406641417355	60
+well_studied.rice	well_studied	Rice	Grok	Phytomni	0.0770398657486701	60
+well_studied.rice	well_studied	Rice	Grok	Claude	0.220540265640144	60
+well_studied.rice	well_studied	Rice	OpenAI	Gemini	0.381641458747035	60
+well_studied.rice	well_studied	Rice	OpenAI	Grok	0.749593358582645	60
+well_studied.rice	well_studied	Rice	OpenAI	OpenAI		60
+well_studied.rice	well_studied	Rice	OpenAI	Phytomni	0.199916181615786	60
+well_studied.rice	well_studied	Rice	OpenAI	Claude	0.458576157926163	60
+well_studied.rice	well_studied	Rice	Phytomni	Gemini	0.711818286719838	60
+well_studied.rice	well_studied	Rice	Phytomni	Grok	0.92296013425133	60
+well_studied.rice	well_studied	Rice	Phytomni	OpenAI	0.800083818384214	60
+well_studied.rice	well_studied	Rice	Phytomni	Phytomni		60
+well_studied.rice	well_studied	Rice	Phytomni	Claude	0.772194149588466	60
+well_studied.rice	well_studied	Rice	Claude	Gemini	0.421526317165384	60
+well_studied.rice	well_studied	Rice	Claude	Grok	0.779459734359856	60
+well_studied.rice	well_studied	Rice	Claude	OpenAI	0.541423842073837	60
+well_studied.rice	well_studied	Rice	Claude	Phytomni	0.227805850411534	60
+well_studied.rice	well_studied	Rice	Claude	Claude		60
+well_studied.maize	well_studied	Maize	Gemini	Gemini		60
+well_studied.maize	well_studied	Maize	Gemini	Grok	0.755317866728973	60
+well_studied.maize	well_studied	Maize	Gemini	OpenAI	0.619196175157626	60
+well_studied.maize	well_studied	Maize	Gemini	Phytomni	0.500728693755039	60
+well_studied.maize	well_studied	Maize	Gemini	Claude	0.632895513278234	60
+well_studied.maize	well_studied	Maize	Grok	Gemini	0.244682133271027	60
+well_studied.maize	well_studied	Maize	Grok	Grok		60
+well_studied.maize	well_studied	Maize	Grok	OpenAI	0.345011274762793	60
+well_studied.maize	well_studied	Maize	Grok	Phytomni	0.24522122215256	60
+well_studied.maize	well_studied	Maize	Grok	Claude	0.35835297263898	60
+well_studied.maize	well_studied	Maize	OpenAI	Gemini	0.380803824842374	60
+well_studied.maize	well_studied	Maize	OpenAI	Grok	0.654988725237207	60
+well_studied.maize	well_studied	Maize	OpenAI	OpenAI		60
+well_studied.maize	well_studied	Maize	OpenAI	Phytomni	0.38149134513144	60
+well_studied.maize	well_studied	Maize	OpenAI	Claude	0.514626084067256	60
+well_studied.maize	well_studied	Maize	Phytomni	Gemini	0.499271306244961	60
+well_studied.maize	well_studied	Maize	Phytomni	Grok	0.75477877784744	60
+well_studied.maize	well_studied	Maize	Phytomni	OpenAI	0.61850865486856	60
+well_studied.maize	well_studied	Maize	Phytomni	Phytomni		60
+well_studied.maize	well_studied	Maize	Phytomni	Claude	0.632218035570524	60
+well_studied.maize	well_studied	Maize	Claude	Gemini	0.367104486721766	60
+well_studied.maize	well_studied	Maize	Claude	Grok	0.64164702736102	60
+well_studied.maize	well_studied	Maize	Claude	OpenAI	0.485373915932744	60
+well_studied.maize	well_studied	Maize	Claude	Phytomni	0.367781964429476	60
+well_studied.maize	well_studied	Maize	Claude	Claude		60
+well_studied.wheat	well_studied	Wheat	Gemini	Gemini		60
+well_studied.wheat	well_studied	Wheat	Gemini	Grok	0.777952620913099	60
+well_studied.wheat	well_studied	Wheat	Gemini	OpenAI	0.610071698835896	60
+well_studied.wheat	well_studied	Wheat	Gemini	Phytomni	0.53311537746505	60
+well_studied.wheat	well_studied	Wheat	Gemini	Claude	0.529284594798114	60
+well_studied.wheat	well_studied	Wheat	Grok	Gemini	0.222047379086901	60
+well_studied.wheat	well_studied	Wheat	Grok	Grok		60
+well_studied.wheat	well_studied	Wheat	Grok	OpenAI	0.308709115934579	60
+well_studied.wheat	well_studied	Wheat	Grok	Phytomni	0.245803753073659	60
+well_studied.wheat	well_studied	Wheat	Grok	Claude	0.242963131162445	60
+well_studied.wheat	well_studied	Wheat	OpenAI	Gemini	0.389928301164104	60
+well_studied.wheat	well_studied	Wheat	OpenAI	Grok	0.691290884065421	60
+well_studied.wheat	well_studied	Wheat	OpenAI	OpenAI		60
+well_studied.wheat	well_studied	Wheat	OpenAI	Phytomni	0.421905033444953	60
+well_studied.wheat	well_studied	Wheat	OpenAI	Claude	0.418157651792059	60
+well_studied.wheat	well_studied	Wheat	Phytomni	Gemini	0.46688462253495	60
+well_studied.wheat	well_studied	Wheat	Phytomni	Grok	0.754196246926341	60
+well_studied.wheat	well_studied	Wheat	Phytomni	OpenAI	0.578094966555047	60
+well_studied.wheat	well_studied	Wheat	Phytomni	Phytomni		60
+well_studied.wheat	well_studied	Wheat	Phytomni	Claude	0.496154299547034	60
+well_studied.wheat	well_studied	Wheat	Claude	Gemini	0.470715405201886	60
+well_studied.wheat	well_studied	Wheat	Claude	Grok	0.757036868837556	60
+well_studied.wheat	well_studied	Wheat	Claude	OpenAI	0.581842348207941	60
+well_studied.wheat	well_studied	Wheat	Claude	Phytomni	0.503845700452966	60
+well_studied.wheat	well_studied	Wheat	Claude	Claude		60
+well_studied.soybean	well_studied	Soybean	Gemini	Gemini		60
+well_studied.soybean	well_studied	Soybean	Gemini	Grok	0.818104472025984	60
+well_studied.soybean	well_studied	Soybean	Gemini	OpenAI	0.508964166625495	60
+well_studied.soybean	well_studied	Soybean	Gemini	Phytomni	0.455306307501494	60
+well_studied.soybean	well_studied	Soybean	Gemini	Claude	0.410504999703383	60
+well_studied.soybean	well_studied	Soybean	Grok	Gemini	0.181895527974016	60
+well_studied.soybean	well_studied	Soybean	Grok	Grok		60
+well_studied.soybean	well_studied	Soybean	Grok	OpenAI	0.187292905581761	60
+well_studied.soybean	well_studied	Soybean	Grok	Phytomni	0.156723637414685	60
+well_studied.soybean	well_studied	Soybean	Grok	Claude	0.134070736885775	60
+well_studied.soybean	well_studied	Soybean	OpenAI	Gemini	0.491035833374505	60
+well_studied.soybean	well_studied	Soybean	OpenAI	Grok	0.812707094418239	60
+well_studied.soybean	well_studied	Soybean	OpenAI	OpenAI		60
+well_studied.soybean	well_studied	Soybean	OpenAI	Phytomni	0.4464279935963	60
+well_studied.soybean	well_studied	Soybean	OpenAI	Claude	0.401855777141108	60
+well_studied.soybean	well_studied	Soybean	Phytomni	Gemini	0.544693692498506	60
+well_studied.soybean	well_studied	Soybean	Phytomni	Grok	0.843276362585315	60
+well_studied.soybean	well_studied	Soybean	Phytomni	OpenAI	0.5535720064037	60
+well_studied.soybean	well_studied	Soybean	Phytomni	Phytomni		60
+well_studied.soybean	well_studied	Soybean	Phytomni	Claude	0.454470241189078	60
+well_studied.soybean	well_studied	Soybean	Claude	Gemini	0.589495000296617	60
+well_studied.soybean	well_studied	Soybean	Claude	Grok	0.865929263114225	60
+well_studied.soybean	well_studied	Soybean	Claude	OpenAI	0.598144222858892	60
+well_studied.soybean	well_studied	Soybean	Claude	Phytomni	0.545529758810922	60
+well_studied.soybean	well_studied	Soybean	Claude	Claude		60
+well_studied.arabidopsis	well_studied	Arabidopsis	Gemini	Gemini		60
+well_studied.arabidopsis	well_studied	Arabidopsis	Gemini	Grok	0.800815477288231	60
+well_studied.arabidopsis	well_studied	Arabidopsis	Gemini	OpenAI	0.680894348715536	60
+well_studied.arabidopsis	well_studied	Arabidopsis	Gemini	Phytomni	0.333959416689619	60
+well_studied.arabidopsis	well_studied	Arabidopsis	Gemini	Claude	0.468716722081129	60
+well_studied.arabidopsis	well_studied	Arabidopsis	Grok	Gemini	0.199184522711769	60
+well_studied.arabidopsis	well_studied	Arabidopsis	Grok	Grok		60
+well_studied.arabidopsis	well_studied	Arabidopsis	Grok	OpenAI	0.346714176372474	60
+well_studied.arabidopsis	well_studied	Arabidopsis	Grok	Phytomni	0.110885288044783	60
+well_studied.arabidopsis	well_studied	Arabidopsis	Grok	Claude	0.179948611698382	60
+well_studied.arabidopsis	well_studied	Arabidopsis	OpenAI	Gemini	0.319105651284464	60
+well_studied.arabidopsis	well_studied	Arabidopsis	OpenAI	Grok	0.653285823627526	60
+well_studied.arabidopsis	well_studied	Arabidopsis	OpenAI	OpenAI		60
+well_studied.arabidopsis	well_studied	Arabidopsis	OpenAI	Phytomni	0.190276271740646	60
+well_studied.arabidopsis	well_studied	Arabidopsis	OpenAI	Claude	0.292518889381362	60
+well_studied.arabidopsis	well_studied	Arabidopsis	Phytomni	Gemini	0.666040583310381	60
+well_studied.arabidopsis	well_studied	Arabidopsis	Phytomni	Grok	0.889114711955217	60
+well_studied.arabidopsis	well_studied	Arabidopsis	Phytomni	OpenAI	0.809723728259354	60
+well_studied.arabidopsis	well_studied	Arabidopsis	Phytomni	Phytomni		60
+well_studied.arabidopsis	well_studied	Arabidopsis	Phytomni	Claude	0.637616589330854	60
+well_studied.arabidopsis	well_studied	Arabidopsis	Claude	Gemini	0.531283277918871	60
+well_studied.arabidopsis	well_studied	Arabidopsis	Claude	Grok	0.820051388301618	60
+well_studied.arabidopsis	well_studied	Arabidopsis	Claude	OpenAI	0.707481110618638	60
+well_studied.arabidopsis	well_studied	Arabidopsis	Claude	Phytomni	0.362383410669146	60
+well_studied.arabidopsis	well_studied	Arabidopsis	Claude	Claude		60
+uncharacterized	uncharacterized	all	Gemini	Gemini		300
+uncharacterized	uncharacterized	all	Gemini	Grok	0.784618086638159	300
+uncharacterized	uncharacterized	all	Gemini	OpenAI	0.56702306944809	300
+uncharacterized	uncharacterized	all	Gemini	Phytomni	0.387276290188061	300
+uncharacterized	uncharacterized	all	Gemini	Claude	0.517966852480195	300
+uncharacterized	uncharacterized	all	Grok	Gemini	0.215381913361841	300
+uncharacterized	uncharacterized	all	Grok	Grok		300
+uncharacterized	uncharacterized	all	Grok	OpenAI	0.264430076281433	300
+uncharacterized	uncharacterized	all	Grok	Phytomni	0.147850539179837	300
+uncharacterized	uncharacterized	all	Grok	Claude	0.227780581692897	300
+uncharacterized	uncharacterized	all	OpenAI	Gemini	0.43297693055191	300
+uncharacterized	uncharacterized	all	OpenAI	Grok	0.735569923718567	300
+uncharacterized	uncharacterized	all	OpenAI	OpenAI		300
+uncharacterized	uncharacterized	all	OpenAI	Phytomni	0.325525890464666	300
+uncharacterized	uncharacterized	all	OpenAI	Claude	0.450706346624137	300
+uncharacterized	uncharacterized	all	Phytomni	Gemini	0.612723709811939	300
+uncharacterized	uncharacterized	all	Phytomni	Grok	0.852149460820163	300
+uncharacterized	uncharacterized	all	Phytomni	OpenAI	0.674474109535334	300
+uncharacterized	uncharacterized	all	Phytomni	Phytomni		300
+uncharacterized	uncharacterized	all	Phytomni	Claude	0.629640325138209	300
+uncharacterized	uncharacterized	all	Claude	Gemini	0.482033147519805	300
+uncharacterized	uncharacterized	all	Claude	Grok	0.772219418307103	300
+uncharacterized	uncharacterized	all	Claude	OpenAI	0.549293653375863	300
+uncharacterized	uncharacterized	all	Claude	Phytomni	0.370359674861791	300
+uncharacterized	uncharacterized	all	Claude	Claude		300
+uncharacterized.rice	uncharacterized	Rice	Gemini	Gemini		60
+uncharacterized.rice	uncharacterized	Rice	Gemini	Grok	0.813127361846175	60
+uncharacterized.rice	uncharacterized	Rice	Gemini	OpenAI	0.631636672481512	60
+uncharacterized.rice	uncharacterized	Rice	Gemini	Phytomni	0.311462700087401	60
+uncharacterized.rice	uncharacterized	Rice	Gemini	Claude	0.472752152530153	60
+uncharacterized.rice	uncharacterized	Rice	Grok	Gemini	0.186872638153825	60
+uncharacterized.rice	uncharacterized	Rice	Grok	Grok		60
+uncharacterized.rice	uncharacterized	Rice	Grok	OpenAI	0.282678108169861	60
+uncharacterized.rice	uncharacterized	Rice	Grok	Phytomni	0.0941699691458168	60
+uncharacterized.rice	uncharacterized	Rice	Grok	Claude	0.17085781646805	60
+uncharacterized.rice	uncharacterized	Rice	OpenAI	Gemini	0.368363327518488	60
+uncharacterized.rice	uncharacterized	Rice	OpenAI	Grok	0.717321891830139	60
+uncharacterized.rice	uncharacterized	Rice	OpenAI	OpenAI		60
+uncharacterized.rice	uncharacterized	Rice	OpenAI	Phytomni	0.208740439293514	60
+uncharacterized.rice	uncharacterized	Rice	OpenAI	Claude	0.343362795359064	60
+uncharacterized.rice	uncharacterized	Rice	Phytomni	Gemini	0.688537299912599	60
+uncharacterized.rice	uncharacterized	Rice	Phytomni	Grok	0.905830030854183	60
+uncharacterized.rice	uncharacterized	Rice	Phytomni	OpenAI	0.791259560706486	60
+uncharacterized.rice	uncharacterized	Rice	Phytomni	Phytomni		60
+uncharacterized.rice	uncharacterized	Rice	Phytomni	Claude	0.664673314899105	60
+uncharacterized.rice	uncharacterized	Rice	Claude	Gemini	0.527247847469847	60
+uncharacterized.rice	uncharacterized	Rice	Claude	Grok	0.82914218353195	60
+uncharacterized.rice	uncharacterized	Rice	Claude	OpenAI	0.656637204640936	60
+uncharacterized.rice	uncharacterized	Rice	Claude	Phytomni	0.335326685100895	60
+uncharacterized.rice	uncharacterized	Rice	Claude	Claude		60
+uncharacterized.maize	uncharacterized	Maize	Gemini	Gemini		60
+uncharacterized.maize	uncharacterized	Maize	Gemini	Grok	0.70773184364375	60
+uncharacterized.maize	uncharacterized	Maize	Gemini	OpenAI	0.486476517995824	60
+uncharacterized.maize	uncharacterized	Maize	Gemini	Phytomni	0.364682872202661	60
+uncharacterized.maize	uncharacterized	Maize	Gemini	Claude	0.530275365807384	60
+uncharacterized.maize	uncharacterized	Maize	Grok	Gemini	0.29226815635625	60
+uncharacterized.maize	uncharacterized	Maize	Grok	Grok		60
+uncharacterized.maize	uncharacterized	Maize	Grok	OpenAI	0.281203299742394	60
+uncharacterized.maize	uncharacterized	Maize	Grok	Phytomni	0.191624383732473	60
+uncharacterized.maize	uncharacterized	Maize	Grok	Claude	0.317964112658164	60
+uncharacterized.maize	uncharacterized	Maize	OpenAI	Gemini	0.513523482004176	60
+uncharacterized.maize	uncharacterized	Maize	OpenAI	Grok	0.718796700257606	60
+uncharacterized.maize	uncharacterized	Maize	OpenAI	OpenAI		60
+uncharacterized.maize	uncharacterized	Maize	OpenAI	Phytomni	0.3773082709983	60
+uncharacterized.maize	uncharacterized	Maize	OpenAI	Claude	0.543727235130077	60
+uncharacterized.maize	uncharacterized	Maize	Phytomni	Gemini	0.635317127797339	60
+uncharacterized.maize	uncharacterized	Maize	Phytomni	Grok	0.808375616267527	60
+uncharacterized.maize	uncharacterized	Maize	Phytomni	OpenAI	0.6226917290017	60
+uncharacterized.maize	uncharacterized	Maize	Phytomni	Phytomni		60
+uncharacterized.maize	uncharacterized	Maize	Phytomni	Claude	0.662922663274807	60
+uncharacterized.maize	uncharacterized	Maize	Claude	Gemini	0.469724634192616	60
+uncharacterized.maize	uncharacterized	Maize	Claude	Grok	0.682035887341836	60
+uncharacterized.maize	uncharacterized	Maize	Claude	OpenAI	0.456272764869923	60
+uncharacterized.maize	uncharacterized	Maize	Claude	Phytomni	0.337077336725193	60
+uncharacterized.maize	uncharacterized	Maize	Claude	Claude		60
+uncharacterized.wheat	uncharacterized	Wheat	Gemini	Gemini		60
+uncharacterized.wheat	uncharacterized	Wheat	Gemini	Grok	0.740441823616171	60
+uncharacterized.wheat	uncharacterized	Wheat	Gemini	OpenAI	0.482408468856173	60
+uncharacterized.wheat	uncharacterized	Wheat	Gemini	Phytomni	0.433100561656011	60
+uncharacterized.wheat	uncharacterized	Wheat	Gemini	Claude	0.471538598426889	60
+uncharacterized.wheat	uncharacterized	Wheat	Grok	Gemini	0.259558176383829	60
+uncharacterized.wheat	uncharacterized	Wheat	Grok	Grok		60
+uncharacterized.wheat	uncharacterized	Wheat	Grok	OpenAI	0.246259667600118	60
+uncharacterized.wheat	uncharacterized	Wheat	Grok	Phytomni	0.211238163154737	60
+uncharacterized.wheat	uncharacterized	Wheat	Grok	Claude	0.23826140942558	60
+uncharacterized.wheat	uncharacterized	Wheat	OpenAI	Gemini	0.517591531143827	60
+uncharacterized.wheat	uncharacterized	Wheat	OpenAI	Grok	0.753740332399882	60
+uncharacterized.wheat	uncharacterized	Wheat	OpenAI	OpenAI		60
+uncharacterized.wheat	uncharacterized	Wheat	OpenAI	Phytomni	0.450458880246963	60
+uncharacterized.wheat	uncharacterized	Wheat	OpenAI	Claude	0.489108316594552	60
+uncharacterized.wheat	uncharacterized	Wheat	Phytomni	Gemini	0.566899438343989	60
+uncharacterized.wheat	uncharacterized	Wheat	Phytomni	Grok	0.788761836845263	60
+uncharacterized.wheat	uncharacterized	Wheat	Phytomni	OpenAI	0.549541119753037	60
+uncharacterized.wheat	uncharacterized	Wheat	Phytomni	Phytomni		60
+uncharacterized.wheat	uncharacterized	Wheat	Phytomni	Claude	0.538733035592293	60
+uncharacterized.wheat	uncharacterized	Wheat	Claude	Gemini	0.528461401573111	60
+uncharacterized.wheat	uncharacterized	Wheat	Claude	Grok	0.76173859057442	60
+uncharacterized.wheat	uncharacterized	Wheat	Claude	OpenAI	0.510891683405448	60
+uncharacterized.wheat	uncharacterized	Wheat	Claude	Phytomni	0.461266964407707	60
+uncharacterized.wheat	uncharacterized	Wheat	Claude	Claude		60
+uncharacterized.soybean	uncharacterized	Soybean	Gemini	Gemini		60
+uncharacterized.soybean	uncharacterized	Soybean	Gemini	Grok	0.812779934197007	60
+uncharacterized.soybean	uncharacterized	Soybean	Gemini	OpenAI	0.545149176301295	60
+uncharacterized.soybean	uncharacterized	Soybean	Gemini	Phytomni	0.382278073243774	60
+uncharacterized.soybean	uncharacterized	Soybean	Gemini	Claude	0.525145215088593	60
+uncharacterized.soybean	uncharacterized	Soybean	Grok	Gemini	0.187220065802993	60
+uncharacterized.soybean	uncharacterized	Soybean	Grok	Grok		60
+uncharacterized.soybean	uncharacterized	Soybean	Grok	OpenAI	0.216346499572545	60
+uncharacterized.soybean	uncharacterized	Soybean	Grok	Phytomni	0.124764420890161	60
+uncharacterized.soybean	uncharacterized	Soybean	Grok	Claude	0.20302246416668	60
+uncharacterized.soybean	uncharacterized	Soybean	OpenAI	Gemini	0.454850823698705	60
+uncharacterized.soybean	uncharacterized	Soybean	OpenAI	Grok	0.783653500427455	60
+uncharacterized.soybean	uncharacterized	Soybean	OpenAI	OpenAI		60
+uncharacterized.soybean	uncharacterized	Soybean	OpenAI	Phytomni	0.340519483362805	60
+uncharacterized.soybean	uncharacterized	Soybean	OpenAI	Claude	0.479904783535785	60
+uncharacterized.soybean	uncharacterized	Soybean	Phytomni	Gemini	0.617721926756226	60
+uncharacterized.soybean	uncharacterized	Soybean	Phytomni	Grok	0.875235579109839	60
+uncharacterized.soybean	uncharacterized	Soybean	Phytomni	OpenAI	0.659480516637195	60
+uncharacterized.soybean	uncharacterized	Soybean	Phytomni	Phytomni		60
+uncharacterized.soybean	uncharacterized	Soybean	Phytomni	Claude	0.641195308532668	60
+uncharacterized.soybean	uncharacterized	Soybean	Claude	Gemini	0.474854784911407	60
+uncharacterized.soybean	uncharacterized	Soybean	Claude	Grok	0.79697753583332	60
+uncharacterized.soybean	uncharacterized	Soybean	Claude	OpenAI	0.520095216464215	60
+uncharacterized.soybean	uncharacterized	Soybean	Claude	Phytomni	0.358804691467332	60
+uncharacterized.soybean	uncharacterized	Soybean	Claude	Claude		60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	Gemini	Gemini		60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	Gemini	Grok	0.850731275603027	60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	Gemini	OpenAI	0.684905450428108	60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	Gemini	Phytomni	0.42491448087463	60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	Gemini	Claude	0.596416958901742	60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	Grok	Gemini	0.149268724396973	60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	Grok	Grok		60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	Grok	OpenAI	0.276090024362601	60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	Grok	Phytomni	0.114763745607351	60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	Grok	Claude	0.205904648562058	60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	OpenAI	Gemini	0.315094549571892	60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	OpenAI	Grok	0.723909975637399	60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	OpenAI	OpenAI		60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	OpenAI	Phytomni	0.253687942700141	60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	OpenAI	Claude	0.40471665445018	60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	Phytomni	Gemini	0.57508551912537	60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	Phytomni	Grok	0.88523625439265	60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	Phytomni	OpenAI	0.746312057299859	60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	Phytomni	Phytomni		60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	Phytomni	Claude	0.666675866671642	60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	Claude	Gemini	0.403583041098258	60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	Claude	Grok	0.794095351437942	60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	Claude	OpenAI	0.595283345549821	60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	Claude	Phytomni	0.333324133328358	60
+uncharacterized.arabidopsis	uncharacterized	Arabidopsis	Claude	Claude		60
+rice	all	Rice	Gemini	Gemini		120
+rice	all	Rice	Gemini	Grok	0.821414140786978	120
+rice	all	Rice	Gemini	OpenAI	0.624775214360622	120
+rice	all	Rice	Gemini	Phytomni	0.301528923298438	120
+rice	all	Rice	Gemini	Claude	0.528101207617726	120
+rice	all	Rice	Grok	Gemini	0.178585859213021	120
+rice	all	Rice	Grok	Grok		120
+rice	all	Rice	Grok	OpenAI	0.265789471921938	120
+rice	all	Rice	Grok	Phytomni	0.0858034988015371	120
+rice	all	Rice	Grok	Claude	0.195692907426222	120
+rice	all	Rice	OpenAI	Gemini	0.375224785639378	120
+rice	all	Rice	OpenAI	Grok	0.734210528078062	120
+rice	all	Rice	OpenAI	OpenAI		120
+rice	all	Rice	OpenAI	Phytomni	0.205887623487907	120
+rice	all	Rice	OpenAI	Claude	0.401950820489827	120
+rice	all	Rice	Phytomni	Gemini	0.698471076701562	120
+rice	all	Rice	Phytomni	Grok	0.914196501198463	120
+rice	all	Rice	Phytomni	OpenAI	0.794112376512094	120
+rice	all	Rice	Phytomni	Phytomni		120
+rice	all	Rice	Phytomni	Claude	0.72162796223383	120
+rice	all	Rice	Claude	Gemini	0.471898792382273	120
+rice	all	Rice	Claude	Grok	0.804307092573778	120
+rice	all	Rice	Claude	OpenAI	0.598049179510173	120
+rice	all	Rice	Claude	Phytomni	0.27837203776617	120
+rice	all	Rice	Claude	Claude		120
+maize	all	Maize	Gemini	Gemini		120
+maize	all	Maize	Gemini	Grok	0.731436453410186	120
+maize	all	Maize	Gemini	OpenAI	0.554212411591723	120
+maize	all	Maize	Gemini	Phytomni	0.431090370306551	120
+maize	all	Maize	Gemini	Claude	0.581276080818982	120
+maize	all	Maize	Grok	Gemini	0.268563546589814	120
+maize	all	Maize	Grok	Grok		120
+maize	all	Maize	Grok	OpenAI	0.313411665664812	120
+maize	all	Maize	Grok	Phytomni	0.217664865975305	120
+maize	all	Maize	Grok	Claude	0.337622157533022	120
+maize	all	Maize	OpenAI	Gemini	0.445787588408277	120
+maize	all	Maize	OpenAI	Grok	0.686588334335188	120
+maize	all	Maize	OpenAI	OpenAI		120
+maize	all	Maize	OpenAI	Phytomni	0.378690687272302	120
+maize	all	Maize	OpenAI	Claude	0.527549215594884	120
+maize	all	Maize	Phytomni	Gemini	0.568909629693449	120
+maize	all	Maize	Phytomni	Grok	0.782335134024695	120
+maize	all	Maize	Phytomni	OpenAI	0.621309312727698	120
+maize	all	Maize	Phytomni	Phytomni		120
+maize	all	Maize	Phytomni	Claude	0.646894851804654	120
+maize	all	Maize	Claude	Gemini	0.418723919181018	120
+maize	all	Maize	Claude	Grok	0.662377842466978	120
+maize	all	Maize	Claude	OpenAI	0.472450784405116	120
+maize	all	Maize	Claude	Phytomni	0.353105148195346	120
+maize	all	Maize	Claude	Claude		120
+wheat	all	Wheat	Gemini	Gemini		120
+wheat	all	Wheat	Gemini	Grok	0.757246108794677	120
+wheat	all	Wheat	Gemini	OpenAI	0.544829798638916	120
+wheat	all	Wheat	Gemini	Phytomni	0.480717790255715	120
+wheat	all	Wheat	Gemini	Claude	0.497122664592763	120
+wheat	all	Wheat	Grok	Gemini	0.242753891205323	120
+wheat	all	Wheat	Grok	Grok		120
+wheat	all	Wheat	Grok	OpenAI	0.277311243442298	120
+wheat	all	Wheat	Grok	Phytomni	0.228851563006767	120
+wheat	all	Wheat	Grok	Claude	0.240644438458349	120
+wheat	all	Wheat	OpenAI	Gemini	0.455170201361084	120
+wheat	all	Wheat	OpenAI	Grok	0.722688756557702	120
+wheat	all	Wheat	OpenAI	OpenAI		120
+wheat	all	Wheat	OpenAI	Phytomni	0.436108905956424	120
+wheat	all	Wheat	OpenAI	Claude	0.452317468302886	120
+wheat	all	Wheat	Phytomni	Gemini	0.519282209744285	120
+wheat	all	Wheat	Phytomni	Grok	0.771148436993233	120
+wheat	all	Wheat	Phytomni	OpenAI	0.563891094043576	120
+wheat	all	Wheat	Phytomni	Phytomni		120
+wheat	all	Wheat	Phytomni	Claude	0.516408515805768	120
+wheat	all	Wheat	Claude	Gemini	0.502877335407237	120
+wheat	all	Wheat	Claude	Grok	0.759355561541651	120
+wheat	all	Wheat	Claude	OpenAI	0.547682531697114	120
+wheat	all	Wheat	Claude	Phytomni	0.483591484194232	120
+wheat	all	Wheat	Claude	Claude		120
+soybean	all	Soybean	Gemini	Gemini		120
+soybean	all	Soybean	Gemini	Grok	0.814662533287116	120
+soybean	all	Soybean	Gemini	OpenAI	0.52794842288784	120
+soybean	all	Soybean	Gemini	Phytomni	0.42087377044239	120
+soybean	all	Soybean	Gemini	Claude	0.470925395835311	120
+soybean	all	Soybean	Grok	Gemini	0.185337466712884	120
+soybean	all	Soybean	Grok	Grok		120
+soybean	all	Soybean	Grok	OpenAI	0.202832337697782	120
+soybean	all	Soybean	Grok	Phytomni	0.141877462621071	120
+soybean	all	Soybean	Grok	Claude	0.168397764901164	120
+soybean	all	Soybean	OpenAI	Gemini	0.47205157711216	120
+soybean	all	Soybean	OpenAI	Grok	0.797167662302218	120
+soybean	all	Soybean	OpenAI	OpenAI		120
+soybean	all	Soybean	OpenAI	Phytomni	0.393864204981811	120
+soybean	all	Soybean	OpenAI	Claude	0.443161717675048	120
+soybean	all	Soybean	Phytomni	Gemini	0.57912622955761	120
+soybean	all	Soybean	Phytomni	Grok	0.858122537378929	120
+soybean	all	Soybean	Phytomni	OpenAI	0.606135795018189	120
+soybean	all	Soybean	Phytomni	Phytomni		120
+soybean	all	Soybean	Phytomni	Claude	0.550516491035936	120
+soybean	all	Soybean	Claude	Gemini	0.529074604164689	120
+soybean	all	Soybean	Claude	Grok	0.831602235098836	120
+soybean	all	Soybean	Claude	OpenAI	0.556838282324952	120
+soybean	all	Soybean	Claude	Phytomni	0.449483508964064	120
+soybean	all	Soybean	Claude	Claude		120
+arabidopsis	all	Arabidopsis	Gemini	Gemini		120
+arabidopsis	all	Arabidopsis	Gemini	Grok	0.825201820258226	120
+arabidopsis	all	Arabidopsis	Gemini	OpenAI	0.68064045240447	120
+arabidopsis	all	Arabidopsis	Gemini	Phytomni	0.378379152780953	120
+arabidopsis	all	Arabidopsis	Gemini	Claude	0.532142480131847	120
+arabidopsis	all	Arabidopsis	Grok	Gemini	0.174798179741774	120
+arabidopsis	all	Arabidopsis	Grok	Grok		120
+arabidopsis	all	Arabidopsis	Grok	OpenAI	0.311036223255078	120
+arabidopsis	all	Arabidopsis	Grok	Phytomni	0.114211164627837	120
+arabidopsis	all	Arabidopsis	Grok	Claude	0.194152831237921	120
+arabidopsis	all	Arabidopsis	OpenAI	Gemini	0.31935954759553	120
+arabidopsis	all	Arabidopsis	OpenAI	Grok	0.688963776744922	120
+arabidopsis	all	Arabidopsis	OpenAI	OpenAI		120
+arabidopsis	all	Arabidopsis	OpenAI	Phytomni	0.222155298089185	120
+arabidopsis	all	Arabidopsis	OpenAI	Claude	0.347971168980333	120
+arabidopsis	all	Arabidopsis	Phytomni	Gemini	0.621620847219047	120
+arabidopsis	all	Arabidopsis	Phytomni	Grok	0.885788835372163	120
+arabidopsis	all	Arabidopsis	Phytomni	OpenAI	0.777844701910815	120
+arabidopsis	all	Arabidopsis	Phytomni	Phytomni		120
+arabidopsis	all	Arabidopsis	Phytomni	Claude	0.651395981295562	120
+arabidopsis	all	Arabidopsis	Claude	Gemini	0.467857519868153	120
+arabidopsis	all	Arabidopsis	Claude	Grok	0.805847168762079	120
+arabidopsis	all	Arabidopsis	Claude	OpenAI	0.652028831019667	120
+arabidopsis	all	Arabidopsis	Claude	Phytomni	0.348604018704438	120
+arabidopsis	all	Arabidopsis	Claude	Claude		120

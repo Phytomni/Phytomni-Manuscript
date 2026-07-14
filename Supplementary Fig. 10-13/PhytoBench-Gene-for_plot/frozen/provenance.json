@@ -1,0 +1,138 @@
+{
+  "gene_categories": {
+    "name": "gene_categories.tsv",
+    "rows": 200,
+    "sha256": "bcb5695c5efaba3faeedd9efa636accd4cbba69a98a996de2eea2900a692fe52"
+  },
+  "model_columns": [
+    "Gemini",
+    "Grok",
+    "OpenAI",
+    "Phytomni",
+    "Claude"
+  ],
+  "reference_model": "Gemini",
+  "schema_version": 1,
+  "scopes": [
+    {
+      "rows": 600,
+      "scope": "overall",
+      "species": "all",
+      "study_status": "all"
+    },
+    {
+      "rows": 300,
+      "scope": "well_studied",
+      "species": "all",
+      "study_status": "well_studied"
+    },
+    {
+      "rows": 60,
+      "scope": "well_studied.rice",
+      "species": "Rice",
+      "study_status": "well_studied"
+    },
+    {
+      "rows": 60,
+      "scope": "well_studied.maize",
+      "species": "Maize",
+      "study_status": "well_studied"
+    },
+    {
+      "rows": 60,
+      "scope": "well_studied.wheat",
+      "species": "Wheat",
+      "study_status": "well_studied"
+    },
+    {
+      "rows": 60,
+      "scope": "well_studied.soybean",
+      "species": "Soybean",
+      "study_status": "well_studied"
+    },
+    {
+      "rows": 60,
+      "scope": "well_studied.arabidopsis",
+      "species": "Arabidopsis",
+      "study_status": "well_studied"
+    },
+    {
+      "rows": 300,
+      "scope": "uncharacterized",
+      "species": "all",
+      "study_status": "uncharacterized"
+    },
+    {
+      "rows": 60,
+      "scope": "uncharacterized.rice",
+      "species": "Rice",
+      "study_status": "uncharacterized"
+    },
+    {
+      "rows": 60,
+      "scope": "uncharacterized.maize",
+      "species": "Maize",
+      "study_status": "uncharacterized"
+    },
+    {
+      "rows": 60,
+      "scope": "uncharacterized.wheat",
+      "species": "Wheat",
+      "study_status": "uncharacterized"
+    },
+    {
+      "rows": 60,
+      "scope": "uncharacterized.soybean",
+      "species": "Soybean",
+      "study_status": "uncharacterized"
+    },
+    {
+      "rows": 60,
+      "scope": "uncharacterized.arabidopsis",
+      "species": "Arabidopsis",
+      "study_status": "uncharacterized"
+    },
+    {
+      "rows": 120,
+      "scope": "rice",
+      "species": "Rice",
+      "study_status": "all"
+    },
+    {
+      "rows": 120,
+      "scope": "maize",
+      "species": "Maize",
+      "study_status": "all"
+    },
+    {
+      "rows": 120,
+      "scope": "wheat",
+      "species": "Wheat",
+      "study_status": "all"
+    },
+    {
+      "rows": 120,
+      "scope": "soybean",
+      "species": "Soybean",
+      "study_status": "all"
+    },
+    {
+      "rows": 120,
+      "scope": "arabidopsis",
+      "species": "Arabidopsis",
+      "study_status": "all"
+    }
+  ],
+  "scoring_notebook": {
+    "name": "score_plackett_luce.ipynb",
+    "sha256": "9293648fc575174ca886857e51c0f6ac246a82da604376eaafaf1e4ac65bbc2a"
+  },
+  "skipped_rows": 0,
+  "source": {
+    "name": "score.tsv",
+    "rows": 600,
+    "sha256": "bf24408d8e3d68ca11cc7319b25c407a29d2e26301fdc812896dd451818adcbe"
+  },
+  "uncertainty_method": "reference-parameter approximation",
+  "used_rows": 600
+}
