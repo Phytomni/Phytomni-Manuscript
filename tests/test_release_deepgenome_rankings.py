@@ -392,6 +392,160 @@ def test_build_release_final_scan_rejects_raw_id_in_any_public_cell(
         build_release(score, categories, write_crosswalk(tmp_path, score))
 
 
+def test_build_release_final_scan_rejects_raw_id_embedded_in_public_cell(
+    tmp_path: Path,
+    private_fixture: tuple[pd.DataFrame, pd.DataFrame],
+) -> None:
+    score, categories = private_fixture
+    leaked_gene = "gene-private-alpha-suffix"
+    score.loc[0, "Gene"] = leaked_gene
+    categories.loc[
+        (categories["Species"] == "Arabidopsis")
+        & (categories["Gene"] == "AT1G01010"),
+        "Gene",
+    ] = leaked_gene
+
+    with pytest.raises(ValueError, match="raw expert identifier"):
+        build_release(score, categories, write_crosswalk(tmp_path, score))
+
+
+def invoke_crosswalk_mode(
+    mode: str,
+    path: Path,
+    repo_root: Path,
+    score: pd.DataFrame,
+    categories: pd.DataFrame,
+) -> None:
+    if mode == "initialize":
+        initialize_crosswalk(sorted(score["Expert"].unique()), path, repo_root)
+    else:
+        build_release(score, categories, path, repo_root=repo_root)
+
+
+@pytest.mark.parametrize("mode", ["initialize", "use"])
+def test_crosswalk_rejects_lexical_repository_containment(
+    tmp_path: Path,
+    private_fixture: tuple[pd.DataFrame, pd.DataFrame],
+    mode: str,
+) -> None:
+    score, categories = private_fixture
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir(mode=0o700)
+    outside = tmp_path / "outside"
+    outside.mkdir(mode=0o700)
+    escape = repo_root / "escape"
+    escape.symlink_to(outside, target_is_directory=True)
+    path = escape / "crosswalk.tsv"
+    if mode == "use":
+        write_crosswalk_rows(
+            outside / "crosswalk.tsv",
+            [("private-alpha", "E001"), ("private-beta", "E002")],
+        )
+
+    with pytest.raises(ValueError, match="lexically contained"):
+        invoke_crosswalk_mode(mode, path, repo_root, score, categories)
+
+
+@pytest.mark.parametrize("mode", ["initialize", "use"])
+def test_crosswalk_rejects_resolved_repository_containment(
+    tmp_path: Path,
+    private_fixture: tuple[pd.DataFrame, pd.DataFrame],
+    mode: str,
+) -> None:
+    score, categories = private_fixture
+    repo_root = tmp_path / "repo"
+    private = repo_root / "private"
+    private.mkdir(parents=True, mode=0o700)
+    outside_link = tmp_path / "outside-link"
+    outside_link.symlink_to(private, target_is_directory=True)
+    path = outside_link / "crosswalk.tsv"
+    if mode == "use":
+        write_crosswalk_rows(
+            private / "crosswalk.tsv",
+            [("private-alpha", "E001"), ("private-beta", "E002")],
+        )
+
+    with pytest.raises(ValueError, match="resolves inside"):
+        invoke_crosswalk_mode(mode, path, repo_root, score, categories)
+
+
+@pytest.mark.parametrize("mode", ["initialize", "use"])
+def test_crosswalk_rejects_symlink_leaf(
+    tmp_path: Path,
+    private_fixture: tuple[pd.DataFrame, pd.DataFrame],
+    mode: str,
+) -> None:
+    score, categories = private_fixture
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir(mode=0o700)
+    parent = tmp_path / "private"
+    parent.mkdir(mode=0o700)
+    target_parent = tmp_path / "target"
+    target_parent.mkdir(mode=0o700)
+    target = write_crosswalk_rows(
+        target_parent / "real.tsv",
+        [("private-alpha", "E001"), ("private-beta", "E002")],
+    )
+    path = parent / "crosswalk.tsv"
+    path.symlink_to(target)
+
+    with pytest.raises(ValueError, match="symbolic link"):
+        invoke_crosswalk_mode(mode, path, repo_root, score, categories)
+
+
+@pytest.mark.parametrize("mode", ["initialize", "use"])
+def test_crosswalk_rejects_symlink_ancestor(
+    tmp_path: Path,
+    private_fixture: tuple[pd.DataFrame, pd.DataFrame],
+    mode: str,
+) -> None:
+    score, categories = private_fixture
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir(mode=0o700)
+    real_parent = tmp_path / "real-private"
+    real_parent.mkdir(mode=0o700)
+    linked_parent = tmp_path / "linked-private"
+    linked_parent.symlink_to(real_parent, target_is_directory=True)
+    path = linked_parent / "crosswalk.tsv"
+    if mode == "use":
+        write_crosswalk_rows(
+            real_parent / "crosswalk.tsv",
+            [("private-alpha", "E001"), ("private-beta", "E002")],
+        )
+
+    with pytest.raises(ValueError, match="symbolic link"):
+        invoke_crosswalk_mode(mode, path, repo_root, score, categories)
+
+
+def test_build_release_rejects_unsafe_crosswalk_parent_permissions(
+    tmp_path: Path,
+    private_fixture: tuple[pd.DataFrame, pd.DataFrame],
+) -> None:
+    score, categories = private_fixture
+    parent = tmp_path / "shared"
+    parent.mkdir(mode=0o755)
+    parent.chmod(0o755)
+    crosswalk = write_crosswalk_rows(
+        parent / "crosswalk.tsv",
+        [("private-alpha", "E001"), ("private-beta", "E002")],
+    )
+
+    with pytest.raises(ValueError, match="parent directory permissions"):
+        build_release(score, categories, crosswalk)
+
+
+def test_build_release_rejects_nonregular_crosswalk(
+    tmp_path: Path,
+    private_fixture: tuple[pd.DataFrame, pd.DataFrame],
+) -> None:
+    score, categories = private_fixture
+    crosswalk = tmp_path / "crosswalk.tsv"
+    crosswalk.mkdir(mode=0o700)
+
+    with pytest.raises(ValueError, match="regular file"):
+        build_release(score, categories, crosswalk)
+
+
 def test_build_release_is_deterministically_sorted_and_drops_demographics(
     tmp_path: Path,
     private_fixture: tuple[pd.DataFrame, pd.DataFrame],
@@ -437,15 +591,13 @@ def test_cli_initialization_writes_only_crosswalk_and_never_prints_ids(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     score, categories = private_fixture
-    score_path, categories_path = write_cli_inputs(tmp_path, score, categories)
+    score_path, _ = write_cli_inputs(tmp_path, score, categories)
     crosswalk = tmp_path / "private" / "crosswalk.tsv"
 
     result = main(
         [
             "--score-tsv",
             str(score_path),
-            "--gene-categories",
-            str(categories_path),
             "--crosswalk",
             str(crosswalk),
             "--initialize-crosswalk",
@@ -459,6 +611,33 @@ def test_cli_initialization_writes_only_crosswalk_and_never_prints_ids(
     assert "private-alpha" not in output
     assert "private-beta" not in output
     assert "AnonymousExpertID" not in output
+
+
+def test_cli_use_mode_requires_gene_categories(
+    tmp_path: Path,
+    private_fixture: tuple[pd.DataFrame, pd.DataFrame],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    score, categories = private_fixture
+    score_path, _ = write_cli_inputs(tmp_path, score, categories)
+    crosswalk = write_crosswalk(tmp_path, score)
+
+    with pytest.raises(SystemExit) as error:
+        main(
+            [
+                "--score-tsv",
+                str(score_path),
+                "--crosswalk",
+                str(crosswalk),
+                "--use-crosswalk",
+                "--output",
+                str(tmp_path / "release.tsv"),
+            ]
+        )
+
+    assert error.value.code == 2
+    captured = capsys.readouterr()
+    assert "private-alpha" not in captured.out + captured.err
 
 
 def test_cli_use_mode_writes_only_requested_output_and_never_prints_ids(
@@ -553,7 +732,9 @@ def test_panel_category_map_has_complete_controlled_schema() -> None:
             "Master's student", "Other", "PhD student",
             "Postdoc / Assistant researcher",
         },
-        "Years_experience": {"< 3", "3–5", "6–10", "11–20", "> 20"},
+        "Years_experience": {
+            "< 3", "3-5", "3–5", "6–10", "11–20", "> 20",
+        },
         "Gender": {"Female", "Male", "Prefer not to say"},
         "Research_domains": {
             "Bioinformatics / Computational biology", "Crop genetics & breeding",
@@ -603,6 +784,7 @@ def test_panel_category_map_contains_required_privacy_merges() -> None:
     assert category_map.loc[("Current_position", "Master's student")] == "Other career stages"
     assert category_map.loc[("Current_position", "Other")] == "Other career stages"
     assert category_map.loc[("Years_experience", "< 3")] == "<= 5 years"
+    assert category_map.loc[("Years_experience", "3-5")] == "<= 5 years"
     assert category_map.loc[("Years_experience", "3–5")] == "<= 5 years"
     for source in (
         "Population / Evolutionary genetics",
@@ -612,3 +794,139 @@ def test_panel_category_map_contains_required_privacy_merges() -> None:
         assert category_map.loc[("Research_domains", source)] == "Population, metabolomics, or other"
     for source in ("Cotton", "Fruit / Tree crops", "Other"):
         assert category_map.loc[("Study_species", source)] == "Other crop systems"
+
+
+def synthetic_category_map(
+    rows: list[tuple[str, str, str, int]],
+) -> pd.DataFrame:
+    return pd.DataFrame(
+        rows,
+        columns=["Dimension", "SourceValue", "PublicCategory", "DisplayOrder"],
+    )
+
+
+def test_panel_category_audit_deduplicates_expert_public_categories() -> None:
+    metadata = pd.DataFrame(
+        {
+            "Expert_ID": [f"expert-{index}" for index in range(1, 6)],
+            "Research_domains": [
+                "['Alpha', 'Alpha', 'Beta']",
+                "['Alpha']",
+                "['Alpha']",
+                "['Alpha']",
+                "['Alpha']",
+            ],
+        }
+    )
+    category_map = synthetic_category_map(
+        [
+            ("Research_domains", "Alpha", "Shared domain", 1),
+            ("Research_domains", "Beta", "Shared domain", 1),
+        ]
+    )
+
+    result = release_module.audit_panel_category_map(metadata, category_map)
+
+    expected = pd.DataFrame(
+        [("Research_domains", "Shared domain", 5)],
+        columns=["Dimension", "PublicCategory", "N"],
+    )
+    pd.testing.assert_frame_equal(result, expected)
+    assert not any("expert" in column.casefold() for column in result.columns)
+
+
+def test_panel_category_audit_rejects_public_group_below_minimum() -> None:
+    metadata = pd.DataFrame(
+        {
+            "Expert_ID": [f"expert-{index}" for index in range(1, 5)],
+            "Research_domains": ["['Alpha']"] * 4,
+        }
+    )
+    category_map = synthetic_category_map(
+        [("Research_domains", "Alpha", "Small group", 1)]
+    )
+
+    with pytest.raises(ValueError, match="minimum public group size"):
+        release_module.audit_panel_category_map(metadata, category_map)
+
+
+def test_panel_category_audit_excludes_scalar_missing_values() -> None:
+    metadata = pd.DataFrame(
+        {
+            "Expert_ID": [f"expert-{index}" for index in range(1, 7)],
+            "Gender": ["Female", "Female", "Female", "Female", "Female", None],
+        }
+    )
+    category_map = synthetic_category_map(
+        [("Gender", "Female", "Female", 1)]
+    )
+
+    result = release_module.audit_panel_category_map(metadata, category_map)
+
+    assert result.to_dict("records") == [
+        {"Dimension": "Gender", "PublicCategory": "Female", "N": 5}
+    ]
+
+
+def test_panel_category_audit_requires_exact_map_columns() -> None:
+    metadata = pd.DataFrame(
+        {"Expert_ID": [f"expert-{index}" for index in range(1, 6)], "Gender": ["Female"] * 5}
+    )
+    category_map = synthetic_category_map(
+        [("Gender", "Female", "Female", 1)]
+    )
+    category_map["Count"] = 5
+
+    with pytest.raises(ValueError, match="exactly these columns"):
+        release_module.audit_panel_category_map(metadata, category_map)
+
+
+def test_panel_category_audit_rejects_duplicate_source_mapping() -> None:
+    metadata = pd.DataFrame(
+        {"Expert_ID": [f"expert-{index}" for index in range(1, 6)], "Gender": ["Female"] * 5}
+    )
+    category_map = synthetic_category_map(
+        [
+            ("Gender", "Female", "Female", 1),
+            ("Gender", "Female", "Women", 2),
+        ]
+    )
+
+    with pytest.raises(ValueError, match="unique by Dimension/SourceValue"):
+        release_module.audit_panel_category_map(metadata, category_map)
+
+
+def test_panel_category_audit_rejects_unmapped_observed_source() -> None:
+    metadata = pd.DataFrame(
+        {
+            "Expert_ID": [f"expert-{index}" for index in range(1, 6)],
+            "Gender": ["Female", "Female", "Female", "Female", "Unmapped"],
+        }
+    )
+    category_map = synthetic_category_map(
+        [("Gender", "Female", "Female", 1)]
+    )
+
+    with pytest.raises(ValueError, match="observed source values must be mapped"):
+        release_module.audit_panel_category_map(metadata, category_map)
+
+
+@pytest.mark.parametrize(
+    "invalid_cell",
+    ["not a literal", "'Alpha'", "['Alpha', 3]", "[]"],
+)
+def test_panel_category_audit_rejects_invalid_multiselect_cells(
+    invalid_cell: str,
+) -> None:
+    metadata = pd.DataFrame(
+        {
+            "Expert_ID": [f"expert-{index}" for index in range(1, 6)],
+            "Study_species": [invalid_cell, "['Rice']", "['Rice']", "['Rice']", "['Rice']"],
+        }
+    )
+    category_map = synthetic_category_map(
+        [("Study_species", "Rice", "Rice", 1)]
+    )
+
+    with pytest.raises(ValueError, match="valid list of non-empty strings"):
+        release_module.audit_panel_category_map(metadata, category_map)

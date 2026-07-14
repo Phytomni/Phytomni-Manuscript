@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import ast
+import errno
 import os
 from pathlib import Path
 import re
@@ -22,14 +24,62 @@ PUBLIC_COLUMNS = (
 )
 STUDY_STATUSES = frozenset({"well_studied", "uncharacterized"})
 RELEASE_ID_PATTERN = re.compile(r"E[0-9]{3}")
+PANEL_CATEGORY_MAP_COLUMNS = (
+    "Dimension",
+    "SourceValue",
+    "PublicCategory",
+    "DisplayOrder",
+)
+MULTISELECT_DIMENSIONS = frozenset({"Research_domains", "Study_species"})
+DIRECTORY_OPEN_FLAGS = (
+    os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
+)
 
 
-def _outside_repository(path: Path, repo_root: Path) -> Path:
-    resolved = path.expanduser().resolve()
-    resolved_root = repo_root.expanduser().resolve()
-    if resolved == resolved_root or resolved_root in resolved.parents:
-        raise ValueError("The expert crosswalk must be stored outside the repository.")
-    return resolved
+def _lexical_absolute(path: Path) -> Path:
+    return Path(os.path.abspath(os.fspath(path.expanduser())))
+
+
+def _is_within(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
+def _reject_symlink_components(path: Path) -> None:
+    current = Path(path.anchor)
+    for component in path.parts[1:]:
+        current /= component
+        try:
+            file_stat = current.lstat()
+        except FileNotFoundError:
+            break
+        if stat.S_ISLNK(file_stat.st_mode):
+            raise ValueError("Crosswalk paths cannot contain a symbolic link.")
+
+
+def _validated_crosswalk_path(path: Path, repo_root: Path) -> Path:
+    lexical = _lexical_absolute(path)
+    lexical_root = _lexical_absolute(repo_root)
+    if _is_within(lexical, lexical_root):
+        raise ValueError(
+            "Crosswalk path is lexically contained in the repository; "
+            "crosswalks must remain outside the repository."
+        )
+
+    resolved = lexical.resolve(strict=False)
+    resolved_root = lexical_root.resolve(strict=False)
+    if _is_within(resolved, resolved_root):
+        raise ValueError(
+            "Crosswalk path resolves inside the repository; "
+            "crosswalks must remain outside the repository."
+        )
+    _reject_symlink_components(lexical)
+    if not lexical.name:
+        raise ValueError("The crosswalk path must name a file.")
+    return lexical
 
 
 def _validate_identifier_values(values: Sequence[object]) -> list[str]:
@@ -49,15 +99,70 @@ def _validate_identifier_values(values: Sequence[object]) -> list[str]:
     return identifiers
 
 
-def _private_parent(path: Path) -> None:
-    parent = path.parent
-    if parent.exists():
-        if not parent.is_dir():
-            raise ValueError("The crosswalk parent must be a directory.")
-    else:
-        parent.mkdir(parents=True, mode=0o700)
-    if stat.S_IMODE(parent.stat().st_mode) != 0o700:
-        raise ValueError("Crosswalk parent directory permissions must be exactly 0700.")
+def _open_private_parent(path: Path, *, create: bool) -> int:
+    descriptor = os.open(path.anchor, DIRECTORY_OPEN_FLAGS)
+    try:
+        for component in path.parent.parts[1:]:
+            try:
+                next_descriptor = os.open(
+                    component,
+                    DIRECTORY_OPEN_FLAGS,
+                    dir_fd=descriptor,
+                )
+            except FileNotFoundError as error:
+                if not create:
+                    raise ValueError(
+                        "The crosswalk parent directory does not exist."
+                    ) from error
+                try:
+                    os.mkdir(component, mode=0o700, dir_fd=descriptor)
+                except FileExistsError:
+                    pass
+                try:
+                    next_descriptor = os.open(
+                        component,
+                        DIRECTORY_OPEN_FLAGS,
+                        dir_fd=descriptor,
+                    )
+                except OSError as open_error:
+                    if open_error.errno in {errno.ELOOP, errno.ENOTDIR}:
+                        raise ValueError(
+                            "Crosswalk paths cannot contain a symbolic link."
+                        ) from open_error
+                    raise
+            except OSError as error:
+                if error.errno in {errno.ELOOP, errno.ENOTDIR}:
+                    raise ValueError(
+                        "Crosswalk paths cannot contain a symbolic link."
+                    ) from error
+                raise
+            os.close(descriptor)
+            descriptor = next_descriptor
+
+        parent_stat = os.fstat(descriptor)
+        if not stat.S_ISDIR(parent_stat.st_mode):
+            raise ValueError("The crosswalk parent must be a real directory.")
+        if parent_stat.st_uid != os.getuid():
+            raise ValueError(
+                "The crosswalk parent directory must be owned by the current user."
+            )
+        if stat.S_IMODE(parent_stat.st_mode) != 0o700:
+            raise ValueError(
+                "Crosswalk parent directory permissions must be exactly 0700."
+            )
+        return descriptor
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
+def _validate_crosswalk_file_stat(file_stat: os.stat_result) -> None:
+    if not stat.S_ISREG(file_stat.st_mode):
+        raise ValueError("The external expert crosswalk must be a regular file.")
+    if file_stat.st_uid != os.getuid():
+        raise ValueError("The external expert crosswalk must be owned by the current user.")
+    if stat.S_IMODE(file_stat.st_mode) != 0o600:
+        raise ValueError("The external expert crosswalk must have exact mode 0600.")
 
 
 def initialize_crosswalk(
@@ -67,17 +172,13 @@ def initialize_crosswalk(
 ) -> None:
     """Create a private, randomly assigned raw-to-release identifier crosswalk."""
 
-    resolved = _outside_repository(path, repo_root)
-    if resolved.exists():
-        raise FileExistsError(f"Refusing to overwrite existing crosswalk: {resolved}")
-
     raw_ids = _validate_identifier_values(expert_ids)
     if len(raw_ids) != len(set(raw_ids)):
         raise ValueError("Raw expert identifiers must be unique.")
     if len(raw_ids) > 999:
         raise ValueError("At most 999 expert identifiers can be released as E### IDs.")
 
-    _private_parent(resolved)
+    crosswalk_path = _validated_crosswalk_path(path, repo_root)
     release_ids = [f"E{index:03d}" for index in range(1, len(raw_ids) + 1)]
     secrets.SystemRandom().shuffle(release_ids)
     frame = pd.DataFrame(
@@ -87,22 +188,50 @@ def initialize_crosswalk(
         }
     )
 
-    descriptor = os.open(
-        resolved,
-        os.O_WRONLY | os.O_CREAT | os.O_EXCL,
-        0o600,
-    )
+    parent_descriptor = _open_private_parent(crosswalk_path, create=True)
+    descriptor: int | None = None
+    created = False
     try:
-        with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as handle:
+        try:
+            descriptor = os.open(
+                crosswalk_path.name,
+                os.O_WRONLY
+                | os.O_CREAT
+                | os.O_EXCL
+                | os.O_NOFOLLOW
+                | getattr(os, "O_CLOEXEC", 0),
+                0o600,
+                dir_fd=parent_descriptor,
+            )
+        except FileExistsError as error:
+            raise FileExistsError(
+                f"Refusing to overwrite existing crosswalk: {crosswalk_path}"
+            ) from error
+        except OSError as error:
+            if error.errno == errno.ELOOP:
+                raise ValueError(
+                    "Crosswalk paths cannot contain a symbolic link."
+                ) from error
+            raise
+        created = True
+        handle = os.fdopen(descriptor, "w", encoding="utf-8", newline="")
+        descriptor = None
+        with handle:
+            _validate_crosswalk_file_stat(os.fstat(handle.fileno()))
             frame.to_csv(handle, sep="\t", index=False, lineterminator="\n")
-        resolved.chmod(0o600)
+            handle.flush()
+            _validate_crosswalk_file_stat(os.fstat(handle.fileno()))
     except BaseException:
-        resolved.unlink(missing_ok=True)
+        if descriptor is not None:
+            os.close(descriptor)
+        if created:
+            try:
+                os.unlink(crosswalk_path.name, dir_fd=parent_descriptor)
+            except FileNotFoundError:
+                pass
         raise
-
-    if stat.S_IMODE(resolved.stat().st_mode) != 0o600:
-        resolved.unlink(missing_ok=True)
-        raise PermissionError("Crosswalk file permissions must be exactly 0600.")
+    finally:
+        os.close(parent_descriptor)
 
 
 def _validate_score(score: pd.DataFrame) -> tuple[pd.DataFrame, set[str]]:
@@ -175,13 +304,45 @@ def _load_crosswalk(
     raw_ids: set[str],
     repo_root: Path,
 ) -> pd.DataFrame:
-    resolved = _outside_repository(path, repo_root)
-    if not resolved.is_file():
-        raise FileNotFoundError("The external expert crosswalk does not exist.")
-    if stat.S_IMODE(resolved.stat().st_mode) != 0o600:
-        raise ValueError("The external expert crosswalk must have exact mode 0600.")
+    crosswalk_path = _validated_crosswalk_path(path, repo_root)
+    parent_descriptor = _open_private_parent(crosswalk_path, create=False)
+    descriptor: int | None = None
+    try:
+        try:
+            descriptor = os.open(
+                crosswalk_path.name,
+                os.O_RDONLY
+                | os.O_NOFOLLOW
+                | os.O_NONBLOCK
+                | getattr(os, "O_CLOEXEC", 0),
+                dir_fd=parent_descriptor,
+            )
+        except FileNotFoundError as error:
+            raise FileNotFoundError(
+                "The external expert crosswalk does not exist."
+            ) from error
+        except OSError as error:
+            if error.errno == errno.ELOOP:
+                raise ValueError(
+                    "Crosswalk paths cannot contain a symbolic link."
+                ) from error
+            raise
+        _validate_crosswalk_file_stat(os.fstat(descriptor))
+        handle = os.fdopen(descriptor, "r", encoding="utf-8", newline="")
+        descriptor = None
+        with handle:
+            frame = pd.read_csv(
+                handle,
+                sep="\t",
+                dtype=str,
+                keep_default_na=False,
+            )
+            _validate_crosswalk_file_stat(os.fstat(handle.fileno()))
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+        os.close(parent_descriptor)
 
-    frame = pd.read_csv(resolved, sep="\t", dtype=str, keep_default_na=False)
     expected_columns = ["Expert", "AnonymousExpertID"]
     if list(frame.columns) != expected_columns:
         raise ValueError(
@@ -205,6 +366,171 @@ def _load_crosswalk(
     if set(release_ids) != expected_release_ids:
         raise ValueError("Crosswalk release IDs must be a contiguous E### set from E001.")
     return frame
+
+
+def _is_missing(value: object) -> bool:
+    try:
+        return bool(pd.isna(value))
+    except (TypeError, ValueError):
+        return False
+
+
+def _parse_multiselect_cell(value: object) -> list[str]:
+    if not isinstance(value, str):
+        raise ValueError(
+            "Multi-select metadata cells must be a valid list of non-empty strings."
+        )
+    try:
+        parsed = ast.literal_eval(value)
+    except (SyntaxError, ValueError) as error:
+        raise ValueError(
+            "Multi-select metadata cells must be a valid list of non-empty strings."
+        ) from error
+    if not isinstance(parsed, list) or not parsed or any(
+        not isinstance(item, str) or not item or item != item.strip()
+        for item in parsed
+    ):
+        raise ValueError(
+            "Multi-select metadata cells must be a valid list of non-empty strings."
+        )
+    return parsed
+
+
+def audit_panel_category_map(
+    metadata: pd.DataFrame,
+    category_map: pd.DataFrame,
+    expert_column: str = "Expert_ID",
+    minimum_count: int = 5,
+) -> pd.DataFrame:
+    """Audit controlled panel categories and return aggregate counts only."""
+
+    if not isinstance(minimum_count, int) or isinstance(minimum_count, bool):
+        raise ValueError("minimum_count must be a positive integer.")
+    if minimum_count < 1:
+        raise ValueError("minimum_count must be a positive integer.")
+    if list(category_map.columns) != list(PANEL_CATEGORY_MAP_COLUMNS):
+        raise ValueError(
+            "The panel category map must contain exactly these columns in order: "
+            "Dimension, SourceValue, PublicCategory, DisplayOrder."
+        )
+    if category_map.empty:
+        raise ValueError("The panel category map is empty.")
+    if category_map.duplicated(["Dimension", "SourceValue"]).any():
+        raise ValueError(
+            "Panel category mappings must be unique by Dimension/SourceValue."
+        )
+
+    map_frame = category_map.copy()
+    for column in ("Dimension", "SourceValue", "PublicCategory"):
+        if any(
+            not isinstance(value, str)
+            or not value
+            or value != value.strip()
+            for value in map_frame[column].tolist()
+        ):
+            raise ValueError("Panel category map values must be non-empty strings.")
+    try:
+        display_order = pd.to_numeric(map_frame["DisplayOrder"], errors="raise")
+    except (TypeError, ValueError) as error:
+        raise ValueError("DisplayOrder values must be positive integers.") from error
+    if any(float(value) != int(value) or int(value) < 1 for value in display_order):
+        raise ValueError("DisplayOrder values must be positive integers.")
+    map_frame["DisplayOrder"] = display_order.astype(int)
+    order_counts = map_frame.groupby(
+        ["Dimension", "PublicCategory"],
+        sort=False,
+    )["DisplayOrder"].nunique()
+    if (order_counts != 1).any():
+        raise ValueError(
+            "Each public category must have one consistent DisplayOrder."
+        )
+
+    if expert_column not in metadata.columns:
+        raise ValueError("The expert metadata table is missing its expert column.")
+    expert_values = metadata[expert_column].tolist()
+    if any(_is_missing(value) for value in expert_values):
+        raise ValueError("Expert identifiers must not be missing.")
+    try:
+        for value in expert_values:
+            hash(value)
+    except TypeError as error:
+        raise ValueError("Expert identifiers must be scalar values.") from error
+
+    dimensions = map_frame["Dimension"].drop_duplicates().tolist()
+    missing_dimensions = [
+        dimension for dimension in dimensions if dimension not in metadata.columns
+    ]
+    if missing_dimensions:
+        raise ValueError(
+            "The expert metadata table is missing a mapped dimension column."
+        )
+
+    mapping = {
+        (row.Dimension, row.SourceValue): row.PublicCategory
+        for row in map_frame.itertuples(index=False)
+    }
+    expert_categories: set[tuple[str, str, object]] = set()
+    for dimension in dimensions:
+        for expert, raw_value in zip(
+            expert_values,
+            metadata[dimension].tolist(),
+            strict=True,
+        ):
+            if _is_missing(raw_value):
+                continue
+            if dimension in MULTISELECT_DIMENSIONS:
+                source_values = set(_parse_multiselect_cell(raw_value))
+            else:
+                if (
+                    not isinstance(raw_value, str)
+                    or not raw_value
+                    or raw_value != raw_value.strip()
+                ):
+                    raise ValueError(
+                        "Scalar metadata cells must be non-empty strings when present."
+                    )
+                source_values = {raw_value}
+            for source_value in source_values:
+                public_category = mapping.get((dimension, source_value))
+                if public_category is None:
+                    raise ValueError(
+                        "All observed source values must be mapped before release."
+                    )
+                expert_categories.add((dimension, public_category, expert))
+
+    counts: dict[tuple[str, str], int] = {}
+    for dimension, public_category, _ in expert_categories:
+        key = (dimension, public_category)
+        counts[key] = counts.get(key, 0) + 1
+
+    public_groups = map_frame[
+        ["Dimension", "PublicCategory", "DisplayOrder"]
+    ].drop_duplicates(["Dimension", "PublicCategory"])
+    dimension_order = {dimension: index for index, dimension in enumerate(dimensions)}
+    public_groups = public_groups.assign(
+        _dimension_order=public_groups["Dimension"].map(dimension_order)
+    ).sort_values(
+        ["_dimension_order", "DisplayOrder", "PublicCategory"],
+        kind="mergesort",
+    )
+    result_rows: list[dict[str, object]] = []
+    for row in public_groups.itertuples(index=False):
+        count = counts.get((row.Dimension, row.PublicCategory), 0)
+        if count < minimum_count:
+            raise ValueError(
+                "Every category must meet the minimum public group size."
+            )
+        result_rows.append(
+            {
+                "Dimension": row.Dimension,
+                "PublicCategory": row.PublicCategory,
+                "N": count,
+            }
+        )
+    return pd.DataFrame(
+        result_rows,
+        columns=["Dimension", "PublicCategory", "N"],
+    )
 
 
 def build_release(
@@ -235,8 +561,12 @@ def build_release(
     if release.isna().any().any():
         raise ValueError("The public release contains missing values.")
 
-    public_cells = set(release.astype(str).to_numpy().ravel())
-    if raw_ids & public_cells:
+    public_cells = release.astype(str).to_numpy().ravel()
+    if any(
+        raw_id in public_cell
+        for public_cell in public_cells
+        for raw_id in raw_ids
+    ):
         raise ValueError("A raw expert identifier leaked into a public release cell.")
 
     return release.sort_values(
@@ -250,7 +580,7 @@ def _parser() -> argparse.ArgumentParser:
         description="Create a private random crosswalk or a public ranking release."
     )
     parser.add_argument("--score-tsv", type=Path, required=True)
-    parser.add_argument("--gene-categories", type=Path, required=True)
+    parser.add_argument("--gene-categories", type=Path)
     parser.add_argument("--crosswalk", type=Path, required=True)
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument("--initialize-crosswalk", action="store_true")
@@ -291,6 +621,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if args.output is None:
             parser.error("--output is required with --use-crosswalk.")
+        if args.gene_categories is None:
+            parser.error("--gene-categories is required with --use-crosswalk.")
         categories = pd.read_csv(
             args.gene_categories,
             sep="\t",

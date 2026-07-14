@@ -33,6 +33,7 @@ Current_position	PhD student	PhD student	4
 Current_position	Master's student	Other career stages	5
 Current_position	Other	Other career stages	5
 Years_experience	< 3	<= 5 years	1
+Years_experience	3-5	<= 5 years	1
 Years_experience	3–5	<= 5 years	1
 Years_experience	6–10	6–10	2
 Years_experience	11–20	11–20	3
