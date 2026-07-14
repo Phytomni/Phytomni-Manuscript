@@ -50,6 +50,64 @@ GENE_ORDINAL_COLUMNS = (
     "MeanPairwiseKendallTau",
     "Top1AgreementPattern",
 )
+BOOTSTRAP_METADATA_COLUMNS = (
+    "BootstrapAttempted",
+    "BootstrapReplicates",
+    "BootstrapInvalid",
+    "BootstrapUnit",
+    "BootstrapStrata",
+    "SeedStream",
+)
+FLEISS_BOOTSTRAP_COLUMNS = (
+    *FLEISS_COLUMNS,
+    "CILower",
+    "CIUpper",
+    *BOOTSTRAP_METADATA_COLUMNS,
+)
+ORDINAL_BOOTSTRAP_COLUMNS = (
+    "ScopeID",
+    "AnalysisTier",
+    "ScopeFamily",
+    "Species",
+    "StudyStatus",
+    "NGenes",
+    "NContributingExperts",
+    "KendallWMean",
+    "KendallWMedian",
+    "KendallWQ1",
+    "KendallWQ3",
+    "KendallWMeanCILower",
+    "KendallWMeanCIUpper",
+    "KendallWMedianCILower",
+    "KendallWMedianCIUpper",
+    "MeanPairwiseKendallTauMean",
+    "MeanPairwiseKendallTauMedian",
+    "MeanPairwiseKendallTauQ1",
+    "MeanPairwiseKendallTauQ3",
+    "MeanPairwiseKendallTauMeanCILower",
+    "MeanPairwiseKendallTauMeanCIUpper",
+    "MeanPairwiseKendallTauMedianCILower",
+    "MeanPairwiseKendallTauMedianCIUpper",
+    *BOOTSTRAP_METADATA_COLUMNS,
+)
+TOP1_BOOTSTRAP_COLUMNS = (
+    "ScopeID",
+    "AnalysisTier",
+    "ScopeFamily",
+    "Species",
+    "StudyStatus",
+    "Top1AgreementPattern",
+    "Count",
+    "Fraction",
+    "FractionCILower",
+    "FractionCIUpper",
+    "NGenes",
+    "NContributingExperts",
+    *BOOTSTRAP_METADATA_COLUMNS,
+)
+TOP1_PATTERNS = ("unanimous", "majority_2_of_3", "all_different")
+AGREEMENT_SEED_STREAM = "agreement_gene_blocks"
+BOOTSTRAP_STRATA_LABEL = "Species x StudyStatus"
 
 
 @dataclass(frozen=True)
@@ -60,6 +118,58 @@ class AgreementScope:
     species: str = "all"
     study_status: str = "all"
     model: str = "all"
+
+
+@dataclass(frozen=True)
+class BootstrapConfig:
+    successful_replicates: int = 10_000
+    seed: int = 20260714
+    max_failed_fits: int = 10
+
+    def __post_init__(self) -> None:
+        values = (
+            ("successful_replicates", self.successful_replicates, 1),
+            ("seed", self.seed, 0),
+            ("max_failed_fits", self.max_failed_fits, 0),
+        )
+        for name, value, minimum in values:
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, np.integer))
+                or value < minimum
+            ):
+                raise ValueError(
+                    f"{name} must be an integer greater than or equal to "
+                    f"{minimum}."
+                )
+
+
+def gene_bootstrap_multiplicities(
+    genes: pd.DataFrame,
+    rng: np.random.Generator,
+) -> pd.Series:
+    required = {"Species", "StudyStatus"}
+    missing = sorted(required.difference(genes.columns))
+    if missing:
+        raise ValueError(
+            "Missing gene bootstrap strata columns: " + ", ".join(missing)
+        )
+    if genes.empty:
+        raise ValueError("Gene bootstrap requires at least one gene.")
+    if genes[["Species", "StudyStatus"]].isna().any().any():
+        raise ValueError("Gene bootstrap strata must be nonmissing.")
+
+    multiplicities = np.zeros(len(genes), dtype=int)
+    groups = genes.groupby(
+        ["Species", "StudyStatus"],
+        sort=False,
+        dropna=False,
+    ).indices
+    for positions in groups.values():
+        positions = np.asarray(positions, dtype=int)
+        sampled = rng.choice(positions, size=len(positions), replace=True)
+        multiplicities += np.bincount(sampled, minlength=len(genes))
+    return pd.Series(multiplicities, index=genes.index, dtype=int)
 
 
 def agreement_scope_registry(
@@ -538,6 +648,328 @@ def fleiss_point_estimates(
     if result["ScopeID"].duplicated().any():
         raise ValueError("Agreement registry contains duplicate scope IDs.")
     return result
+
+
+def _validate_agreement_bootstrap_frame(
+    frame: pd.DataFrame,
+    model_columns: tuple[str, ...],
+) -> pd.DataFrame:
+    if model_columns != MODEL_COLUMNS:
+        raise ValueError(
+            "Agreement bootstrap requires the canonical model columns."
+        )
+    identifiers = ("Species", "Gene", "Expert", "StudyStatus")
+    required = {*identifiers, *model_columns}
+    missing = sorted(required.difference(frame.columns))
+    if missing:
+        raise ValueError(
+            "Missing required agreement bootstrap columns: "
+            + ", ".join(missing)
+        )
+    if frame.loc[:, identifiers].isna().any().any():
+        raise ValueError(
+            "Agreement bootstrap identifiers must all be nonmissing."
+        )
+    if set(frame["Species"]) != set(AGREEMENT_SPECIES) or set(
+        frame["StudyStatus"]
+    ) != set(AGREEMENT_STUDY_STATUSES):
+        raise ValueError(
+            "Agreement bootstrap requires canonical species and study "
+            "statuses."
+        )
+    observed_strata = set(
+        frame[["Species", "StudyStatus"]].itertuples(index=False, name=None)
+    )
+    expected_strata = {
+        (species, status)
+        for species in AGREEMENT_SPECIES
+        for status in AGREEMENT_STUDY_STATUSES
+    }
+    if observed_strata != expected_strata:
+        raise ValueError(
+            "Agreement bootstrap requires all 10 Species x StudyStatus "
+            "strata."
+        )
+    return gene_ordinal_agreement(frame, model_columns)
+
+
+def _gene_rank_count_array(
+    frame: pd.DataFrame,
+    genes: pd.DataFrame,
+    model_columns: tuple[str, ...],
+) -> np.ndarray:
+    gene_index = pd.MultiIndex.from_frame(genes[["Species", "Gene"]])
+    row_keys = pd.MultiIndex.from_frame(frame[["Species", "Gene"]])
+    row_gene_indices = gene_index.get_indexer(row_keys)
+    if (row_gene_indices < 0).any():
+        raise ValueError("Agreement bootstrap could not index every gene block.")
+
+    rank_lookup = {f"R{rank}": rank - 1 for rank in range(1, 6)}
+    rank_indices = (
+        frame.loc[:, model_columns]
+        .replace(rank_lookup)
+        .to_numpy(dtype=int)
+    )
+    counts = np.zeros((len(genes), len(model_columns), 5), dtype=int)
+    np.add.at(
+        counts,
+        (
+            np.repeat(row_gene_indices, len(model_columns)),
+            np.tile(np.arange(len(model_columns)), len(frame)),
+            rank_indices.ravel(),
+        ),
+        1,
+    )
+    return counts
+
+
+def _scope_gene_indices(
+    genes: pd.DataFrame,
+    scope: AgreementScope,
+) -> np.ndarray:
+    mask = np.ones(len(genes), dtype=bool)
+    if scope.species != "all":
+        mask &= genes["Species"].to_numpy() == scope.species
+    if scope.study_status != "all":
+        mask &= genes["StudyStatus"].to_numpy() == scope.study_status
+    return np.flatnonzero(mask)
+
+
+def _fleiss_bootstrap_values(
+    draws: np.ndarray,
+    genes: pd.DataFrame,
+    rank_counts: np.ndarray,
+    registry: tuple[AgreementScope, ...],
+) -> tuple[np.ndarray, np.ndarray]:
+    values = np.empty((len(draws), len(registry)), dtype=float)
+    valid = np.ones(len(draws), dtype=bool)
+    item_agreement = (
+        rank_counts * (rank_counts - 1)
+    ).sum(axis=2) / 6.0
+    for scope_index, scope in enumerate(registry):
+        gene_indices = _scope_gene_indices(genes, scope)
+        model_indices = (
+            np.arange(len(MODEL_COLUMNS))
+            if scope.model == "all"
+            else np.array([MODEL_COLUMNS.index(scope.model)])
+        )
+        weights = draws[:, gene_indices]
+        item_count = weights.sum(axis=1) * len(model_indices)
+        category_counts = rank_counts[gene_indices][:, model_indices].sum(
+            axis=1
+        )
+        weighted_categories = weights @ category_counts
+        marginals = weighted_categories / (3.0 * item_count[:, None])
+        observed = (
+            weights
+            @ item_agreement[gene_indices][:, model_indices].sum(axis=1)
+        ) / item_count
+        expected = np.square(marginals).sum(axis=1)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            kappa = (observed - expected) / (1.0 - expected)
+        values[:, scope_index] = kappa
+        valid &= (
+            (item_count > 0)
+            & np.isfinite(kappa)
+            & np.isfinite(expected)
+            & (expected < 1.0)
+        )
+    return values, valid
+
+
+def _weighted_medians(
+    values: np.ndarray,
+    weights: np.ndarray,
+) -> np.ndarray:
+    order = np.argsort(values, kind="stable")
+    sorted_values = values[order]
+    sorted_weights = weights[:, order]
+    cumulative = np.cumsum(sorted_weights, axis=1)
+    totals = cumulative[:, -1]
+    lower_ranks = (totals - 1) // 2
+    upper_ranks = totals // 2
+    lower_indices = (cumulative > lower_ranks[:, None]).argmax(axis=1)
+    upper_indices = (cumulative > upper_ranks[:, None]).argmax(axis=1)
+    return (
+        sorted_values[lower_indices] + sorted_values[upper_indices]
+    ) / 2.0
+
+
+def _bootstrap_metadata(
+    attempted: int,
+    config: BootstrapConfig,
+) -> dict[str, object]:
+    return {
+        "BootstrapAttempted": attempted,
+        "BootstrapReplicates": config.successful_replicates,
+        "BootstrapInvalid": attempted - config.successful_replicates,
+        "BootstrapUnit": "gene",
+        "BootstrapStrata": BOOTSTRAP_STRATA_LABEL,
+        "SeedStream": AGREEMENT_SEED_STREAM,
+    }
+
+
+def bootstrap_agreement(
+    frame: pd.DataFrame,
+    model_columns: tuple[str, ...] = MODEL_COLUMNS,
+    config: BootstrapConfig | None = None,
+) -> dict[str, pd.DataFrame]:
+    model_columns = tuple(model_columns)
+    config = config or BootstrapConfig()
+    gene_rows = _validate_agreement_bootstrap_frame(frame, model_columns)
+    genes = gene_rows.loc[:, ["Species", "Gene", "StudyStatus"]].copy()
+    registry = agreement_scope_registry(
+        AGREEMENT_SPECIES,
+        AGREEMENT_STUDY_STATUSES,
+        model_columns,
+    )
+    ordinal_registry = ordinal_scope_registry()
+    point_fleiss = fleiss_point_estimates(frame, registry, model_columns)
+    rank_counts = _gene_rank_count_array(frame, genes, model_columns)
+
+    seed_sequence = np.random.SeedSequence(config.seed)
+    rng = np.random.default_rng(seed_sequence.spawn(1)[0])
+    candidate_draws = [
+        gene_bootstrap_multiplicities(genes, rng).to_numpy(dtype=int)
+        for _ in range(config.successful_replicates)
+    ]
+    draw_matrix = np.vstack(candidate_draws)
+    kappa_matrix, valid = _fleiss_bootstrap_values(
+        draw_matrix,
+        genes,
+        rank_counts,
+        registry,
+    )
+    accepted_draws = [row for row in draw_matrix[valid]]
+    accepted_kappas = [row for row in kappa_matrix[valid]]
+    invalid = int((~valid).sum())
+    if invalid > config.max_failed_fits:
+        raise RuntimeError(
+            "Agreement bootstrap exceeded max_failed_fits before reaching "
+            "the requested successful replicates."
+        )
+    while len(accepted_draws) < config.successful_replicates:
+        draw = gene_bootstrap_multiplicities(genes, rng).to_numpy(dtype=int)
+        kappa, is_valid = _fleiss_bootstrap_values(
+            draw[None, :],
+            genes,
+            rank_counts,
+            registry,
+        )
+        if is_valid[0]:
+            accepted_draws.append(draw)
+            accepted_kappas.append(kappa[0])
+        else:
+            invalid += 1
+            if invalid > config.max_failed_fits:
+                raise RuntimeError(
+                    "Agreement bootstrap exceeded max_failed_fits before "
+                    "reaching the requested successful replicates."
+                )
+
+    draws = np.vstack(accepted_draws)
+    kappas = np.vstack(accepted_kappas)
+    attempted = config.successful_replicates + invalid
+    metadata = _bootstrap_metadata(attempted, config)
+    lower, upper = np.quantile(kappas, [0.025, 0.975], axis=0)
+    fleiss = point_fleiss.assign(
+        CILower=lower,
+        CIUpper=upper,
+        **metadata,
+    ).loc[:, FLEISS_BOOTSTRAP_COLUMNS]
+
+    ordinal_records: list[dict[str, object]] = []
+    top1_records: list[dict[str, object]] = []
+    for scope in ordinal_registry:
+        gene_indices = _scope_gene_indices(genes, scope)
+        selected = gene_rows.iloc[gene_indices]
+        weights = draws[:, gene_indices]
+        totals = weights.sum(axis=1)
+        expert_count = int(
+            _scope_frame(frame, scope)["Expert"].nunique()
+        )
+        ordinal_record: dict[str, object] = {
+            "ScopeID": scope.scope_id,
+            "AnalysisTier": scope.analysis_tier,
+            "ScopeFamily": scope.scope_family,
+            "Species": scope.species,
+            "StudyStatus": scope.study_status,
+            "NGenes": len(selected),
+            "NContributingExperts": expert_count,
+        }
+        for source, prefix in (
+            ("KendallW", "KendallW"),
+            (
+                "MeanPairwiseKendallTau",
+                "MeanPairwiseKendallTau",
+            ),
+        ):
+            point_values = selected[source].to_numpy(dtype=float)
+            q1, median, q3 = np.quantile(point_values, [0.25, 0.5, 0.75])
+            replicate_means = (weights @ point_values) / totals
+            replicate_medians = _weighted_medians(point_values, weights)
+            mean_lower, mean_upper = np.quantile(
+                replicate_means, [0.025, 0.975]
+            )
+            median_lower, median_upper = np.quantile(
+                replicate_medians, [0.025, 0.975]
+            )
+            ordinal_record.update(
+                {
+                    f"{prefix}Mean": float(point_values.mean()),
+                    f"{prefix}Median": float(median),
+                    f"{prefix}Q1": float(q1),
+                    f"{prefix}Q3": float(q3),
+                    f"{prefix}MeanCILower": float(mean_lower),
+                    f"{prefix}MeanCIUpper": float(mean_upper),
+                    f"{prefix}MedianCILower": float(median_lower),
+                    f"{prefix}MedianCIUpper": float(median_upper),
+                }
+            )
+        ordinal_record.update(metadata)
+        ordinal_records.append(ordinal_record)
+
+        observed_patterns = selected["Top1AgreementPattern"]
+        for pattern in TOP1_PATTERNS:
+            indicator = (
+                observed_patterns.to_numpy(dtype=object) == pattern
+            ).astype(float)
+            replicate_fractions = (weights @ indicator) / totals
+            fraction_lower, fraction_upper = np.quantile(
+                replicate_fractions, [0.025, 0.975]
+            )
+            count = int(indicator.sum())
+            top1_records.append(
+                {
+                    "ScopeID": scope.scope_id,
+                    "AnalysisTier": scope.analysis_tier,
+                    "ScopeFamily": scope.scope_family,
+                    "Species": scope.species,
+                    "StudyStatus": scope.study_status,
+                    "Top1AgreementPattern": pattern,
+                    "Count": count,
+                    "Fraction": count / len(selected),
+                    "FractionCILower": float(fraction_lower),
+                    "FractionCIUpper": float(fraction_upper),
+                    "NGenes": len(selected),
+                    "NContributingExperts": expert_count,
+                    **metadata,
+                }
+            )
+
+    ordinal = pd.DataFrame.from_records(
+        ordinal_records,
+        columns=ORDINAL_BOOTSTRAP_COLUMNS,
+    )
+    top1 = pd.DataFrame.from_records(
+        top1_records,
+        columns=TOP1_BOOTSTRAP_COLUMNS,
+    )
+    return {
+        "fleiss_kappa": fleiss,
+        "ordinal_summary": ordinal,
+        "top1_consensus": top1,
+    }
 
 
 def resolve_model_columns(setting: str | None) -> tuple[str, ...]:

@@ -11,12 +11,15 @@ from scripts.deepgenome_ranking_statistics import (
     FLEISS_COLUMNS,
     MODEL_COLUMNS,
     AgreementScope,
+    BootstrapConfig,
     agreement_scope_registry,
+    bootstrap_agreement,
     collapse_weighted_rankings,
     elo_outputs,
     fit_plackett_luce,
     fleiss_kappa_from_counts,
     fleiss_point_estimates,
+    gene_bootstrap_multiplicities,
     parse_rankings,
     pl_loglik_and_grad,
 )
@@ -70,6 +73,404 @@ def categorized_ranking_fixture() -> pd.DataFrame:
                     )
                     rows.append(row)
     return pd.DataFrame(rows)
+
+
+@pytest.fixture
+def crossed_fixture() -> pd.DataFrame:
+    assignments = (
+        (0, 1, 2),
+        (3, 4, 5),
+        (0, 1, 3),
+        (2, 4, 5),
+        (0, 1, 4),
+        (2, 3, 5),
+        (0, 1, 5),
+        (2, 3, 4),
+        (0, 2, 4),
+        (1, 3, 5),
+    )
+    rows: list[dict[str, str]] = []
+    for species_index, species in enumerate(SPECIES):
+        for gene_index, expert_indices in enumerate(assignments):
+            status = STATUSES[gene_index // 5]
+            gene = f"{species[:2]}-{gene_index + 1:02d}"
+            shift_offsets = (
+                (0, 0, 1) if gene_index % 5 < 3 else (0, 1, 2)
+            )
+            for expert_slot, expert_index in enumerate(expert_indices):
+                shift = (
+                    species_index
+                    + gene_index
+                    + shift_offsets[expert_slot]
+                ) % 5
+                order = MODEL_COLUMNS[shift:] + MODEL_COLUMNS[:shift]
+                row = {
+                    "Species": species,
+                    "Gene": gene,
+                    "Expert": f"{species}-expert-{expert_index + 1}",
+                    "StudyStatus": status,
+                }
+                row.update(
+                    {
+                        model: f"R{rank}"
+                        for rank, model in enumerate(order, start=1)
+                    }
+                )
+                rows.append(row)
+
+    frame = pd.DataFrame(rows)
+    rating_cells = (
+        frame.groupby(["Species", "Gene"], sort=False).size()
+        * len(MODEL_COLUMNS)
+    )
+    assert (rating_cells == 15).all()
+    assert (
+        frame.groupby(["Species", "Expert"], sort=False).size() == 5
+    ).all()
+    assert (
+        frame.groupby(["Species", "Gene"], sort=False)["Expert"].nunique()
+        == 3
+    ).all()
+    assert (
+        frame[["Species", "StudyStatus"]].drop_duplicates().shape[0] == 10
+    )
+    return frame
+
+
+def test_bootstrap_config_has_locked_defaults_and_rejects_invalid_values(
+) -> None:
+    assert BootstrapConfig() == BootstrapConfig(
+        successful_replicates=10_000,
+        seed=20260714,
+        max_failed_fits=10,
+    )
+
+    for field, value in (
+        ("successful_replicates", 0),
+        ("successful_replicates", -1),
+        ("successful_replicates", 1.5),
+        ("successful_replicates", True),
+        ("seed", -1),
+        ("seed", 1.5),
+        ("seed", False),
+        ("max_failed_fits", -1),
+        ("max_failed_fits", 1.5),
+        ("max_failed_fits", True),
+    ):
+        with pytest.raises(ValueError, match=field):
+            BootstrapConfig(**{field: value})
+
+
+def test_gene_bootstrap_multiplicities_are_stratified_and_deterministic(
+    crossed_fixture: pd.DataFrame,
+) -> None:
+    genes = (
+        crossed_fixture[["Species", "Gene", "StudyStatus"]]
+        .drop_duplicates()
+        .reset_index(drop=True)
+    )
+    first_rng = np.random.default_rng(
+        np.random.SeedSequence(20260714).spawn(1)[0]
+    )
+    second_rng = np.random.default_rng(
+        np.random.SeedSequence(20260714).spawn(1)[0]
+    )
+
+    first = gene_bootstrap_multiplicities(genes, first_rng)
+    second = gene_bootstrap_multiplicities(genes, second_rng)
+
+    pd.testing.assert_series_equal(first, second)
+    assert first.index.equals(genes.index)
+    assert pd.api.types.is_integer_dtype(first.dtype)
+    assert (first >= 0).all()
+    original_sizes = genes.groupby(
+        ["Species", "StudyStatus"], sort=False
+    ).size()
+    sampled_sizes = first.groupby(
+        [genes["Species"], genes["StudyStatus"]], sort=False
+    ).sum()
+    pd.testing.assert_series_equal(sampled_sizes, original_sizes)
+    assert (original_sizes == 5).all()
+
+
+def test_agreement_bootstrap_is_shared_and_reproducible(
+    crossed_fixture: pd.DataFrame,
+) -> None:
+    config = BootstrapConfig(
+        successful_replicates=25,
+        seed=20260714,
+        max_failed_fits=0,
+    )
+
+    first = bootstrap_agreement(crossed_fixture, MODEL_COLUMNS, config)
+    second = bootstrap_agreement(crossed_fixture, MODEL_COLUMNS, config)
+
+    for name in ("fleiss_kappa", "ordinal_summary", "top1_consensus"):
+        pd.testing.assert_frame_equal(first[name], second[name])
+        assert first[name].to_csv(index=False) == second[name].to_csv(
+            index=False
+        )
+    assert len(first["fleiss_kappa"]) == 58
+    assert len(first["ordinal_summary"]) == 18
+    assert first["ordinal_summary"]["ScopeID"].nunique() == 18
+    assert len(first["top1_consensus"]) == 18 * 3
+    assert (first["fleiss_kappa"]["BootstrapReplicates"] == 25).all()
+
+
+def test_agreement_bootstrap_uses_one_gene_draw_per_replicate(
+    crossed_fixture: pd.DataFrame,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed_draws: list[pd.Series] = []
+    implementation = ranking_statistics.gene_bootstrap_multiplicities
+
+    def record_draw(
+        genes: pd.DataFrame,
+        rng: np.random.Generator,
+    ) -> pd.Series:
+        multiplicities = implementation(genes, rng)
+        observed_draws.append(multiplicities.copy())
+        return multiplicities
+
+    monkeypatch.setattr(
+        ranking_statistics,
+        "gene_bootstrap_multiplicities",
+        record_draw,
+    )
+    result = bootstrap_agreement(
+        crossed_fixture,
+        MODEL_COLUMNS,
+        BootstrapConfig(successful_replicates=7, max_failed_fits=0),
+    )
+
+    assert len(observed_draws) == 7
+    for draw in observed_draws:
+        genes = (
+            crossed_fixture[["Species", "Gene", "StudyStatus"]]
+            .drop_duplicates()
+            .reset_index(drop=True)
+        )
+        stratum_totals = draw.groupby(
+            [genes["Species"], genes["StudyStatus"]], sort=False
+        ).sum()
+        assert (stratum_totals == 5).all()
+    seed_streams = {
+        tuple(output["SeedStream"].unique())
+        for output in result.values()
+    }
+    assert seed_streams == {("agreement_gene_blocks",)}
+
+
+def test_agreement_bootstrap_has_stable_schemas_and_unclipped_intervals(
+    crossed_fixture: pd.DataFrame,
+) -> None:
+    config = BootstrapConfig(
+        successful_replicates=25,
+        seed=20260714,
+        max_failed_fits=0,
+    )
+    result = bootstrap_agreement(crossed_fixture, MODEL_COLUMNS, config)
+    fleiss = result["fleiss_kappa"]
+    ordinal = result["ordinal_summary"]
+    top1 = result["top1_consensus"]
+
+    metadata = (
+        "BootstrapAttempted",
+        "BootstrapReplicates",
+        "BootstrapInvalid",
+        "BootstrapUnit",
+        "BootstrapStrata",
+        "SeedStream",
+    )
+    assert tuple(fleiss.columns) == (
+        *FLEISS_COLUMNS,
+        "CILower",
+        "CIUpper",
+        *metadata,
+    )
+    assert tuple(ordinal.columns) == (
+        "ScopeID",
+        "AnalysisTier",
+        "ScopeFamily",
+        "Species",
+        "StudyStatus",
+        "NGenes",
+        "NContributingExperts",
+        "KendallWMean",
+        "KendallWMedian",
+        "KendallWQ1",
+        "KendallWQ3",
+        "KendallWMeanCILower",
+        "KendallWMeanCIUpper",
+        "KendallWMedianCILower",
+        "KendallWMedianCIUpper",
+        "MeanPairwiseKendallTauMean",
+        "MeanPairwiseKendallTauMedian",
+        "MeanPairwiseKendallTauQ1",
+        "MeanPairwiseKendallTauQ3",
+        "MeanPairwiseKendallTauMeanCILower",
+        "MeanPairwiseKendallTauMeanCIUpper",
+        "MeanPairwiseKendallTauMedianCILower",
+        "MeanPairwiseKendallTauMedianCIUpper",
+        *metadata,
+    )
+    assert tuple(top1.columns) == (
+        "ScopeID",
+        "AnalysisTier",
+        "ScopeFamily",
+        "Species",
+        "StudyStatus",
+        "Top1AgreementPattern",
+        "Count",
+        "Fraction",
+        "FractionCILower",
+        "FractionCIUpper",
+        "NGenes",
+        "NContributingExperts",
+        *metadata,
+    )
+
+    for output in result.values():
+        assert (output["BootstrapAttempted"] == 25).all()
+        assert (output["BootstrapReplicates"] == 25).all()
+        assert (output["BootstrapInvalid"] == 0).all()
+        assert (output["BootstrapUnit"] == "gene").all()
+        assert (
+            output["BootstrapStrata"] == "Species x StudyStatus"
+        ).all()
+        assert (output["SeedStream"] == "agreement_gene_blocks").all()
+
+    interval_pairs = [
+        (fleiss, "CILower", "CIUpper"),
+        (ordinal, "KendallWMeanCILower", "KendallWMeanCIUpper"),
+        (
+            ordinal,
+            "KendallWMedianCILower",
+            "KendallWMedianCIUpper",
+        ),
+        (
+            ordinal,
+            "MeanPairwiseKendallTauMeanCILower",
+            "MeanPairwiseKendallTauMeanCIUpper",
+        ),
+        (
+            ordinal,
+            "MeanPairwiseKendallTauMedianCILower",
+            "MeanPairwiseKendallTauMedianCIUpper",
+        ),
+        (top1, "FractionCILower", "FractionCIUpper"),
+    ]
+    for output, lower, upper in interval_pairs:
+        assert np.isfinite(output[[lower, upper]]).all().all()
+        assert (output[lower] <= output[upper]).all()
+
+    registry = agreement_scope_registry(SPECIES, STATUSES, MODEL_COLUMNS)
+    point_fleiss = fleiss_point_estimates(
+        crossed_fixture,
+        registry,
+        MODEL_COLUMNS,
+    )
+    pd.testing.assert_frame_equal(
+        fleiss.loc[:, FLEISS_COLUMNS],
+        point_fleiss,
+    )
+    assert (fleiss["FleissKappa"] < 0).any()
+    assert (fleiss["CILower"] < 0).any()
+    assert (
+        (fleiss["CILower"] < 0) & (fleiss["CIUpper"] > 0)
+    ).any()
+
+    gene_rows = ranking_statistics.gene_ordinal_agreement(
+        crossed_fixture,
+        MODEL_COLUMNS,
+    )
+    overall = ordinal.loc[ordinal["ScopeID"] == "overall"].iloc[0]
+    assert np.isclose(overall["KendallWMean"], gene_rows["KendallW"].mean())
+    assert np.isclose(
+        overall["KendallWMedian"], gene_rows["KendallW"].median()
+    )
+    assert np.isclose(
+        overall["MeanPairwiseKendallTauMean"],
+        gene_rows["MeanPairwiseKendallTau"].mean(),
+    )
+
+    patterns = ("unanimous", "majority_2_of_3", "all_different")
+    observed_pattern_order = top1.groupby("ScopeID", sort=False)[
+        "Top1AgreementPattern"
+    ].apply(tuple)
+    assert all(value == patterns for value in observed_pattern_order)
+    assert (
+        top1.loc[
+            top1["Top1AgreementPattern"] == "unanimous", "Count"
+        ]
+        == 0
+    ).all()
+    assert np.allclose(
+        top1.groupby("ScopeID", sort=False)["Fraction"].sum(),
+        1.0,
+    )
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("missing_expert", "exactly three experts"),
+        ("duplicate_expert_gene", "duplicate expert/gene rows"),
+        ("incomplete_ranking", "complete no-tie R1-R5 ranking"),
+        ("missing_stratum", "all 10 Species x StudyStatus strata"),
+        ("noncanonical_species", "canonical species and study statuses"),
+    ],
+)
+def test_agreement_bootstrap_validates_canonical_assignment_boundary(
+    crossed_fixture: pd.DataFrame,
+    mutation: str,
+    message: str,
+) -> None:
+    frame = crossed_fixture.copy()
+    if mutation == "missing_expert":
+        frame = frame.drop(frame.index[0])
+    elif mutation == "duplicate_expert_gene":
+        frame = pd.concat([frame, frame.iloc[[0]]], ignore_index=True)
+    elif mutation == "incomplete_ranking":
+        frame.loc[0, "Gemini"] = "R2"
+    elif mutation == "missing_stratum":
+        frame = frame.loc[
+            ~(
+                (frame["Species"] == SPECIES[0])
+                & (frame["StudyStatus"] == STATUSES[0])
+            )
+        ]
+    elif mutation == "noncanonical_species":
+        frame.loc[frame["Species"] == SPECIES[0], "Species"] = "Barley"
+
+    with pytest.raises(ValueError, match=message):
+        bootstrap_agreement(
+            frame,
+            MODEL_COLUMNS,
+            BootstrapConfig(successful_replicates=1),
+        )
+
+
+def test_agreement_bootstrap_uses_species_gene_composite_blocks(
+    crossed_fixture: pd.DataFrame,
+) -> None:
+    frame = crossed_fixture.copy()
+    for species in SPECIES:
+        first_gene = frame.loc[frame["Species"] == species, "Gene"].iloc[0]
+        frame.loc[
+            (frame["Species"] == species) & (frame["Gene"] == first_gene),
+            "Gene",
+        ] = "SHARED_GENE_LABEL"
+
+    result = bootstrap_agreement(
+        frame,
+        MODEL_COLUMNS,
+        BootstrapConfig(successful_replicates=5, max_failed_fits=0),
+    )
+
+    assert result["fleiss_kappa"].loc[
+        result["fleiss_kappa"]["ScopeID"] == "overall", "NGenes"
+    ].item() == 50
 
 
 def test_kendall_w_perfect_and_zero_concordance() -> None:
