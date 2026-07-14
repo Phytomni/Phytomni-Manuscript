@@ -1,0 +1,5 @@
+Model	DisplayLabel	BERTScorePrecision
+Phytomni	Phytomni	0.561641241
+Gemini	Gemini Deep Research	0.519520598
+OpenAI	ChatGPT Agent mode	0.50827608
+Grok	Grok DeepSearch	0.557148935

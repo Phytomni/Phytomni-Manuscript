@@ -96,7 +96,9 @@ Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) 
 
 | Figure | File | Kernel | Input data | Status | Emits (into output/ when PHYTOMNI_SAVE=1) |
 |---|---|---|---|---|---|
-| Fig. 2 | `Fig. 2/fig. 2.ipynb` | `python3` | *inline* | `run` | `fig.2a.phytobench-knowledge.bar.pdf` / `fig.2b.phytobench-data.bar.pdf` / `fig.2c.phytobench-analysis.violin.pdf` / … (5 files) |
+| Fig. 2a-c,g | `Fig. 2/fig. 2.ipynb` | `python3` | `PhytoBench-Gene-BERTScore-for_plot.tsv` ✓ | `run` | `fig.2a.phytobench-knowledge.bar.pdf` / `fig.2b.phytobench-data.bar.pdf` / `fig.2c.phytobench-analysis.violin.pdf` / `fig.2g.phytobench-gene.well_studied.bar.pdf` |
+| Fig. 2h | `Fig. 2/fig. 2.ipynb` | `python3` | `PhytoBench-Gene-BERTScore-for_plot.tsv` ✓, `PhytoBench-Gene-hallucination-for_plot.tsv` ⚠ | `skip_until_data` | `fig.2h.phytobench-gene.uncharacterized.bar.pdf` |
+| Fig. 2d-f | `Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb` | `python3` | `rank_distribution.tsv` ✓, … (4 files) | `run` | `fig.2d.phytobench-gene.percent.bar.pdf` / `fig.2e.phytobench-gene.prob.heatmap.pdf` / `fig.2f.phytobench-gene.score.bar.pdf` |
 | Fig. 3 | `Fig. 3/fig. 3.ipynb` | `python3` | `PhytoBench-Paper-for_plot.xlsx` ✓ | `run` | `fig.3d.phytobench-paper.line.pdf` / `fig.3e.phytobench-paper.heatmap.pdf` |
 | Ext. Data 5a | `Extended Data Fig. 5/extended_data_fig. 5ab.ipynb` | `ir` (R) | `Phytomni-PaperYear-for_plot.csv` ✓ | `run` | `extended_data_fig.5a.pdf` |
 | Ext. Data 5b | `Extended Data Fig. 5/extended_data_fig. 5ab.ipynb` | `ir` (R) | `Phytomni-DocType-for_plot.csv` ⚠ | `skip_until_data` | `extended_data_fig.5b.pdf` |
@@ -114,7 +116,7 @@ Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) 
 | Supp. 7 | `Supplementary Fig. 7/supplementary_fig. 7.py` | `python3` (script) | `PhytoBench-Data-for_plot.xlsx` ✓ | `run` | `model_accuracy_by_species.pdf` |
 | Supp. 8 | `Supplementary Fig. 8/supplementary_fig. 8.ipynb` | `python3` | *inline* | `run` | `model_compare_agent_split.pdf` |
 | Supp. 9 | `Supplementary Fig. 9/supplementary_fig. 9.ipynb` | `python3` | *inline* | `run` | `model_compare_agent_split_across_speciesv1.pdf` |
-| Supp. 10-13 | `Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb` | `python3` | `score.tsv` ✓, `score.well_studied.tsv` ✓, `score.uncharacterized.tsv` ✓ | `run` | `fig.2d.phytobench-gene.percent.bar.pdf` / `fig.2e.phytobench-gene.prob.heatmap.pdf` / `fig.2f.phytobench-gene.score.bar.pdf` / … (5 files) |
+| Supp. 10-13 | `Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb` | `python3` | `rank_distribution.tsv` ✓, … (4 files) | `run` | `supplementary_fig.7.phytobench-gene.well_studied.percent.bar.pdf` / `supplementary_fig.7.phytobench-gene.uncharacterized.percent.bar.pdf` |
 | Supp. 14 | `Supplementary Fig. 14/supplementary_fig. 14.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.6a.model.paperbench-mp.line.pdf` / `supplementary_fig.6b.model.paperbench-as.line.pdf` / `supplementary_fig.6c.model.paperbench-cr.line.pdf` / … (5 files) |
 | Supp. 19 | `Supplementary Fig. 19/supplementary_fig. 19.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.19.pdf` |
 | Supp. 24 | `Supplementary Fig. 24/supplementary_fig. 24.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.13.phytobench-review.polar.pdf` |
@@ -178,6 +180,31 @@ uv run --no-sync jupyter nbconvert --to notebook --execute \
 `nbconvert` writes executed copies to `/tmp/deepgenome-notebook-runs/score_plackett_luce.ipynb` and `/tmp/deepgenome-notebook-runs/score_hallucination.ipynb`; the tracked canonical notebooks remain output-free. The same temporary output directory is used in the private-log and live examples below.
 
 Set `DEEPGENOME_SCORE_TSV=/absolute/path/to/score.tsv` to fit the private rankings. The five default model columns match the planned benchmark input; set `DEEPGENOME_MODEL_COLUMNS=Gemini,Claude,Model_X` to supply a different comma-separated set while retaining `Gemini` as the reference model. Add `DEEPGENOME_SAVE_RESULTS=1` only to write `pl_elo_results.csv` and `pl_pairwise_probs.csv`; exports are disabled by default. If `DEEPGENOME_SCORE_TSV` is unset, the notebook completes its deterministic checks, reports `SKIPPED`, and does not fit or invent private benchmark results.
+
+The manuscript figures do not read the private `score.tsv` directly. Freeze one validated private run into aggregate-only, tracked tables before plotting:
+
+```bash
+uv run --no-sync python -m scripts.freeze_deepgenome_rankings \
+  --score-tsv /absolute/path/to/score.tsv \
+  --gene-categories \
+  "Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/gene_categories.tsv" \
+  --output-dir \
+  "Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/frozen"
+```
+
+The freezer rejects incomplete rankings, records source and scoring-notebook SHA-256 hashes in `provenance.json`, and writes only rank distributions, fitted scores, and pairwise probabilities. The new private five-model source, individual responses, and judgment logs are not committed. The older four-model `score*.tsv` files remain only as legacy provenance and are not read by the current plotting path. `Fig. 2d-f` and all stratified Supplementary Fig. 10-13 panels read the frozen aggregate tables; `Fig. 2g` reads the tracked BERTScore table. Generate them directly with:
+
+```bash
+mkdir -p /tmp/phytomni-figure-runs
+PHYTOMNI_SAVE=1 uv run --no-sync jupyter nbconvert \
+  --to notebook --execute --output-dir=/tmp/phytomni-figure-runs \
+  "Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb"
+PHYTOMNI_SAVE=1 uv run --no-sync jupyter nbconvert \
+  --to notebook --execute --output-dir=/tmp/phytomni-figure-runs \
+  "Fig. 2/fig. 2.ipynb"
+```
+
+`Fig. 2h` is intentionally skipped until `Fig. 2/PhytoBench-Gene-hallucination-for_plot.tsv` is supplied with the columns `Model`, `DisplayLabel`, and `MeanDirectionalContradictionRatio`. After adding the table, change the `fig-2h` manifest status from `skip_until_data` to `run`; the shared notebook also requires the tracked BERTScore table. This keeps the pending hallucination panel explicit instead of retaining stale values from an earlier run.
 
 The hallucination notebook's default execution is offline, but its optional analysis dependencies are installed with the live-evaluation extra. To aggregate already frozen logs without contacting a service, leave live judging disabled and provide only the log directory:
 
