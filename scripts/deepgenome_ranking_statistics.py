@@ -10,6 +10,11 @@ from scipy.optimize import minimize
 from scipy.special import expit, logsumexp
 from scipy.stats import kendalltau
 
+from scripts.release_deepgenome_rankings import (
+    MULTISELECT_DIMENSIONS,
+    audit_panel_category_map,
+)
+
 
 MODEL_COLUMNS = ("Gemini", "Grok", "OpenAI", "Phytomni", "Claude")
 AGREEMENT_SPECIES = ("Rice", "Maize", "Wheat", "Soybean", "Arabidopsis")
@@ -164,6 +169,28 @@ PL_PAIRWISE_COLUMNS = (
     "SuccessfulReplicates",
     "FailedFits",
     "SeedStream",
+)
+PANEL_SUMMARY_COLUMNS = (
+    "Dimension",
+    "PublicCategory",
+    "DisplayOrder",
+    "N",
+    "DenominatorN",
+    "Percent",
+    "MissingN",
+    "PercentageBasis",
+)
+ASSIGNMENT_SUMMARY_COLUMNS = (
+    "Scope",
+    "StudyStatus",
+    "Species",
+    "NExperts",
+    "NGenes",
+    "NJudgments",
+    "MinGenesPerExpert",
+    "MaxGenesPerExpert",
+    "MinExpertsPerGene",
+    "MaxExpertsPerGene",
 )
 
 
@@ -423,6 +450,141 @@ def ranking_scope_registry() -> tuple[RankingScope, ...]:
         for species in AGREEMENT_SPECIES
     )
     return tuple(scopes)
+
+
+def _is_missing_metadata_value(value: object) -> bool:
+    missing = pd.isna(value)
+    return bool(missing) if isinstance(missing, (bool, np.bool_)) else False
+
+
+def summarize_expert_panel(
+    metadata: pd.DataFrame,
+    category_map: pd.DataFrame,
+    *,
+    expert_column: str = "Expert_ID",
+    minimum_count: int = 5,
+) -> pd.DataFrame:
+    """Return privacy-reviewed panel composition aggregates."""
+    if expert_column not in metadata.columns:
+        raise ValueError("The expert metadata table is missing its expert column.")
+    if metadata[expert_column].isna().any():
+        raise ValueError("Expert identifiers must not be missing.")
+    if metadata[expert_column].duplicated().any():
+        raise ValueError("Expert metadata must contain one row per expert.")
+
+    audited = audit_panel_category_map(
+        metadata,
+        category_map,
+        expert_column=expert_column,
+        minimum_count=minimum_count,
+    )
+    total_experts = int(metadata[expert_column].nunique())
+    dimensions = category_map["Dimension"].drop_duplicates().tolist()
+    public_order = (
+        category_map[
+            ["Dimension", "PublicCategory", "DisplayOrder"]
+        ]
+        .drop_duplicates(["Dimension", "PublicCategory"])
+        .set_index(["Dimension", "PublicCategory"])["DisplayOrder"]
+        .astype(int)
+    )
+    country_map = category_map.loc[
+        category_map["Dimension"] == "Country/Region"
+    ]
+    if set(country_map["SourceValue"]) & set(country_map["PublicCategory"]):
+        raise ValueError(
+            "Country/Region summaries must use aggregate public categories."
+        )
+
+    records: list[dict[str, object]] = []
+    for dimension in dimensions:
+        missing_count = sum(
+            _is_missing_metadata_value(value)
+            for value in metadata[dimension].tolist()
+        )
+        is_multiselect = dimension in MULTISELECT_DIMENSIONS
+        denominator = (
+            total_experts if is_multiselect else total_experts - missing_count
+        )
+        if denominator <= 0:
+            raise ValueError(
+                "Panel percentages require a positive expert denominator."
+            )
+        selected = audited.loc[audited["Dimension"] == dimension]
+        if not is_multiselect and int(selected["N"].sum()) != denominator:
+            raise ValueError(
+                "Single-select panel categories must cover every nonmissing expert."
+            )
+        for row in selected.itertuples(index=False):
+            records.append(
+                {
+                    "Dimension": dimension,
+                    "PublicCategory": row.PublicCategory,
+                    "DisplayOrder": int(
+                        public_order.loc[(dimension, row.PublicCategory)]
+                    ),
+                    "N": int(row.N),
+                    "DenominatorN": denominator,
+                    "Percent": 100.0 * int(row.N) / denominator,
+                    "MissingN": missing_count,
+                    "PercentageBasis": (
+                        "all_experts"
+                        if is_multiselect
+                        else "nonmissing_experts"
+                    ),
+                }
+            )
+    result = pd.DataFrame.from_records(records, columns=PANEL_SUMMARY_COLUMNS)
+    if (result["N"] < minimum_count).any():
+        raise ValueError("Every category must meet the minimum public group size.")
+    return result
+
+
+def summarize_assignments(
+    frame: pd.DataFrame,
+    model_columns: tuple[str, ...] = MODEL_COLUMNS,
+) -> pd.DataFrame:
+    """Summarize the crossed expert-gene assignment design without IDs."""
+    working = _validate_pl_bootstrap_frame(frame, tuple(model_columns))
+    records: list[dict[str, object]] = []
+    for scope in ranking_scope_registry():
+        selected = working
+        if scope.study_status != "all":
+            selected = selected.loc[
+                selected["StudyStatus"] == scope.study_status
+            ]
+        if scope.species != "all":
+            selected = selected.loc[selected["Species"] == scope.species]
+        genes_per_expert = selected.groupby(
+            ["Species", "Expert"],
+            sort=False,
+        )["Gene"].nunique()
+        experts_per_gene = selected.groupby(
+            ["Species", "Gene"],
+            sort=False,
+        )["Expert"].nunique()
+        records.append(
+            {
+                "Scope": scope.scope,
+                "StudyStatus": scope.study_status,
+                "Species": scope.species,
+                "NExperts": int(
+                    selected[["Species", "Expert"]].drop_duplicates().shape[0]
+                ),
+                "NGenes": int(
+                    selected[["Species", "Gene"]].drop_duplicates().shape[0]
+                ),
+                "NJudgments": len(selected),
+                "MinGenesPerExpert": int(genes_per_expert.min()),
+                "MaxGenesPerExpert": int(genes_per_expert.max()),
+                "MinExpertsPerGene": int(experts_per_gene.min()),
+                "MaxExpertsPerGene": int(experts_per_gene.max()),
+            }
+        )
+    return pd.DataFrame.from_records(
+        records,
+        columns=ASSIGNMENT_SUMMARY_COLUMNS,
+    )
 
 
 def _validated_rank_matrix(rank_matrix: np.ndarray) -> np.ndarray:
