@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from itertools import combinations
+from pathlib import Path
 from typing import Sequence
 
 import numpy as np
@@ -16,6 +18,7 @@ from scripts.release_deepgenome_rankings import (
 )
 
 
+MODULE_SOURCE_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 MODEL_COLUMNS = ("Gemini", "Grok", "OpenAI", "Phytomni", "Claude")
 AGREEMENT_SPECIES = ("Rice", "Maize", "Wheat", "Soybean", "Arabidopsis")
 AGREEMENT_STUDY_STATUSES = ("well_studied", "uncharacterized")

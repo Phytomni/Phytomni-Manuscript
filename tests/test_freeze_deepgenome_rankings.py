@@ -7,7 +7,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import scripts.deepgenome_ranking_statistics as ranking_module
 import scripts.freeze_deepgenome_rankings as freeze_module
+import scripts.release_deepgenome_rankings as release_module
 from scripts.release_deepgenome_rankings import PUBLIC_COLUMNS
 from scripts.deepgenome_ranking_statistics import (
     ASSIGNMENT_SUMMARY_COLUMNS,
@@ -308,12 +310,92 @@ def freeze_fixture(tmp_path: Path, output_dir: Path) -> tuple[Path, ...]:
     return paths
 
 
+def freeze_fixture_once(tmp_path: Path, output_dir: Path) -> tuple[Path, ...]:
+    paths = write_crossed_fixture(tmp_path)
+    score_path, categories_path, metadata_path, category_map_path = paths
+    freeze_rankings(
+        score_path=score_path,
+        gene_categories_path=categories_path,
+        expert_metadata_path=metadata_path,
+        private_lineage_score_path=None,
+        panel_category_map_path=category_map_path,
+        output_dir=output_dir,
+        model_columns=MODELS,
+        bootstrap_config=BootstrapConfig(
+            successful_replicates=1,
+            seed=20260714,
+            max_failed_fits=2,
+        ),
+    )
+    return paths
+
+
 def directory_bytes(directory: Path) -> dict[str, bytes]:
     return {
         str(path.relative_to(directory)): path.read_bytes()
         for path in sorted(directory.rglob("*"))
         if path.is_file()
     }
+
+
+def write_legacy_publication(directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    for path in directory.iterdir():
+        if path.is_file():
+            path.unlink()
+    (directory / "rank_distribution.tsv").write_bytes(
+        b"Scope\tStudyStatus\tSpecies\tModel\tRank\tCount\tFraction\tN\n"
+    )
+    (directory / "pl_scores.tsv").write_bytes(
+        b"Scope\tStudyStatus\tSpecies\tModel\tElo\tElo_L\tElo_U\tN\n"
+    )
+    (directory / "pl_pairwise.tsv").write_bytes(
+        b"Scope\tStudyStatus\tSpecies\tRowModel\tColumnModel\tProbability\tN\n"
+    )
+    (directory / "provenance.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "model_columns": list(MODELS),
+                "reference_model": "Gemini",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def backup_path(output_dir: Path, suffix: str = "a" * 32) -> Path:
+    return output_dir.parent / f".{output_dir.name}.backup-{suffix}"
+
+
+def freeze_with_missing_inputs(output_dir: Path) -> None:
+    missing = output_dir.parent / "missing-private-input"
+    freeze_rankings(
+        score_path=missing,
+        gene_categories_path=missing,
+        expert_metadata_path=missing,
+        private_lineage_score_path=None,
+        panel_category_map_path=missing,
+        output_dir=output_dir,
+        model_columns=MODELS,
+        bootstrap_config=BootstrapConfig(
+            successful_replicates=1,
+            seed=20260714,
+            max_failed_fits=2,
+        ),
+    )
+
+
+def forbid_analysis(monkeypatch: pytest.MonkeyPatch) -> None:
+    def unexpected_bootstrap(*args: object, **kwargs: object) -> object:
+        raise AssertionError("Unsafe destination reached statistical analysis")
+
+    monkeypatch.setattr(
+        freeze_module,
+        "bootstrap_plackett_luce_statistics",
+        unexpected_bootstrap,
+    )
 
 
 def test_freezer_writes_deterministic_reviewer_tables(tmp_path: Path) -> None:
@@ -327,10 +409,7 @@ def test_freezer_writes_deterministic_reviewer_tables(tmp_path: Path) -> None:
     first_bytes = {
         path.name: path.read_bytes() for path in sorted(output_dir.iterdir())
     }
-    (output_dir / "stale-unexpected-file.txt").write_text(
-        "must be removed by transactional publication\n",
-        encoding="utf-8",
-    )
+    write_legacy_publication(output_dir)
     freeze_rankings(
         score_path=score_path,
         gene_categories_path=categories_path,
@@ -758,13 +837,13 @@ def test_freezer_writes_deterministic_reviewer_tables(tmp_path: Path) -> None:
     )
     assert provenance["inputs"]["private_lineage_score"] is None
     assert provenance["inputs"]["statistical_module"]["sha256"] == (
-        hashlib.sha256(STATISTICS_MODULE.read_bytes()).hexdigest()
+        ranking_module.MODULE_SOURCE_SHA256
     )
     assert provenance["inputs"]["panel_category_audit_module"]["sha256"] == (
-        hashlib.sha256(PANEL_AUDIT_MODULE.read_bytes()).hexdigest()
+        release_module.MODULE_SOURCE_SHA256
     )
     assert provenance["inputs"]["freezer_module"]["sha256"] == (
-        hashlib.sha256(FREEZER_MODULE.read_bytes()).hexdigest()
+        freeze_module.MODULE_SOURCE_SHA256
     )
     assert provenance["inputs"]["narrative_notebook"]["sha256"] == (
         hashlib.sha256(PL_NOTEBOOK.read_bytes()).hexdigest()
@@ -928,6 +1007,467 @@ def test_freezer_rejects_noncanonical_analysis_configuration_before_io(
         )
 
 
+@pytest.mark.parametrize(
+    "destination_kind",
+    ["wrong_name", "repo", "root", "filesystem_root_child"],
+)
+def test_freezer_rejects_unsafe_destination_before_input_io_or_deletion(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    destination_kind: str,
+) -> None:
+    output_dir = {
+        "wrong_name": tmp_path / "not-frozen",
+        "repo": freeze_module.ROOT,
+        "root": Path("/"),
+        "filesystem_root_child": Path("/frozen"),
+    }[destination_kind]
+
+    def unexpected_read(path: Path) -> bytes:
+        raise AssertionError("Unsafe destination reached input I/O")
+
+    monkeypatch.setattr(Path, "read_bytes", unexpected_read)
+    forbid_analysis(monkeypatch)
+
+    with pytest.raises(ValueError) as error:
+        freeze_with_missing_inputs(output_dir)
+
+    assert str(tmp_path) not in str(error.value)
+
+
+def test_freezer_rejects_destination_ancestor_of_repository_before_io(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_dir = tmp_path / "frozen"
+    protected_root = output_dir / "repository"
+    protected_root.mkdir(parents=True)
+    sentinel = protected_root / "sentinel.bin"
+    sentinel.write_bytes(b"repository bytes\x00\xff")
+    before = directory_bytes(output_dir)
+    monkeypatch.setattr(freeze_module, "ROOT", protected_root)
+
+    def unexpected_read(path: Path) -> bytes:
+        raise AssertionError("Protected ancestor reached input I/O")
+
+    monkeypatch.setattr(Path, "read_bytes", unexpected_read)
+    forbid_analysis(monkeypatch)
+
+    with pytest.raises(ValueError):
+        freeze_with_missing_inputs(output_dir)
+
+    monkeypatch.undo()
+    assert sentinel.read_bytes() == b"repository bytes\x00\xff"
+    assert directory_bytes(output_dir) == before
+
+
+@pytest.mark.parametrize("symlink_kind", ["leaf", "component"])
+def test_freezer_rejects_symlinked_destination_before_input_io(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    symlink_kind: str,
+) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    sentinel = target / "sentinel.bin"
+    sentinel.write_bytes(b"target bytes\x00\xff")
+    if symlink_kind == "leaf":
+        output_dir = tmp_path / "frozen"
+        output_dir.symlink_to(target, target_is_directory=True)
+        symlink = output_dir
+    else:
+        symlink = tmp_path / "linked-parent"
+        symlink.symlink_to(target, target_is_directory=True)
+        output_dir = symlink / "frozen"
+
+    def unexpected_read(path: Path) -> bytes:
+        raise AssertionError("Symlinked destination reached input I/O")
+
+    monkeypatch.setattr(Path, "read_bytes", unexpected_read)
+    forbid_analysis(monkeypatch)
+
+    with pytest.raises(ValueError):
+        freeze_with_missing_inputs(output_dir)
+
+    monkeypatch.undo()
+    assert symlink.is_symlink()
+    assert sentinel.read_bytes() == b"target bytes\x00\xff"
+    if symlink_kind == "component":
+        assert not (target / "frozen").exists()
+
+
+def test_freezer_rejects_unknown_repo_like_existing_output_byte_identically(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_dir = tmp_path / "frozen"
+    git_dir = output_dir / ".git"
+    git_dir.mkdir(parents=True)
+    (git_dir / "config").write_bytes(b"[core]\nrepositoryformatversion = 0\n")
+    (output_dir / "sentinel.bin").write_bytes(b"unknown bytes\x00\xff")
+    before = directory_bytes(output_dir)
+    missing = output_dir.parent / "missing-private-input"
+    original_read_bytes = Path.read_bytes
+
+    def reject_input_read(path: Path) -> bytes:
+        if path == missing:
+            raise AssertionError("Unknown output reached input I/O")
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", reject_input_read)
+    forbid_analysis(monkeypatch)
+
+    with pytest.raises(ValueError) as error:
+        freeze_with_missing_inputs(output_dir)
+
+    assert str(tmp_path) not in str(error.value)
+    assert directory_bytes(output_dir) == before
+    assert git_dir.is_dir()
+
+
+def test_freezer_rejects_schema2_output_with_unknown_content_byte_identically(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_dir = tmp_path / "frozen"
+    freeze_fixture(tmp_path, output_dir)
+    (output_dir / "unexpected.bin").write_bytes(b"do not remove\x00\xff")
+    before = directory_bytes(output_dir)
+    missing = output_dir.parent / "missing-private-input"
+    original_read_bytes = Path.read_bytes
+
+    def reject_input_read(path: Path) -> bytes:
+        if path == missing:
+            raise AssertionError("Unknown output reached input I/O")
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", reject_input_read)
+    forbid_analysis(monkeypatch)
+
+    with pytest.raises(ValueError):
+        freeze_with_missing_inputs(output_dir)
+
+    assert directory_bytes(output_dir) == before
+
+
+def test_freezer_accepts_an_empty_existing_output_directory(tmp_path: Path) -> None:
+    output_dir = tmp_path / "frozen"
+    output_dir.mkdir()
+
+    freeze_fixture_once(tmp_path, output_dir)
+
+    assert {path.name for path in output_dir.iterdir()} == EXPECTED_OUTPUTS
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["header", "provenance", "extra", "nested", "symlink"],
+)
+def test_freezer_rejects_fake_schema1_publications_byte_identically(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+) -> None:
+    output_dir = tmp_path / "frozen"
+    write_legacy_publication(output_dir)
+    if mutation == "header":
+        (output_dir / "pl_scores.tsv").write_bytes(b"not a historical header\n")
+    elif mutation == "provenance":
+        (output_dir / "provenance.json").write_text(
+            json.dumps({"schema_version": 1}) + "\n",
+            encoding="utf-8",
+        )
+    elif mutation == "extra":
+        (output_dir / "unexpected.bin").write_bytes(b"unknown\x00bytes")
+    elif mutation == "nested":
+        nested = output_dir / "nested"
+        nested.mkdir()
+        (nested / "sentinel.bin").write_bytes(b"nested\x00bytes")
+    else:
+        target = tmp_path / "outside.tsv"
+        target.write_bytes(b"outside\x00bytes")
+        (output_dir / "pl_scores.tsv").unlink()
+        (output_dir / "pl_scores.tsv").symlink_to(target)
+    before = directory_bytes(output_dir)
+    missing = output_dir.parent / "missing-private-input"
+    original_read_bytes = Path.read_bytes
+
+    def reject_input_read(path: Path) -> bytes:
+        if path == missing:
+            raise AssertionError("Fake legacy output reached input I/O")
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", reject_input_read)
+    forbid_analysis(monkeypatch)
+
+    with pytest.raises(ValueError):
+        freeze_with_missing_inputs(output_dir)
+
+    assert directory_bytes(output_dir) == before
+
+
+def test_freezer_rejects_schema2_hash_drift_byte_identically(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_dir = tmp_path / "frozen"
+    freeze_fixture_once(tmp_path, output_dir)
+    table_path = output_dir / "pl_scores.tsv"
+    table_path.write_bytes(table_path.read_bytes() + b"tampered\n")
+    before = directory_bytes(output_dir)
+    missing = output_dir.parent / "missing-private-input"
+    original_read_bytes = Path.read_bytes
+
+    def reject_input_read(path: Path) -> bytes:
+        if path == missing:
+            raise AssertionError("Hash-drifted output reached input I/O")
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", reject_input_read)
+    forbid_analysis(monkeypatch)
+
+    with pytest.raises(ValueError):
+        freeze_with_missing_inputs(output_dir)
+
+    assert directory_bytes(output_dir) == before
+
+
+def test_freezer_rejects_non_directory_output_before_input_io(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_dir = tmp_path / "frozen"
+    output_dir.write_bytes(b"foreign\x00bytes")
+    before = output_dir.read_bytes()
+
+    def unexpected_read(path: Path) -> bytes:
+        raise AssertionError("Non-directory output reached input I/O")
+
+    monkeypatch.setattr(Path, "read_bytes", unexpected_read)
+    forbid_analysis(monkeypatch)
+
+    with pytest.raises(ValueError):
+        freeze_with_missing_inputs(output_dir)
+
+    assert output_dir.open("rb").read() == before
+
+
+@pytest.mark.parametrize("path_kind", ["wrong_parent", "wrong_prefix"])
+def test_publisher_rejects_unscoped_staging_paths_before_swap(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    path_kind: str,
+) -> None:
+    output_dir = tmp_path / "frozen"
+    output_dir.mkdir()
+    if path_kind == "wrong_parent":
+        parent = tmp_path / "other"
+        parent.mkdir()
+        staging_dir = parent / f".frozen.staging-{'a' * 32}"
+    else:
+        staging_dir = tmp_path / f".not-frozen.staging-{'a' * 32}"
+    staging_dir.mkdir()
+
+    def unexpected_replace(source: Path, destination: Path) -> None:
+        raise AssertionError("Unscoped transaction path reached os.replace")
+
+    monkeypatch.setattr(freeze_module.os, "replace", unexpected_replace)
+
+    with pytest.raises(ValueError):
+        freeze_module._publish_staged_directory(staging_dir, output_dir)
+
+    assert output_dir.is_dir()
+    assert staging_dir.is_dir()
+
+
+def test_freezer_restores_one_valid_abandoned_backup_before_input_io(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "frozen"
+    backup_dir = backup_path(output_dir)
+    write_legacy_publication(backup_dir)
+    previous = directory_bytes(backup_dir)
+
+    with pytest.raises(FileNotFoundError):
+        freeze_with_missing_inputs(output_dir)
+
+    assert directory_bytes(output_dir) == previous
+    assert not backup_dir.exists()
+
+
+def test_freezer_cleans_one_valid_abandoned_backup_after_completed_swap(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "frozen"
+    backup_dir = backup_path(output_dir)
+    write_legacy_publication(output_dir)
+    write_legacy_publication(backup_dir)
+    current = directory_bytes(output_dir)
+
+    with pytest.raises(FileNotFoundError):
+        freeze_with_missing_inputs(output_dir)
+
+    assert directory_bytes(output_dir) == current
+    assert not backup_dir.exists()
+
+
+@pytest.mark.parametrize("backup_state", ["unknown", "multiple", "symlink"])
+def test_freezer_rejects_ambiguous_abandoned_backups_before_input_io(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    backup_state: str,
+) -> None:
+    output_dir = tmp_path / "frozen"
+    write_legacy_publication(output_dir)
+    first_backup = backup_path(output_dir)
+    if backup_state == "unknown":
+        first_backup.mkdir()
+        (first_backup / "sentinel.bin").write_bytes(b"unknown\x00backup")
+    elif backup_state == "multiple":
+        write_legacy_publication(first_backup)
+        write_legacy_publication(backup_path(output_dir, "b" * 32))
+    else:
+        target = tmp_path / "backup-target"
+        write_legacy_publication(target)
+        first_backup.symlink_to(target, target_is_directory=True)
+    before_output = directory_bytes(output_dir)
+    before_backups = {
+        path.name: directory_bytes(path)
+        for path in tmp_path.glob(".frozen.backup-*")
+    }
+    missing = output_dir.parent / "missing-private-input"
+    original_read_bytes = Path.read_bytes
+
+    def reject_input_read(path: Path) -> bytes:
+        if path == missing:
+            raise AssertionError("Ambiguous backup reached input I/O")
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", reject_input_read)
+    forbid_analysis(monkeypatch)
+
+    with pytest.raises(ValueError):
+        freeze_with_missing_inputs(output_dir)
+
+    assert directory_bytes(output_dir) == before_output
+    assert {
+        path.name: directory_bytes(path)
+        for path in tmp_path.glob(".frozen.backup-*")
+    } == before_backups
+
+
+def test_successful_install_survives_backup_cleanup_failure_and_recovers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_dir = tmp_path / "frozen"
+    write_legacy_publication(output_dir)
+    original_cleanup = freeze_module._cleanup_transaction_directory
+    failed = False
+
+    def fail_backup_cleanup(
+        path: Path,
+        expected_output: Path,
+        *,
+        kind: str,
+        require_publication: bool,
+        expected_identity: tuple[int, int] | None = None,
+    ) -> None:
+        nonlocal failed
+        if kind == "backup" and not failed:
+            failed = True
+            raise OSError("injected backup cleanup failure")
+        original_cleanup(
+            path,
+            expected_output,
+            kind=kind,
+            require_publication=require_publication,
+            expected_identity=expected_identity,
+        )
+
+    monkeypatch.setattr(
+        freeze_module,
+        "_cleanup_transaction_directory",
+        fail_backup_cleanup,
+        raising=False,
+    )
+
+    with pytest.warns(RuntimeWarning, match="retained a verified backup"):
+        paths = freeze_fixture_once(tmp_path, output_dir)
+
+    assert paths
+    installed = directory_bytes(output_dir)
+    backups = list(tmp_path.glob(".frozen.backup-*"))
+    assert len(backups) == 1
+    assert directory_bytes(backups[0]) != installed
+
+    monkeypatch.setattr(
+        freeze_module,
+        "_cleanup_transaction_directory",
+        original_cleanup,
+    )
+    with pytest.raises(FileNotFoundError):
+        freeze_with_missing_inputs(output_dir)
+
+    assert directory_bytes(output_dir) == installed
+    assert not list(tmp_path.glob(".frozen.backup-*"))
+
+
+def test_module_provenance_uses_import_time_hashes_and_notebook_freeze_snapshot(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    score_path, categories_path, metadata_path, category_map_path = (
+        write_crossed_fixture(tmp_path)
+    )
+    original_read_bytes = Path.read_bytes
+    module_paths = {
+        STATISTICS_MODULE.resolve(),
+        PANEL_AUDIT_MODULE.resolve(),
+        FREEZER_MODULE.resolve(),
+    }
+    notebook_snapshot = b"simulated notebook snapshot after module import\n"
+
+    def simulate_source_drift(path: Path) -> bytes:
+        resolved = path.resolve()
+        if resolved in module_paths:
+            raise AssertionError("Executable module was reread during freeze")
+        if resolved == PL_NOTEBOOK.resolve():
+            return notebook_snapshot
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", simulate_source_drift)
+    output_dir = tmp_path / "frozen"
+    freeze_rankings(
+        score_path=score_path,
+        gene_categories_path=categories_path,
+        expert_metadata_path=metadata_path,
+        private_lineage_score_path=None,
+        panel_category_map_path=category_map_path,
+        output_dir=output_dir,
+        model_columns=MODELS,
+        bootstrap_config=BootstrapConfig(
+            successful_replicates=1,
+            seed=20260714,
+            max_failed_fits=2,
+        ),
+    )
+
+    provenance = json.loads((output_dir / "provenance.json").read_text())
+    assert provenance["inputs"]["statistical_module"]["sha256"] == (
+        ranking_module.MODULE_SOURCE_SHA256
+    )
+    assert provenance["inputs"]["panel_category_audit_module"]["sha256"] == (
+        release_module.MODULE_SOURCE_SHA256
+    )
+    assert provenance["inputs"]["freezer_module"]["sha256"] == (
+        freeze_module.MODULE_SOURCE_SHA256
+    )
+    assert provenance["inputs"]["narrative_notebook"]["sha256"] == (
+        hashlib.sha256(notebook_snapshot).hexdigest()
+    )
+
+
 @pytest.mark.parametrize("failure_point", ["write", "validation", "swap"])
 def test_freezer_transaction_rolls_back_existing_output_on_failure(
     tmp_path: Path,
@@ -938,10 +1478,7 @@ def test_freezer_transaction_rolls_back_existing_output_on_failure(
         write_crossed_fixture(tmp_path)
     )
     output_dir = tmp_path / "frozen"
-    output_dir.mkdir()
-    (output_dir / "rank_distribution.tsv").write_bytes(b"previous ranks\n")
-    (output_dir / "provenance.json").write_bytes(b"previous provenance\n")
-    (output_dir / "keep.bin").write_bytes(b"previous extra bytes\x00\x01")
+    write_legacy_publication(output_dir)
     previous = directory_bytes(output_dir)
 
     def injected_failure(*args: object, **kwargs: object) -> object:
@@ -1004,6 +1541,214 @@ def test_freezer_transaction_rolls_back_existing_output_on_failure(
     assert directory_bytes(output_dir) == previous
     assert not list(tmp_path.glob(".frozen.staging-*"))
     assert not list(tmp_path.glob(".frozen.backup-*"))
+
+
+def test_freezer_rolls_back_when_post_install_validation_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    score_path, categories_path, metadata_path, category_map_path = (
+        write_crossed_fixture(tmp_path)
+    )
+    output_dir = tmp_path / "frozen"
+    write_legacy_publication(output_dir)
+    previous = directory_bytes(output_dir)
+    original_validate = freeze_module._validate_schema2_publication
+
+    def fail_live_output(directory: Path) -> None:
+        if directory == output_dir:
+            raise RuntimeError("injected post-install validation failure")
+        original_validate(directory)
+
+    monkeypatch.setattr(
+        freeze_module,
+        "_validate_schema2_publication",
+        fail_live_output,
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="injected post-install validation failure",
+    ):
+        freeze_rankings(
+            score_path=score_path,
+            gene_categories_path=categories_path,
+            expert_metadata_path=metadata_path,
+            private_lineage_score_path=None,
+            panel_category_map_path=category_map_path,
+            output_dir=output_dir,
+            model_columns=MODELS,
+            bootstrap_config=BootstrapConfig(
+                successful_replicates=1,
+                seed=20260714,
+                max_failed_fits=2,
+            ),
+        )
+
+    assert directory_bytes(output_dir) == previous
+    assert not list(tmp_path.glob(".frozen.staging-*"))
+    assert not list(tmp_path.glob(".frozen.backup-*"))
+
+
+@pytest.mark.parametrize("mutation", ["removed", "replaced", "modified"])
+def test_freezer_rechecks_existing_output_state_immediately_before_swap(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+) -> None:
+    score_path, categories_path, metadata_path, category_map_path = (
+        write_crossed_fixture(tmp_path)
+    )
+    output_dir = tmp_path / "frozen"
+    write_legacy_publication(output_dir)
+    previous = directory_bytes(output_dir)
+    saved = tmp_path / "saved-generation"
+    foreign_bytes = b"foreign generation\x00bytes"
+    original_publish = freeze_module._publish_staged_directory
+    observed: dict[str, bytes] | None = None
+
+    def mutate_before_swap(
+        staging_dir: Path,
+        destination: Path,
+        **kwargs: object,
+    ) -> None:
+        nonlocal observed
+        if mutation in {"removed", "replaced"}:
+            freeze_module.os.replace(destination, saved)
+        if mutation == "replaced":
+            destination.mkdir()
+            (destination / "foreign.bin").write_bytes(foreign_bytes)
+        elif mutation == "modified":
+            (destination / "foreign.bin").write_bytes(foreign_bytes)
+        if destination.exists():
+            observed = directory_bytes(destination)
+        original_publish(staging_dir, destination, **kwargs)
+
+    monkeypatch.setattr(
+        freeze_module,
+        "_publish_staged_directory",
+        mutate_before_swap,
+    )
+
+    with pytest.raises(ValueError):
+        freeze_rankings(
+            score_path=score_path,
+            gene_categories_path=categories_path,
+            expert_metadata_path=metadata_path,
+            private_lineage_score_path=None,
+            panel_category_map_path=category_map_path,
+            output_dir=output_dir,
+            model_columns=MODELS,
+            bootstrap_config=BootstrapConfig(
+                successful_replicates=1,
+                seed=20260714,
+                max_failed_fits=2,
+            ),
+        )
+
+    if mutation == "removed":
+        assert not output_dir.exists()
+    else:
+        assert observed is not None
+        assert directory_bytes(output_dir) == observed
+    if saved.exists():
+        assert directory_bytes(saved) == previous
+    assert not list(tmp_path.glob(".frozen.backup-*"))
+    assert not list(tmp_path.glob(".frozen.staging-*"))
+
+
+def test_failed_swap_and_failed_rollback_leave_recoverable_backup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    score_path, categories_path, metadata_path, category_map_path = (
+        write_crossed_fixture(tmp_path)
+    )
+    output_dir = tmp_path / "frozen"
+    write_legacy_publication(output_dir)
+    previous = directory_bytes(output_dir)
+    original_replace = freeze_module.os.replace
+
+    def fail_swap_and_rollback(source: Path, destination: Path) -> None:
+        source_path = Path(source)
+        destination_path = Path(destination)
+        if destination_path == output_dir and (
+            source_path.name.startswith(".frozen.staging-")
+            or source_path.name.startswith(".frozen.backup-")
+        ):
+            raise OSError("injected transactional rename failure")
+        original_replace(source, destination)
+
+    monkeypatch.setattr(
+        freeze_module.os,
+        "replace",
+        fail_swap_and_rollback,
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="publication and rollback both failed",
+    ):
+        freeze_rankings(
+            score_path=score_path,
+            gene_categories_path=categories_path,
+            expert_metadata_path=metadata_path,
+            private_lineage_score_path=None,
+            panel_category_map_path=category_map_path,
+            output_dir=output_dir,
+            model_columns=MODELS,
+            bootstrap_config=BootstrapConfig(
+                successful_replicates=1,
+                seed=20260714,
+                max_failed_fits=2,
+            ),
+        )
+
+    assert not output_dir.exists()
+    backups = list(tmp_path.glob(".frozen.backup-*"))
+    assert len(backups) == 1
+    assert directory_bytes(backups[0]) == previous
+
+    monkeypatch.setattr(freeze_module.os, "replace", original_replace)
+    with pytest.raises(FileNotFoundError):
+        freeze_with_missing_inputs(output_dir)
+
+    assert directory_bytes(output_dir) == previous
+    assert not list(tmp_path.glob(".frozen.backup-*"))
+
+
+@pytest.mark.parametrize("kind", ["staging", "backup"])
+def test_transaction_cleanup_rejects_name_replacement_with_symlink(
+    tmp_path: Path,
+    kind: str,
+) -> None:
+    output_dir = tmp_path / "frozen"
+    transaction = tmp_path / f".frozen.{kind}-{'c' * 32}"
+    if kind == "backup":
+        write_legacy_publication(transaction)
+    else:
+        transaction.mkdir()
+        (transaction / "partial.tsv").write_bytes(b"partial\n")
+    identity = freeze_module._path_identity(transaction)
+    displaced = tmp_path / f"displaced-{kind}"
+    freeze_module.os.replace(transaction, displaced)
+    target = tmp_path / f"target-{kind}"
+    target.mkdir()
+    sentinel = target / "sentinel.bin"
+    sentinel.write_bytes(b"target\x00bytes")
+    transaction.symlink_to(target, target_is_directory=True)
+
+    with pytest.raises(ValueError):
+        freeze_module._cleanup_transaction_directory(
+            transaction,
+            output_dir,
+            kind=kind,
+            require_publication=kind == "backup",
+            expected_identity=identity,
+        )
+
+    assert transaction.is_symlink()
+    assert sentinel.read_bytes() == b"target\x00bytes"
 
 
 def test_freezer_hashes_and_parses_the_same_single_read_snapshot(

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import ast
 import errno
+import hashlib
 import os
 from pathlib import Path
 import re
@@ -14,6 +15,7 @@ import pandas as pd
 
 
 ROOT = Path(__file__).resolve().parents[1]
+MODULE_SOURCE_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 MODEL_COLUMNS = ("Gemini", "Grok", "OpenAI", "Phytomni", "Claude")
 PUBLIC_COLUMNS = (
     "AnonymousExpertID",

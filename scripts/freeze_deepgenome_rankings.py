@@ -4,9 +4,11 @@ import argparse
 import hashlib
 import json
 import os
-import shutil
-import tempfile
+import re
+import stat
 import uuid
+import warnings
+from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Iterable
@@ -21,6 +23,7 @@ from scripts.deepgenome_ranking_statistics import (
     FLEISS_BOOTSTRAP_COLUMNS,
     GENE_ORDINAL_COLUMNS,
     MODEL_COLUMNS,
+    MODULE_SOURCE_SHA256 as STATISTICS_MODULE_SOURCE_SHA256,
     ORDINAL_BOOTSTRAP_COLUMNS,
     PANEL_SUMMARY_COLUMNS,
     PL_INTERVAL_ANALYSES,
@@ -43,6 +46,7 @@ from scripts.deepgenome_ranking_statistics import (
     summarize_expert_panel,
 )
 from scripts.release_deepgenome_rankings import (
+    MODULE_SOURCE_SHA256 as PANEL_AUDIT_MODULE_SOURCE_SHA256,
     PUBLIC_COLUMNS,
     RELEASE_ID_PATTERN,
 )
@@ -53,6 +57,7 @@ PL_NOTEBOOK = ROOT / "DeepGenomeAgent Evaluation" / "score_plackett_luce.ipynb"
 STATISTICS_MODULE = Path(__file__).with_name("deepgenome_ranking_statistics.py")
 PANEL_AUDIT_MODULE = Path(__file__).with_name("release_deepgenome_rankings.py")
 FREEZER_MODULE = Path(__file__)
+MODULE_SOURCE_SHA256 = hashlib.sha256(FREEZER_MODULE.read_bytes()).hexdigest()
 DEFAULT_MODEL_COLUMNS = MODEL_COLUMNS
 STUDY_STATUSES = AGREEMENT_STUDY_STATUSES
 SPECIES_ORDER = AGREEMENT_SPECIES
@@ -146,6 +151,29 @@ OUTPUT_SORT_KEYS = {
     ),
     "assignment_summary": ("Scope",),
 }
+LEGACY_OUTPUT_HEADERS = {
+    "rank_distribution.tsv": (
+        "Scope\tStudyStatus\tSpecies\tModel\tRank\tCount\tFraction\tN\n"
+    ).encode(),
+    "pl_scores.tsv": (
+        "Scope\tStudyStatus\tSpecies\tModel\tElo\tElo_L\tElo_U\tN\n"
+    ).encode(),
+    "pl_pairwise.tsv": (
+        "Scope\tStudyStatus\tSpecies\tRowModel\tColumnModel\tProbability\tN\n"
+    ).encode(),
+}
+LEGACY_OUTPUT_FILENAMES = {*LEGACY_OUTPUT_HEADERS, "provenance.json"}
+TRANSACTION_SUFFIX_PATTERN = r"[0-9a-f]{32}"
+DIRECTORY_OPEN_FLAGS = (
+    os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
+)
+
+
+@dataclass(frozen=True)
+class PublicationState:
+    device: int
+    inode: int
+    fingerprint: str
 
 
 def sha256_bytes(payload: bytes) -> str:
@@ -545,65 +573,446 @@ def public_pl_diagnostics(diagnostics: dict[str, object]) -> dict[str, object]:
     }
 
 
-def validate_staged_publication(staging_dir: Path) -> None:
-    expected_files = {*OUTPUT_FILENAMES.values(), "provenance.json"}
-    entries = list(staging_dir.iterdir())
-    if (
-        {entry.name for entry in entries} != expected_files
-        or not all(entry.is_file() for entry in entries)
-    ):
-        raise RuntimeError(
-            "The staged frozen publication must contain exactly 13 files."
-        )
+def _lexical_absolute(path: Path) -> Path:
+    return Path(os.path.abspath(os.fspath(path.expanduser())))
 
-    provenance_bytes = (staging_dir / "provenance.json").read_bytes()
+
+def _is_same_or_ancestor(candidate: Path, descendant: Path) -> bool:
     try:
-        provenance = json.loads(provenance_bytes.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise RuntimeError("The staged provenance is invalid.") from error
+        descendant.relative_to(candidate)
+    except ValueError:
+        return False
+    return True
+
+
+def _reject_symlink_components(path: Path) -> None:
+    current = Path(path.anchor)
+    for component in path.parts[1:]:
+        current /= component
+        try:
+            component_stat = current.lstat()
+        except FileNotFoundError:
+            break
+        if stat.S_ISLNK(component_stat.st_mode):
+            raise ValueError("Frozen output paths cannot contain symbolic links.")
+
+
+def _validate_output_destination(path: Path) -> Path:
+    lexical = _lexical_absolute(path)
+    filesystem_root = Path(lexical.anchor)
+    repo_root = _lexical_absolute(ROOT)
+    if (
+        lexical.name != "frozen"
+        or lexical == filesystem_root
+        or lexical.parent == filesystem_root
+        or _is_same_or_ancestor(lexical, repo_root)
+    ):
+        raise ValueError("The frozen output destination is unsafe.")
+    _reject_symlink_components(lexical)
+    try:
+        parent_stat = lexical.parent.lstat()
+    except FileNotFoundError as error:
+        raise ValueError("The frozen output parent must already exist.") from error
+    if not stat.S_ISDIR(parent_stat.st_mode):
+        raise ValueError("The frozen output parent must be a directory.")
+    return lexical
+
+
+def _flat_regular_entries(directory: Path) -> list[Path]:
+    try:
+        directory_stat = directory.lstat()
+    except FileNotFoundError as error:
+        raise ValueError("The frozen publication directory is missing.") from error
+    if not stat.S_ISDIR(directory_stat.st_mode):
+        raise ValueError("The frozen publication must be a real directory.")
+    entries = list(directory.iterdir())
+    for entry in entries:
+        try:
+            entry_stat = entry.lstat()
+        except FileNotFoundError as error:
+            raise ValueError(
+                "The frozen publication changed during validation."
+            ) from error
+        if not stat.S_ISREG(entry_stat.st_mode):
+            raise ValueError("Frozen publications must contain regular files only.")
+    return entries
+
+
+def _load_publication_provenance(directory: Path) -> dict[str, object]:
+    try:
+        payload = (directory / "provenance.json").read_bytes()
+        provenance = json.loads(payload.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError("The frozen publication provenance is invalid.") from error
+    if not isinstance(provenance, dict):
+        raise ValueError("The frozen publication provenance is invalid.")
+    return provenance
+
+
+def _require_canonical_publication_identity(
+    provenance: dict[str, object],
+    schema_version: int,
+) -> None:
+    if (
+        type(provenance.get("schema_version")) is not int
+        or provenance.get("schema_version") != schema_version
+        or provenance.get("model_columns") != list(MODEL_COLUMNS)
+        or provenance.get("reference_model") != REFERENCE_MODEL
+    ):
+        raise ValueError("The frozen publication provenance is not canonical.")
+
+
+def _first_line(path: Path) -> bytes:
+    try:
+        with path.open("rb") as handle:
+            return handle.readline()
+    except OSError as error:
+        raise ValueError("A frozen publication table cannot be read.") from error
+
+
+def _validate_legacy_publication(directory: Path) -> None:
+    provenance = _load_publication_provenance(directory)
+    _require_canonical_publication_identity(provenance, 1)
+    for filename, expected_header in LEGACY_OUTPUT_HEADERS.items():
+        if _first_line(directory / filename) != expected_header:
+            raise ValueError("A legacy frozen table has an invalid schema.")
+
+
+def _validate_schema2_publication(directory: Path) -> None:
+    provenance = _load_publication_provenance(directory)
+    _require_canonical_publication_identity(provenance, 2)
     recorded_outputs = provenance.get("outputs")
     if not isinstance(recorded_outputs, dict) or set(recorded_outputs) != set(
         OUTPUT_FILENAMES.values()
     ):
-        raise RuntimeError("The staged provenance output registry is incomplete.")
-    for filename, recorded_digest in recorded_outputs.items():
-        payload = (staging_dir / filename).read_bytes()
-        if not payload or sha256_bytes(payload) != recorded_digest:
-            raise RuntimeError("A staged output hash is inconsistent.")
+        raise ValueError("The frozen publication output registry is incomplete.")
+    for key, filename in OUTPUT_FILENAMES.items():
+        expected_header = ("\t".join(OUTPUT_SCHEMAS[key]) + "\n").encode()
+        path = directory / filename
+        if _first_line(path) != expected_header:
+            raise ValueError("A frozen publication table has an invalid schema.")
+        payload = path.read_bytes()
+        recorded_digest = recorded_outputs.get(filename)
+        if (
+            not payload
+            or not isinstance(recorded_digest, str)
+            or sha256_bytes(payload) != recorded_digest
+        ):
+            raise ValueError("A frozen publication output hash is inconsistent.")
 
 
-def _remove_path(path: Path) -> None:
-    if path.is_symlink() or path.is_file():
-        path.unlink()
-    elif path.exists():
-        shutil.rmtree(path)
+def _validate_replaceable_publication(directory: Path) -> str:
+    entries = _flat_regular_entries(directory)
+    names = {entry.name for entry in entries}
+    if not names:
+        return "empty"
+    if names == LEGACY_OUTPUT_FILENAMES:
+        _validate_legacy_publication(directory)
+        return "schema1"
+    expected_schema2 = {*OUTPUT_FILENAMES.values(), "provenance.json"}
+    if names == expected_schema2:
+        _validate_schema2_publication(directory)
+        return "schema2"
+    raise ValueError("The existing frozen output is not a recognized publication.")
 
 
-def _publish_staged_directory(staging_dir: Path, output_dir: Path) -> None:
-    if output_dir.exists() and (
-        not output_dir.is_dir() or output_dir.is_symlink()
+def _publication_fingerprint(directory: Path) -> str:
+    digest = hashlib.sha256()
+    for entry in sorted(_flat_regular_entries(directory), key=lambda path: path.name):
+        name = entry.name.encode("utf-8")
+        payload = entry.read_bytes()
+        digest.update(len(name).to_bytes(8, "big"))
+        digest.update(name)
+        digest.update(len(payload).to_bytes(8, "big"))
+        digest.update(payload)
+    return digest.hexdigest()
+
+
+def _capture_publication_state(directory: Path) -> PublicationState:
+    before = directory.lstat()
+    _validate_replaceable_publication(directory)
+    fingerprint = _publication_fingerprint(directory)
+    after = directory.lstat()
+    if (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino):
+        raise ValueError("The frozen publication changed during validation.")
+    return PublicationState(after.st_dev, after.st_ino, fingerprint)
+
+
+def validate_staged_publication(staging_dir: Path) -> None:
+    try:
+        if _validate_replaceable_publication(staging_dir) != "schema2":
+            raise ValueError("The staged publication must use schema 2.")
+    except ValueError as error:
+        raise RuntimeError("The staged frozen publication is invalid.") from error
+
+
+def _transaction_pattern(output_dir: Path, kind: str) -> re.Pattern[str]:
+    return re.compile(
+        rf"\.{re.escape(output_dir.name)}\.{kind}-{TRANSACTION_SUFFIX_PATTERN}\Z"
+    )
+
+
+def _validate_transaction_path(
+    path: Path,
+    output_dir: Path,
+    *,
+    kind: str,
+) -> Path:
+    lexical = _lexical_absolute(path)
+    expected_output = _lexical_absolute(output_dir)
+    if (
+        kind not in {"staging", "backup"}
+        or lexical.parent != expected_output.parent
+        or not _transaction_pattern(expected_output, kind).fullmatch(lexical.name)
     ):
-        raise ValueError("The frozen output path must be a directory.")
+        raise ValueError("The frozen transaction path is outside its scope.")
+    return lexical
+
+
+def _path_identity(path: Path) -> tuple[int, int]:
+    try:
+        path_stat = path.lstat()
+    except FileNotFoundError as error:
+        raise ValueError("The frozen transaction directory is missing.") from error
+    if not stat.S_ISDIR(path_stat.st_mode):
+        raise ValueError("The frozen transaction path must be a real directory.")
+    return path_stat.st_dev, path_stat.st_ino
+
+
+def _cleanup_transaction_directory(
+    path: Path,
+    expected_output: Path,
+    *,
+    kind: str,
+    require_publication: bool,
+    expected_identity: tuple[int, int] | None = None,
+) -> None:
+    transaction_path = _validate_transaction_path(
+        path,
+        expected_output,
+        kind=kind,
+    )
+    try:
+        current_identity = _path_identity(transaction_path)
+    except ValueError:
+        if not transaction_path.exists() and not transaction_path.is_symlink():
+            return
+        raise
+    if expected_identity is not None and current_identity != expected_identity:
+        raise ValueError("The frozen transaction directory changed identity.")
+    if require_publication:
+        _validate_replaceable_publication(transaction_path)
+
+    directory_fd = os.open(transaction_path, DIRECTORY_OPEN_FLAGS)
+    parent_fd = os.open(transaction_path.parent, DIRECTORY_OPEN_FLAGS)
+    try:
+        opened_stat = os.fstat(directory_fd)
+        if (opened_stat.st_dev, opened_stat.st_ino) != current_identity:
+            raise ValueError("The frozen transaction directory changed identity.")
+        names = os.listdir(directory_fd)
+        for name in names:
+            entry_stat = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+            if not stat.S_ISREG(entry_stat.st_mode):
+                raise ValueError(
+                    "Frozen transaction cleanup accepts regular files only."
+                )
+        for name in names:
+            os.unlink(name, dir_fd=directory_fd)
+        final_stat = transaction_path.lstat()
+        if (final_stat.st_dev, final_stat.st_ino) != current_identity:
+            raise ValueError("The frozen transaction directory changed identity.")
+        os.rmdir(transaction_path.name, dir_fd=parent_fd)
+    finally:
+        os.close(parent_fd)
+        os.close(directory_fd)
+
+
+def _backup_candidates(output_dir: Path) -> list[Path]:
+    prefix = f".{output_dir.name}.backup-"
+    pattern = _transaction_pattern(output_dir, "backup")
+    candidates: list[Path] = []
+    for entry in output_dir.parent.iterdir():
+        if not entry.name.startswith(prefix):
+            continue
+        if not pattern.fullmatch(entry.name):
+            raise ValueError("An invalid frozen backup transaction exists.")
+        candidates.append(entry)
+    if len(candidates) > 1:
+        raise ValueError("Multiple frozen backup transactions exist.")
+    return candidates
+
+
+def _recover_abandoned_backup(output_dir: Path) -> None:
+    candidates = _backup_candidates(output_dir)
+    if not candidates:
+        return
+    backup_dir = _validate_transaction_path(
+        candidates[0],
+        output_dir,
+        kind="backup",
+    )
+    backup_state = _capture_publication_state(backup_dir)
+    try:
+        output_dir.lstat()
+    except FileNotFoundError:
+        os.replace(backup_dir, output_dir)
+        restored_state = _capture_publication_state(output_dir)
+        if restored_state.fingerprint != backup_state.fingerprint:
+            raise RuntimeError("Frozen backup restoration could not be verified.")
+        return
+    _capture_publication_state(output_dir)
+    _cleanup_transaction_directory(
+        backup_dir,
+        output_dir,
+        kind="backup",
+        require_publication=True,
+        expected_identity=(backup_state.device, backup_state.inode),
+    )
+
+
+def _preflight_output(
+    output_dir: Path,
+) -> tuple[Path, PublicationState | None, tuple[int, int]]:
+    validated = _validate_output_destination(output_dir)
+    try:
+        validated.lstat()
+    except FileNotFoundError:
+        pass
+    else:
+        _capture_publication_state(validated)
+    _recover_abandoned_backup(validated)
+    try:
+        state = _capture_publication_state(validated)
+    except FileNotFoundError:
+        state = None
+    parent_stat = validated.parent.lstat()
+    return validated, state, (parent_stat.st_dev, parent_stat.st_ino)
+
+
+def _assert_parent_identity(
+    output_dir: Path,
+    expected_identity: tuple[int, int],
+) -> None:
+    _reject_symlink_components(output_dir)
+    parent_stat = output_dir.parent.lstat()
+    if (parent_stat.st_dev, parent_stat.st_ino) != expected_identity:
+        raise ValueError("The frozen output parent changed identity.")
+
+
+def _assert_output_state(
+    output_dir: Path,
+    expected_state: PublicationState | None,
+) -> None:
+    try:
+        current_stat = output_dir.lstat()
+    except FileNotFoundError:
+        if expected_state is not None:
+            raise ValueError("The frozen output disappeared before publication.")
+        return
+    if expected_state is None:
+        raise ValueError("The frozen output appeared before publication.")
+    if not stat.S_ISDIR(current_stat.st_mode):
+        raise ValueError("The frozen output changed before publication.")
+    current = _capture_publication_state(output_dir)
+    if current != expected_state:
+        raise ValueError("The frozen output changed before publication.")
+
+
+_EXPECTED_STATE_UNSET = object()
+
+
+def _publish_staged_directory(
+    staging_dir: Path,
+    output_dir: Path,
+    *,
+    expected_output_state: PublicationState | None | object = _EXPECTED_STATE_UNSET,
+    expected_parent_identity: tuple[int, int] | None = None,
+) -> None:
+    staging_dir = _validate_transaction_path(
+        staging_dir,
+        output_dir,
+        kind="staging",
+    )
+    validate_staged_publication(staging_dir)
+    stage_identity = _path_identity(staging_dir)
+    if expected_parent_identity is None:
+        parent_stat = output_dir.parent.lstat()
+        expected_parent_identity = (parent_stat.st_dev, parent_stat.st_ino)
+    _assert_parent_identity(output_dir, expected_parent_identity)
+    if expected_output_state is _EXPECTED_STATE_UNSET:
+        try:
+            expected_output_state = _capture_publication_state(output_dir)
+        except FileNotFoundError:
+            expected_output_state = None
+    if expected_output_state is not None and not isinstance(
+        expected_output_state, PublicationState
+    ):
+        raise ValueError("The expected frozen output state is invalid.")
+    _assert_output_state(output_dir, expected_output_state)
 
     backup_dir: Path | None = None
-    if output_dir.exists():
-        backup_dir = output_dir.parent / (
-            f".{output_dir.name}.backup-{uuid.uuid4().hex}"
+    backup_identity: tuple[int, int] | None = None
+    backup_moved = False
+    if expected_output_state is not None:
+        backup_dir = _validate_transaction_path(
+            output_dir.parent / f".{output_dir.name}.backup-{uuid.uuid4().hex}",
+            output_dir,
+            kind="backup",
         )
-        os.replace(output_dir, backup_dir)
+        if backup_dir.exists() or backup_dir.is_symlink():
+            raise ValueError("The frozen backup transaction already exists.")
+    installed = False
     try:
-        os.replace(staging_dir, output_dir)
-    except Exception:
         if backup_dir is not None:
-            try:
+            os.replace(output_dir, backup_dir)
+            backup_moved = True
+            backup_state = _capture_publication_state(backup_dir)
+            if backup_state != expected_output_state:
+                raise RuntimeError("The frozen backup could not be verified.")
+            backup_identity = (backup_state.device, backup_state.inode)
+        _assert_parent_identity(output_dir, expected_parent_identity)
+        _assert_output_state(output_dir, None)
+        if _path_identity(staging_dir) != stage_identity:
+            raise ValueError("The frozen staging directory changed identity.")
+        os.replace(staging_dir, output_dir)
+        installed = True
+        if _path_identity(output_dir) != stage_identity:
+            raise ValueError("The installed frozen output changed identity.")
+        _validate_schema2_publication(output_dir)
+    except Exception:
+        try:
+            if installed:
+                if _path_identity(output_dir) != stage_identity:
+                    raise ValueError("The installed frozen output changed identity.")
+                if staging_dir.exists() or staging_dir.is_symlink():
+                    raise ValueError("The frozen staging path was reused.")
+                os.replace(output_dir, staging_dir)
+                installed = False
+            if backup_dir is not None and backup_moved:
+                _assert_output_state(output_dir, None)
                 os.replace(backup_dir, output_dir)
-            except Exception as rollback_error:
-                raise RuntimeError(
-                    "Frozen output publication and rollback both failed."
-                ) from rollback_error
+                backup_moved = False
+                _assert_output_state(output_dir, expected_output_state)
+        except Exception as rollback_error:
+            raise RuntimeError(
+                "Frozen output publication and rollback both failed."
+            ) from rollback_error
         raise
-    if backup_dir is not None:
-        _remove_path(backup_dir)
+    if backup_dir is not None and backup_identity is not None and backup_moved:
+        try:
+            _cleanup_transaction_directory(
+                backup_dir,
+                output_dir,
+                kind="backup",
+                require_publication=True,
+                expected_identity=backup_identity,
+            )
+        except Exception:
+            warnings.warn(
+                "Frozen output installed; retained a verified backup for recovery.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
 
 
 def freeze_rankings(
@@ -624,6 +1033,9 @@ def freeze_rankings(
         raise ValueError(
             "Frozen ranking analysis requires the canonical public schema."
         )
+    output_dir, expected_output_state, expected_parent_identity = (
+        _preflight_output(output_dir)
+    )
     score_path = score_path.resolve()
     gene_categories_path = gene_categories_path.resolve()
     expert_metadata_path = expert_metadata_path.resolve()
@@ -633,13 +1045,6 @@ def freeze_rankings(
         if private_lineage_score_path is not None
         else None
     )
-    output_dir = output_dir.resolve()
-    output_dir.parent.mkdir(parents=True, exist_ok=True)
-    if output_dir.exists() and (
-        not output_dir.is_dir() or output_dir.is_symlink()
-    ):
-        raise ValueError("The frozen output path must be a directory.")
-
     input_snapshots: dict[str, bytes | None] = {
         "public_ranking_release": score_path.read_bytes(),
         "private_lineage_score": (
@@ -648,15 +1053,23 @@ def freeze_rankings(
         "gene_categories": gene_categories_path.read_bytes(),
         "expert_metadata": expert_metadata_path.read_bytes(),
         "panel_category_map": panel_category_map_path.read_bytes(),
-        "statistical_module": STATISTICS_MODULE.read_bytes(),
-        "panel_category_audit_module": PANEL_AUDIT_MODULE.read_bytes(),
-        "freezer_module": FREEZER_MODULE.read_bytes(),
         "narrative_notebook": PL_NOTEBOOK.read_bytes(),
     }
     input_records = {
         name: input_provenance(payload) if payload is not None else None
         for name, payload in input_snapshots.items()
     }
+    input_records.update(
+        {
+            "statistical_module": {
+                "sha256": STATISTICS_MODULE_SOURCE_SHA256,
+            },
+            "panel_category_audit_module": {
+                "sha256": PANEL_AUDIT_MODULE_SOURCE_SHA256,
+            },
+            "freezer_module": {"sha256": MODULE_SOURCE_SHA256},
+        }
+    )
 
     source = pd.read_csv(
         BytesIO(input_snapshots["public_ranking_release"]),
@@ -775,13 +1188,21 @@ def freeze_rankings(
         },
         "inputs": input_records,
     }
-    staging_dir = Path(
-        tempfile.mkdtemp(
-            prefix=f".{output_dir.name}.staging-",
-            dir=output_dir.parent,
+    for _ in range(16):
+        staging_dir = _validate_transaction_path(
+            output_dir.parent
+            / f".{output_dir.name}.staging-{uuid.uuid4().hex}",
+            output_dir,
+            kind="staging",
         )
-    )
-    staging_dir.chmod(0o755)
+        try:
+            staging_dir.mkdir(mode=0o755)
+        except FileExistsError:
+            continue
+        break
+    else:
+        raise RuntimeError("A unique frozen staging directory was unavailable.")
+    staging_identity = _path_identity(staging_dir)
     try:
         staging_paths = {
             key: staging_dir / filename
@@ -798,9 +1219,27 @@ def freeze_rankings(
             encoding="utf-8",
         )
         validate_staged_publication(staging_dir)
-        _publish_staged_directory(staging_dir, output_dir)
+        _publish_staged_directory(
+            staging_dir,
+            output_dir,
+            expected_output_state=expected_output_state,
+            expected_parent_identity=expected_parent_identity,
+        )
     finally:
-        _remove_path(staging_dir)
+        try:
+            _cleanup_transaction_directory(
+                staging_dir,
+                output_dir,
+                kind="staging",
+                require_publication=False,
+                expected_identity=staging_identity,
+            )
+        except Exception:
+            warnings.warn(
+                "Retained a frozen staging directory after safe cleanup failed.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
 
     paths = {
         key: output_dir / filename
