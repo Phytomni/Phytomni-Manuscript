@@ -1,10 +1,14 @@
+from io import BytesIO
+from itertools import permutations
 from pathlib import Path
 import stat
 import subprocess
 
+import numpy as np
 import pandas as pd
 import pytest
 
+import scripts.deepgenome_ranking_statistics as ranking_statistics
 import scripts.release_deepgenome_rankings as release_module
 from scripts.release_deepgenome_rankings import (
     build_release,
@@ -23,6 +27,11 @@ PUBLIC_COLUMNS = [
     *MODELS,
 ]
 SUPPLEMENTARY = ROOT / "DeepGenomeAgent Evaluation" / "supplementary"
+PRODUCTION_ATTACHMENT = (
+    SUPPLEMENTARY / "Supplementary_Data_Expert_Rankings.tsv"
+)
+CANONICAL_SPECIES = ("Rice", "Maize", "Wheat", "Soybean", "Arabidopsis")
+CANONICAL_STATUSES = ("well_studied", "uncharacterized")
 
 
 def assert_ignored(relative_path: str) -> None:
@@ -110,6 +119,83 @@ def write_cli_inputs(
     score.to_csv(score_path, sep="\t", index=False)
     categories.to_csv(categories_path, sep="\t", index=False)
     return score_path, categories_path
+
+
+def canonical_tsv_bytes(frame: pd.DataFrame) -> bytes:
+    return frame.to_csv(
+        sep="\t",
+        index=False,
+        lineterminator="\n",
+    ).encode("utf-8")
+
+
+def synthetic_full_panel() -> tuple[pd.DataFrame, pd.DataFrame]:
+    ranking_orders = list(permutations(MODELS))
+    score_rows: list[dict[str, str]] = []
+    category_rows: list[tuple[str, str, str]] = []
+
+    for species_index, species in enumerate(CANONICAL_SPECIES):
+        experts = [
+            f"synthetic-{species.casefold()}-{index:02d}"
+            for index in range(1, 25)
+        ]
+        for gene_index in range(40):
+            gene = f"SYN{species_index + 1}G{gene_index + 1:03d}"
+            status = CANONICAL_STATUSES[gene_index // 20]
+            category_rows.append((species, gene, status))
+            for rater_offset in range(3):
+                expert = experts[(gene_index * 3 + rater_offset) % len(experts)]
+                order = ranking_orders[
+                    (species_index * 120 + gene_index * 3 + rater_offset)
+                    % len(ranking_orders)
+                ]
+                ranks = {
+                    model: f"R{rank}"
+                    for rank, model in enumerate(order, start=1)
+                }
+                score_rows.append(
+                    {
+                        "Expert": expert,
+                        "Species": species,
+                        "Gene": gene,
+                        **ranks,
+                    }
+                )
+
+    score = pd.DataFrame(score_rows)
+    categories = pd.DataFrame(
+        category_rows,
+        columns=["Species", "Gene", "StudyStatus"],
+    )
+    return score, categories
+
+
+def ranking_orders_from_frame(frame: pd.DataFrame) -> list[list[str]]:
+    return [
+        sorted(MODELS, key=lambda model: int(getattr(row, model)[1:]))
+        for row in frame.itertuples(index=False)
+    ]
+
+
+def rank_counts(frame: pd.DataFrame) -> pd.Series:
+    return (
+        frame.loc[:, list(MODELS)]
+        .melt(var_name="Model", value_name="Rank")
+        .groupby(["Model", "Rank"], sort=True)
+        .size()
+        .rename("Count")
+    )
+
+
+def read_production_attachment() -> tuple[bytes, pd.DataFrame]:
+    raw = PRODUCTION_ATTACHMENT.read_bytes()
+    frame = pd.read_csv(
+        BytesIO(raw),
+        sep="\t",
+        dtype=str,
+        keep_default_na=False,
+    )
+    return raw, frame
 
 
 def test_release_replaces_every_private_id(
@@ -672,6 +758,161 @@ def test_cli_use_mode_writes_only_requested_output_and_never_prints_ids(
     assert "private-alpha" not in output
     assert "private-beta" not in output
     assert "AnonymousExpertID" not in output
+
+
+def test_production_attachment_has_exact_public_schema_and_canonical_bytes() -> None:
+    raw, release = read_production_attachment()
+
+    assert list(release.columns) == PUBLIC_COLUMNS
+    assert "Expert" not in release.columns
+    assert len(release) == 600
+    assert not release.isna().any().any()
+    assert not release.eq("").any().any()
+    assert b"\r" not in raw
+    assert raw.endswith(b"\n")
+    assert raw.count(b"\n") == 601
+    assert canonical_tsv_bytes(release) == raw
+
+    expected_order = release.sort_values(
+        ["AnonymousExpertID", "Species", "Gene"],
+        kind="mergesort",
+    ).reset_index(drop=True)
+    pd.testing.assert_frame_equal(release, expected_order)
+
+    expected_ranks = {f"R{rank}" for rank in range(1, 6)}
+    assert all(
+        len(set(row)) == 5 and set(row) == expected_ranks
+        for row in release.loc[:, list(MODELS)].itertuples(
+            index=False,
+            name=None,
+        )
+    )
+
+
+def test_production_attachment_has_complete_balanced_panel_assignments() -> None:
+    _, release = read_production_attachment()
+
+    expected_release_ids = {
+        f"E{index:03d}" for index in range(1, 121)
+    }
+    assert set(release["AnonymousExpertID"]) == expected_release_ids
+    assert release["AnonymousExpertID"].nunique() == 120
+    assert (
+        release["AnonymousExpertID"].value_counts(sort=False) == 5
+    ).all()
+    assert (
+        release.groupby("AnonymousExpertID", sort=False)["Species"].nunique()
+        == 1
+    ).all()
+
+    items = release.groupby(["Species", "Gene"], sort=False)
+    assert items.ngroups == 200
+    assert (items.size() == 3).all()
+    assert (items["AnonymousExpertID"].nunique() == 3).all()
+    assert (items["StudyStatus"].nunique() == 1).all()
+
+    assert set(release["Species"]) == set(CANONICAL_SPECIES)
+    assert set(release["StudyStatus"]) == set(CANONICAL_STATUSES)
+    assert (
+        release.groupby("Species", sort=False)["Gene"].nunique() == 40
+    ).all()
+    assert (
+        release.groupby("Species", sort=False)["AnonymousExpertID"].nunique()
+        == 24
+    ).all()
+    assert (
+        release.groupby(["Species", "StudyStatus"], sort=False)["Gene"]
+        .nunique()
+        .eq(20)
+        .all()
+    )
+
+
+def test_synthetic_full_panel_regeneration_is_byte_deterministic(
+    tmp_path: Path,
+) -> None:
+    score, categories = synthetic_full_panel()
+    crosswalk = write_crosswalk(tmp_path, score)
+
+    first = build_release(score, categories, crosswalk)
+    second = build_release(
+        score.iloc[::-1].reset_index(drop=True),
+        categories.iloc[::-1].reset_index(drop=True),
+        crosswalk,
+    )
+
+    assert stat.S_IMODE(crosswalk.stat().st_mode) == 0o600
+    assert canonical_tsv_bytes(first) == canonical_tsv_bytes(second)
+
+
+def test_synthetic_release_preserves_all_locked_ranking_statistics(
+    tmp_path: Path,
+) -> None:
+    score, categories = synthetic_full_panel()
+    crosswalk = write_crosswalk(tmp_path, score)
+    release = build_release(score, categories, crosswalk)
+    raw = score.merge(
+        categories,
+        on=["Species", "Gene"],
+        how="left",
+        validate="many_to_one",
+    ).loc[:, ["Species", "Gene", "Expert", "StudyStatus", *MODELS]]
+    public = release.rename(
+        columns={"AnonymousExpertID": "Expert"}
+    ).loc[:, ["Species", "Gene", "Expert", "StudyStatus", *MODELS]]
+
+    pd.testing.assert_series_equal(rank_counts(public), rank_counts(raw))
+
+    raw_fit = ranking_statistics.fit_plackett_luce(
+        ranking_orders_from_frame(raw),
+        list(MODELS),
+    )
+    release_fit = ranking_statistics.fit_plackett_luce(
+        ranking_orders_from_frame(public),
+        list(MODELS),
+    )
+    assert raw_fit["models"] == release_fit["models"]
+    np.testing.assert_allclose(
+        release_fit["elo"],
+        raw_fit["elo"],
+        rtol=0.0,
+        atol=1e-8,
+    )
+
+    registry = ranking_statistics.agreement_scope_registry(
+        CANONICAL_SPECIES,
+        CANONICAL_STATUSES,
+        MODELS,
+    )
+    raw_fleiss = ranking_statistics.fleiss_point_estimates(
+        raw,
+        registry,
+        MODELS,
+    )
+    release_fleiss = ranking_statistics.fleiss_point_estimates(
+        public,
+        registry,
+        MODELS,
+    )
+    assert len(raw_fleiss) == len(release_fleiss) == 58
+    pd.testing.assert_frame_equal(
+        release_fleiss,
+        raw_fleiss,
+        check_exact=False,
+        rtol=0.0,
+        atol=1e-15,
+    )
+
+    raw_gene = ranking_statistics.gene_ordinal_agreement(raw, MODELS)
+    release_gene = ranking_statistics.gene_ordinal_agreement(public, MODELS)
+    assert len(raw_gene) == len(release_gene) == 200
+    pd.testing.assert_frame_equal(
+        release_gene,
+        raw_gene,
+        check_exact=False,
+        rtol=0.0,
+        atol=1e-15,
+    )
 
 
 def test_public_ranking_codebook_is_exact() -> None:
