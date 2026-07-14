@@ -570,9 +570,11 @@ def test_plackett_luce_notebook_contract() -> None:
     core_source = code_cell_source(PL_NOTEBOOK, "plackett-luce-core")
     assert "from scripts.deepgenome_ranking_statistics import (" in core_source
     assert "resolve_model_columns" in core_source
+    assert "pairwise_win_probabilities" in core_source
     assert "def fit_plackett_luce" not in core_source
     assert "def pl_loglik_and_grad" not in core_source
     namespace = execute_tagged_source(PL_NOTEBOOK, "plackett-luce-core")
+    assert callable(namespace["pairwise_win_probabilities"])
     assert namespace["MODEL_COLUMNS"] == (
         "Gemini",
         "Grok",
@@ -580,6 +582,24 @@ def test_plackett_luce_notebook_contract() -> None:
         "Phytomni",
         "Claude",
     )
+    panel_source = code_cell_source(PL_NOTEBOOK, "pl-panel")
+    for required_check in [
+        'expert_metadata["Expert_ID"].nunique()',
+        'analysis_frame["Expert"].nunique()',
+        'expert_metadata.groupby("Species", dropna=False)',
+        'analysis_frame.groupby("Species", dropna=False)',
+        "set(metadata_species_counts.index)",
+        "set(ranking_species_counts.index)",
+        "metadata_species_counts.sort_index().equals(",
+        "ranking_species_counts.sort_index()",
+    ]:
+        assert required_check in panel_source
+    validation_position = panel_source.index("metadata_expert_count")
+    summary_position = panel_source.index(
+        "panel_summary = summarize_expert_panel"
+    )
+    display_position = panel_source.index("display(panel_summary)")
+    assert validation_position < summary_position < display_position
 
 
 def test_plackett_luce_numerical_equivalence() -> None:
