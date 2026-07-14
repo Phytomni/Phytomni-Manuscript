@@ -1,9 +1,18 @@
+import hashlib
 import json
+import re
 from pathlib import Path
 
 import nbformat
 import numpy as np
 import pandas as pd
+
+from scripts.deepgenome_ranking_statistics import PL_INTERVAL_ANALYSES
+from scripts.freeze_deepgenome_rankings import (
+    OUTPUT_FILENAMES,
+    OUTPUT_SCHEMAS,
+    OUTPUT_UNIQUE_KEYS,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,7 +23,317 @@ FIG2_DIR = ROOT / "Fig. 2"
 FIG2_NOTEBOOK = FIG2_DIR / "fig. 2.ipynb"
 FIG2_BERTSCORE = FIG2_DIR / "PhytoBench-Gene-BERTScore-for_plot.tsv"
 MODEL_ORDER = ["Phytomni", "Gemini", "Claude", "OpenAI", "Grok"]
-SOURCE_SHA256 = "bf24408d8e3d68ca11cc7319b25c407a29d2e26301fdc812896dd451818adcbe"
+MODEL_COLUMNS = ["Gemini", "Grok", "OpenAI", "Phytomni", "Claude"]
+STRATIFIED_SCOPES = (
+    "well_studied",
+    "well_studied.rice",
+    "well_studied.maize",
+    "well_studied.wheat",
+    "well_studied.soybean",
+    "well_studied.arabidopsis",
+    "uncharacterized",
+    "uncharacterized.rice",
+    "uncharacterized.maize",
+    "uncharacterized.wheat",
+    "uncharacterized.soybean",
+    "uncharacterized.arabidopsis",
+    "rice",
+    "maize",
+    "wheat",
+    "soybean",
+    "arabidopsis",
+)
+EXPECTED_OUTPUT_FILENAMES = {
+    "rank_distribution": "rank_distribution.tsv",
+    "pl_scores": "pl_scores.tsv",
+    "pl_pairwise": "pl_pairwise.tsv",
+    "pl_scores_ci": "pl_scores_ci.tsv",
+    "rank_distribution_ci": "rank_distribution_ci.tsv",
+    "pl_pairwise_ci": "pl_pairwise_ci.tsv",
+    "fleiss_kappa": "fleiss_kappa.tsv",
+    "kendall_by_gene": "kendall_by_gene.tsv",
+    "ordinal_agreement_summary": "ordinal_agreement_summary.tsv",
+    "top1_consensus": "top1_consensus.tsv",
+    "expert_panel_summary": "expert_panel_summary.tsv",
+    "assignment_summary": "assignment_summary.tsv",
+}
+EXPECTED_FROZEN_FILES = {
+    "rank_distribution.tsv",
+    "pl_scores.tsv",
+    "pl_pairwise.tsv",
+    "pl_scores_ci.tsv",
+    "rank_distribution_ci.tsv",
+    "pl_pairwise_ci.tsv",
+    "fleiss_kappa.tsv",
+    "kendall_by_gene.tsv",
+    "ordinal_agreement_summary.tsv",
+    "top1_consensus.tsv",
+    "expert_panel_summary.tsv",
+    "assignment_summary.tsv",
+    "provenance.json",
+}
+EXPECTED_OUTPUT_SCHEMAS = {
+    "rank_distribution": (
+        "Scope",
+        "StudyStatus",
+        "Species",
+        "Model",
+        "Rank",
+        "Count",
+        "Fraction",
+        "N",
+    ),
+    "pl_scores": (
+        "Scope",
+        "StudyStatus",
+        "Species",
+        "Model",
+        "Elo",
+        "Elo_L",
+        "Elo_U",
+        "N",
+    ),
+    "pl_pairwise": (
+        "Scope",
+        "StudyStatus",
+        "Species",
+        "RowModel",
+        "ColumnModel",
+        "Probability",
+        "N",
+    ),
+    "pl_scores_ci": (
+        "Scope",
+        "StudyStatus",
+        "Species",
+        "Model",
+        "IntervalAnalysis",
+        "Estimate",
+        "CI95Lower",
+        "CI95Upper",
+        "NJudgments",
+        "NExperts",
+        "NGenes",
+        "SuccessfulReplicates",
+        "FailedFits",
+        "SeedStream",
+    ),
+    "rank_distribution_ci": (
+        "Scope",
+        "StudyStatus",
+        "Species",
+        "Model",
+        "Rank",
+        "Fraction",
+        "CI95Lower",
+        "CI95Upper",
+        "Count",
+        "NJudgments",
+        "NExperts",
+        "NGenes",
+        "SuccessfulReplicates",
+        "FailedFits",
+        "SeedStream",
+    ),
+    "pl_pairwise_ci": (
+        "Scope",
+        "StudyStatus",
+        "Species",
+        "RowModel",
+        "ColumnModel",
+        "Probability",
+        "CI95Lower",
+        "CI95Upper",
+        "NJudgments",
+        "NExperts",
+        "NGenes",
+        "SuccessfulReplicates",
+        "FailedFits",
+        "SeedStream",
+    ),
+    "fleiss_kappa": (
+        "ScopeID",
+        "AnalysisTier",
+        "ScopeFamily",
+        "Species",
+        "StudyStatus",
+        "Model",
+        "NGenes",
+        "NItems",
+        "RatingsPerItem",
+        "NRatings",
+        "NContributingExperts",
+        "ObservedAgreement",
+        "ExpectedAgreement",
+        "FleissKappa",
+        "RankR1Share",
+        "RankR2Share",
+        "RankR3Share",
+        "RankR4Share",
+        "RankR5Share",
+        "CILower",
+        "CIUpper",
+        "BootstrapAttempted",
+        "BootstrapReplicates",
+        "BootstrapInvalid",
+        "BootstrapUnit",
+        "BootstrapStrata",
+        "SeedStream",
+    ),
+    "kendall_by_gene": (
+        "Species",
+        "Gene",
+        "StudyStatus",
+        "NExperts",
+        "NModels",
+        "KendallW",
+        "MeanPairwiseKendallTau",
+        "Top1AgreementPattern",
+    ),
+    "ordinal_agreement_summary": (
+        "ScopeID",
+        "AnalysisTier",
+        "ScopeFamily",
+        "Species",
+        "StudyStatus",
+        "NGenes",
+        "NContributingExperts",
+        "KendallWMean",
+        "KendallWMedian",
+        "KendallWQ1",
+        "KendallWQ3",
+        "KendallWMeanCILower",
+        "KendallWMeanCIUpper",
+        "KendallWMedianCILower",
+        "KendallWMedianCIUpper",
+        "MeanPairwiseKendallTauMean",
+        "MeanPairwiseKendallTauMedian",
+        "MeanPairwiseKendallTauQ1",
+        "MeanPairwiseKendallTauQ3",
+        "MeanPairwiseKendallTauMeanCILower",
+        "MeanPairwiseKendallTauMeanCIUpper",
+        "MeanPairwiseKendallTauMedianCILower",
+        "MeanPairwiseKendallTauMedianCIUpper",
+        "BootstrapAttempted",
+        "BootstrapReplicates",
+        "BootstrapInvalid",
+        "BootstrapUnit",
+        "BootstrapStrata",
+        "SeedStream",
+    ),
+    "top1_consensus": (
+        "ScopeID",
+        "AnalysisTier",
+        "ScopeFamily",
+        "Species",
+        "StudyStatus",
+        "Top1AgreementPattern",
+        "Count",
+        "Fraction",
+        "FractionCILower",
+        "FractionCIUpper",
+        "NGenes",
+        "NContributingExperts",
+        "BootstrapAttempted",
+        "BootstrapReplicates",
+        "BootstrapInvalid",
+        "BootstrapUnit",
+        "BootstrapStrata",
+        "SeedStream",
+    ),
+    "expert_panel_summary": (
+        "Dimension",
+        "PublicCategory",
+        "DisplayOrder",
+        "N",
+        "DenominatorN",
+        "Percent",
+        "MissingN",
+        "PercentageBasis",
+    ),
+    "assignment_summary": (
+        "Scope",
+        "StudyStatus",
+        "Species",
+        "NExperts",
+        "NGenes",
+        "NJudgments",
+        "MinGenesPerExpert",
+        "MaxGenesPerExpert",
+        "MinExpertsPerGene",
+        "MaxExpertsPerGene",
+    ),
+}
+EXPECTED_OUTPUT_UNIQUE_KEYS = {
+    "rank_distribution": ("Scope", "Model", "Rank"),
+    "pl_scores": ("Scope", "Model"),
+    "pl_pairwise": ("Scope", "RowModel", "ColumnModel"),
+    "pl_scores_ci": ("Scope", "Model", "IntervalAnalysis"),
+    "rank_distribution_ci": ("Scope", "Model", "Rank"),
+    "pl_pairwise_ci": ("Scope", "RowModel", "ColumnModel"),
+    "fleiss_kappa": ("ScopeID",),
+    "kendall_by_gene": ("Species", "Gene"),
+    "ordinal_agreement_summary": ("ScopeID",),
+    "top1_consensus": ("ScopeID", "Top1AgreementPattern"),
+    "expert_panel_summary": ("Dimension", "PublicCategory"),
+    "assignment_summary": ("Scope",),
+}
+EXPECTED_ROW_COUNTS = {
+    "rank_distribution": 450,
+    "pl_scores": 90,
+    "pl_pairwise": 450,
+    "pl_scores_ci": 270,
+    "rank_distribution_ci": 450,
+    "pl_pairwise_ci": 360,
+    "fleiss_kappa": 58,
+    "kendall_by_gene": 200,
+    "ordinal_agreement_summary": 18,
+    "top1_consensus": 54,
+    "expert_panel_summary": 44,
+    "assignment_summary": 18,
+}
+EXPECTED_INPUT_SHA256 = {
+    "public_ranking_release": (
+        "9c8fefddc4cdc83da8701ba7e142d6f62a158824c19576ac3155664d34cb51b2"
+    ),
+    "private_lineage_score": (
+        "bf24408d8e3d68ca11cc7319b25c407a29d2e26301fdc812896dd451818adcbe"
+    ),
+    "gene_categories": (
+        "bcb5695c5efaba3faeedd9efa636accd4cbba69a98a996de2eea2900a692fe52"
+    ),
+    "expert_metadata": (
+        "dc8048fed6200709f40646d5ed62d4e7aab5d94d3c4a528a07cde85e7243242f"
+    ),
+    "panel_category_map": (
+        "5d4d110830859149ee16fc7f5c49dc1ba6117a7b4adc1c30df0c1132ff937489"
+    ),
+    "narrative_notebook": (
+        "8e2f1c1b83aa96c7261928fd2cc9e59327e305ce9ec19dfb3654edbf73aabec8"
+    ),
+    "statistical_module": (
+        "7c90b123ef407f0ae1ed421fe8693dfae84938533f1602f29cf6ec00ac5b0b84"
+    ),
+    "panel_category_audit_module": (
+        "d5a1dcb7535c85c1945431e9ecdb8ab13ba990eb61f7c6137075bbdbe20103fe"
+    ),
+    "freezer_module": (
+        "30eb8a9618af07ab338696ee8823f4c4cccd5e43ce4d0ca427cf081f725a5962"
+    ),
+}
+PANEL_DIMENSIONS = {
+    "Species",
+    "Country/Region",
+    "Institution_type",
+    "Current_position",
+    "Years_experience",
+    "Gender",
+    "Research_domains",
+    "Study_species",
+    "Annotation_experience",
+    "Ai_experience",
+    "Conflict_interest",
+}
 
 
 def notebook_source() -> str:
@@ -31,31 +350,296 @@ def notebook_source() -> str:
 
 
 def test_frozen_tables_are_complete_and_traceable() -> None:
-    provenance = json.loads((DATA_DIR / "provenance.json").read_text())
-    ranks = pd.read_csv(DATA_DIR / "rank_distribution.tsv", sep="\t")
-    scores = pd.read_csv(DATA_DIR / "pl_scores.tsv", sep="\t")
-    pairwise = pd.read_csv(DATA_DIR / "pl_pairwise.tsv", sep="\t")
+    assert OUTPUT_FILENAMES == EXPECTED_OUTPUT_FILENAMES
+    assert OUTPUT_SCHEMAS == EXPECTED_OUTPUT_SCHEMAS
+    assert OUTPUT_UNIQUE_KEYS == EXPECTED_OUTPUT_UNIQUE_KEYS
+    assert DATA_DIR.is_dir()
+    assert {path.name for path in DATA_DIR.iterdir()} == EXPECTED_FROZEN_FILES
 
-    assert provenance["source"]["sha256"] == SOURCE_SHA256
-    assert provenance["source"]["rows"] == 600
-    assert provenance["used_rows"] == 600
-    assert provenance["skipped_rows"] == 0
-    assert provenance["model_columns"] == [
-        "Gemini",
-        "Grok",
-        "OpenAI",
-        "Phytomni",
-        "Claude",
-    ]
+    tables = {
+        name: pd.read_csv(DATA_DIR / filename, sep="\t")
+        for name, filename in OUTPUT_FILENAMES.items()
+    }
+    for name, table in tables.items():
+        assert tuple(table.columns) == EXPECTED_OUTPUT_SCHEMAS[name]
+        assert len(table) == EXPECTED_ROW_COUNTS[name]
+        assert not table.duplicated(
+            list(EXPECTED_OUTPUT_UNIQUE_KEYS[name])
+        ).any()
+        assert {
+            "Expert",
+            "Expert_ID",
+            "AnonymousExpertID",
+        }.isdisjoint(table.columns)
+
+    ranks = tables["rank_distribution"]
+    scores = tables["pl_scores"]
+    pl_scores_ci = tables["pl_scores_ci"]
+    rank_ci = tables["rank_distribution_ci"]
+    pairwise_ci = tables["pl_pairwise_ci"]
+    fleiss = tables["fleiss_kappa"]
+    kendall = tables["kendall_by_gene"]
+    ordinal = tables["ordinal_agreement_summary"]
+    top1 = tables["top1_consensus"]
+    panel = tables["expert_panel_summary"]
+    assignment = tables["assignment_summary"]
+
     assert ranks["Scope"].nunique() == 18
-    assert len(ranks) == 18 * 5 * 5
-    assert len(scores) == 18 * 5
-    assert len(pairwise) == 18 * 5 * 5
     assert set(ranks["Model"]) == set(MODEL_ORDER)
     np.testing.assert_allclose(
-        ranks.groupby(["Scope", "Model"])["Fraction"].sum(),
-        1.0,
+        ranks.groupby(["Scope", "Model"])["Fraction"].sum(), 1.0
     )
+
+    assert PL_INTERVAL_ANALYSES == (
+        "crossed_expert_gene",
+        "expert_cluster",
+        "gene_cluster",
+    )
+    assert set(pl_scores_ci["IntervalAnalysis"]) == {
+        "crossed_expert_gene",
+        "expert_cluster",
+        "gene_cluster",
+    }
+    for frame, estimate in (
+        (pl_scores_ci, "Estimate"),
+        (rank_ci, "Fraction"),
+        (pairwise_ci, "Probability"),
+    ):
+        assert (frame["CI95Lower"] <= frame[estimate]).all()
+        assert (frame[estimate] <= frame["CI95Upper"]).all()
+
+    assert fleiss["ScopeID"].is_unique
+    assert fleiss["ScopeFamily"].value_counts().to_dict() == {
+        "model_species": 25,
+        "species_study_status": 10,
+        "model_study_status": 10,
+        "species": 5,
+        "model": 5,
+        "study_status": 2,
+        "overall": 1,
+    }
+    assert not fleiss["ScopeFamily"].str.contains(
+        "model_species_study_status|species_model_study_status"
+    ).any()
+    assert (fleiss["NRatings"] == 3 * fleiss["NItems"]).all()
+    np.testing.assert_allclose(
+        fleiss["FleissKappa"],
+        (fleiss["ObservedAgreement"] - fleiss["ExpectedAgreement"])
+        / (1.0 - fleiss["ExpectedAgreement"]),
+        rtol=0.0,
+        atol=1e-12,
+    )
+
+    assert ordinal["ScopeID"].is_unique
+    assert kendall[["Species", "Gene"]].drop_duplicates().shape[0] == 200
+    assert kendall["KendallW"].between(0.0, 1.0).all()
+    assert kendall["MeanPairwiseKendallTau"].between(-1.0, 1.0).all()
+    assert top1["ScopeID"].nunique() == 18
+    assert top1.groupby("ScopeID").size().eq(3).all()
+    np.testing.assert_allclose(top1.groupby("ScopeID")["Fraction"].sum(), 1.0)
+
+    overall_assignment = assignment.loc[
+        assignment["Scope"] == "overall"
+    ].squeeze()
+    assert overall_assignment[["NExperts", "NGenes", "NJudgments"]].tolist() == [
+        120,
+        200,
+        600,
+    ]
+    assert (assignment["MinExpertsPerGene"] == 3).all()
+    assert (assignment["MaxExpertsPerGene"] == 3).all()
+    assert (assignment["NJudgments"] == 3 * assignment["NGenes"]).all()
+
+    assert set(panel["Dimension"]) == PANEL_DIMENSIONS
+    assert (panel["N"] >= 5).all()
+    assert (panel["DenominatorN"] > 0).all()
+    assert (panel["MissingN"] >= 0).all()
+    np.testing.assert_allclose(
+        panel["Percent"], 100.0 * panel["N"] / panel["DenominatorN"]
+    )
+    for dimension, selected in panel.groupby("Dimension", sort=False):
+        assert selected["DenominatorN"].nunique() == 1
+        assert selected["MissingN"].nunique() == 1
+        assert selected["PercentageBasis"].nunique() == 1
+        if dimension in {"Research_domains", "Study_species"}:
+            assert selected["PercentageBasis"].iat[0] == "all_experts"
+            assert selected["DenominatorN"].iat[0] == 120
+        else:
+            assert selected["PercentageBasis"].iat[0] == "nonmissing_experts"
+            assert selected["N"].sum() == selected["DenominatorN"].iat[0]
+            assert (
+                selected["DenominatorN"].iat[0] + selected["MissingN"].iat[0]
+                == 120
+            )
+    category_map = pd.read_csv(
+        ROOT
+        / "DeepGenomeAgent Evaluation"
+        / "supplementary"
+        / "expert_panel_category_map.tsv",
+        sep="\t",
+    )
+    public_panel_categories = category_map[
+        ["Dimension", "PublicCategory", "DisplayOrder"]
+    ].drop_duplicates()
+    pd.testing.assert_frame_equal(
+        panel[["Dimension", "PublicCategory", "DisplayOrder"]]
+        .sort_values(["Dimension", "DisplayOrder", "PublicCategory"])
+        .reset_index(drop=True),
+        public_panel_categories.sort_values(
+            ["Dimension", "DisplayOrder", "PublicCategory"]
+        ).reset_index(drop=True),
+        check_dtype=False,
+    )
+    assert panel.loc[
+        panel["Dimension"] == "Conflict_interest"
+    ].to_dict("records") == [
+        {
+            "Dimension": "Conflict_interest",
+            "PublicCategory": "No",
+            "DisplayOrder": 1,
+            "N": 120,
+            "DenominatorN": 120,
+            "Percent": 100.0,
+            "MissingN": 0,
+            "PercentageBasis": "nonmissing_experts",
+        }
+    ]
+    panel_species = panel.loc[
+        panel["Dimension"] == "Species",
+        ["PublicCategory", "N"],
+    ].set_index("PublicCategory")["N"]
+    assignment_species = assignment.loc[
+        assignment["StudyStatus"].eq("all")
+        & assignment["Species"].ne("all"),
+        ["Species", "NExperts"],
+    ].set_index("Species")["NExperts"]
+    pd.testing.assert_series_equal(
+        panel_species.sort_index(),
+        assignment_species.sort_index(),
+        check_names=False,
+    )
+
+    frozen_payload = b"\n".join(
+        (DATA_DIR / filename).read_bytes()
+        for filename in OUTPUT_FILENAMES.values()
+    )
+    for forbidden in (
+        b"AnonymousExpertID",
+        b"Expert_ID",
+        b"raw identifier",
+        b"free text",
+    ):
+        assert forbidden not in frozen_payload
+    assert re.search(rb"\bE\d{3}\b", frozen_payload) is None
+
+    provenance = json.loads((DATA_DIR / "provenance.json").read_text())
+    assert provenance["schema_version"] == 2
+    assert provenance["reporting_matrix_status"] == (
+        "locked_before_final_bootstrap_reanalysis"
+    )
+    assert provenance["reporting_matrix_statement"] == (
+        "The reporting matrix was locked before the final bootstrap reanalysis "
+        "and before manuscript interpretation."
+    )
+    assert provenance["monte_carlo_qc_amendment_statement"] == (
+        "The Monte Carlo quality-control rule was amended after the "
+        "prespecified half-run tolerance failed and before final result "
+        "interpretation; the estimands, reporting matrix, resampling scheme, "
+        "seed, and replicate target remained unchanged."
+    )
+    assert provenance["pilot_kappa_values_viewed"] is True
+    assert provenance["fleiss_scope_count"] == 58
+    assert provenance["ordinal_scope_count"] == 18
+    assert provenance["model_columns"] == MODEL_COLUMNS
+    assert provenance["bootstrap"] == {
+        "master_seed": 20260714,
+        "successful_replicates": 10_000,
+        "maximum_failed_fits": 10,
+        "primary_pl_interval": "crossed_expert_gene_percentile",
+        "agreement_interval": "stratified_gene_block_percentile",
+    }
+
+    assert set(provenance["inputs"]) == set(EXPECTED_INPUT_SHA256)
+    for name, digest in EXPECTED_INPUT_SHA256.items():
+        assert provenance["inputs"][name] == {"sha256": digest}
+
+    pl_diagnostics = provenance["bootstrap_diagnostics"]["plackett_luce"]
+    assert pl_diagnostics["SuccessfulReplicates"] == 10_000
+    assert 0 <= pl_diagnostics["FailedFits"] <= 10
+    assert pl_diagnostics["AttemptedReplicates"] == (
+        pl_diagnostics["SuccessfulReplicates"]
+        + pl_diagnostics["FailedFits"]
+    )
+    assert "FailureReasons" not in pl_diagnostics
+    half_run = pl_diagnostics["HalfRunStability"]
+    assert half_run["Applied"] is True
+    assert half_run["Interpretation"] == "descriptive_nonblocking"
+    np.testing.assert_allclose(
+        [
+            half_run["ScoreMaxBoundDifference"],
+            half_run["ProbabilityMaxBoundDifference"],
+        ],
+        [12.483900008886167, 0.013095437435215185],
+        rtol=0.0,
+        atol=1e-12,
+    )
+    assert "threshold" not in str(half_run).casefold()
+    assert "passed" not in str(half_run).casefold()
+    precision = pl_diagnostics["MonteCarloPrecision"]
+    assert precision["Applied"] is True
+    assert precision["Method"] == "binomial_order_statistic"
+    assert precision["Replicates"] == 10_000
+    assert precision["TailProbability"] == 0.025
+    assert precision["PercentileProbabilityStandardError"] == (
+        np.sqrt(0.025 * 0.975 / 10_000)
+    )
+    assert precision["TailProbabilityRelativeStandardError"] == (
+        np.sqrt(0.025 * 0.975 / 10_000) / 0.025
+    )
+    assert precision["EndpointCounts"] == {
+        "CrossedScore": 180,
+        "NonredundantPairwiseProbability": 360,
+        "Total": 540,
+    }
+    assert precision["PairwiseDirectionRule"] == (
+        "canonical_model_index_row_less_than_column"
+    )
+    assert precision["Pointwise95"]["RankBrackets"] == {
+        "CI95Lower": [220, 282],
+        "CI95Upper": [9719, 9781],
+    }
+    assert precision["BonferroniFamilywise95"]["RankBrackets"] == {
+        "CI95Lower": [191, 314],
+        "CI95Upper": [9687, 9810],
+    }
+    for family in ("Pointwise95", "BonferroniFamilywise95"):
+        for metric_family in ("Score", "PairwiseProbability"):
+            metrics = precision[family][metric_family]
+            assert metrics["MaximumBracketDistance"]["Value"] >= 0.0
+            assert metrics["MaximumRelativeCIWidth"]["Value"] >= 0.0
+            assert metrics["UndefinedRelativeCIWidthCount"] >= 0
+    assert "threshold" not in str(precision).casefold()
+    assert "passed" not in str(precision).casefold()
+    agreement_diagnostics = provenance["bootstrap_diagnostics"]["agreement"]
+    assert agreement_diagnostics["successful_replicates"] == 10_000
+    assert 0 <= agreement_diagnostics["invalid_replicates"] <= 10
+    assert agreement_diagnostics["attempted_replicates"] == (
+        agreement_diagnostics["successful_replicates"]
+        + agreement_diagnostics["invalid_replicates"]
+    )
+
+    assert set(provenance["outputs"]) == set(OUTPUT_FILENAMES.values())
+    for filename, digest in provenance["outputs"].items():
+        assert hashlib.sha256((DATA_DIR / filename).read_bytes()).hexdigest() == (
+            digest
+        )
+    assert not {
+        "source",
+        "rows",
+        "used_rows",
+        "skipped_rows",
+        "scopes",
+    } & set(provenance)
 
     overall = scores[scores["Scope"] == "overall"].set_index("Model")
     np.testing.assert_allclose(
@@ -69,12 +653,7 @@ def test_frozen_tables_are_complete_and_traceable() -> None:
 def test_supplementary_notebook_only_plots_frozen_five_model_results() -> None:
     source = notebook_source()
 
-    for filename in (
-        "rank_distribution.tsv",
-        "pl_scores.tsv",
-        "pl_pairwise.tsv",
-        "provenance.json",
-    ):
+    for filename in EXPECTED_FROZEN_FILES:
         assert filename in source
     for model in MODEL_ORDER:
         assert f'"{model}"' in source
@@ -84,6 +663,133 @@ def test_supplementary_notebook_only_plots_frozen_five_model_results() -> None:
     assert "np.ix_([3, 0, 2, 1]" not in source
     assert 'y=100.0 * rank_matrix[rank_label]' in source
     assert "PhytoBench-Gene-for_plot/score.tsv" not in source
+
+
+def test_supplementary_notebook_encodes_ci_and_agreement_figures() -> None:
+    source = notebook_source()
+
+    assert "schema_version" in source
+    assert "successful_replicates" in source
+    assert '"crossed_expert_gene"' in source
+    assert "CI95Lower" in source
+    assert "CI95Upper" in source
+    assert "1500" in source
+    assert "expert_panel_summary" in source
+    assert "assignment_summary" in source
+    assert "fleiss_kappa" in source
+    assert "kendall_by_gene" in source
+    assert "top1_consensus" in source
+    assert "No conflicts of interest were declared" in source
+    assert "supplementary_fig.10.phytobench-gene" in source
+    assert "supplementary_fig.11.expert-panel-and-agreement" in source
+    assert "supplementary_fig.12.phytobench-gene" in source
+    assert "supplementary_fig.13.phytobench-gene" in source
+    assert "supplementary_fig.7.phytobench-gene" not in source
+    assert "supplementary_fig.8.phytobench-gene" not in source
+    assert "supplementary_fig.9.phytobench-gene" not in source
+
+
+def test_pairwise_diagonal_is_explicitly_rendered_as_neutral_probability(
+    monkeypatch,
+) -> None:
+    pairwise = pd.read_csv(DATA_DIR / "pl_pairwise.tsv", sep="\t")
+    diagonal = pairwise[pairwise["RowModel"] == pairwise["ColumnModel"]]
+
+    assert len(diagonal) == 18 * len(MODEL_ORDER)
+    assert diagonal["Probability"].isna().all()
+
+    notebook = nbformat.read(NOTEBOOK, as_version=4)
+    namespace: dict[str, object] = {}
+    required_cells = {
+        "ranking-setup",
+        "ranking-configuration",
+        "frozen-validation",
+        "main-plot-functions",
+    }
+    monkeypatch.chdir(FIGURE_DIR)
+    for cell in notebook.cells:
+        if cell.cell_type == "code" and cell.id in required_cells:
+            exec(compile(cell.source, f"<{cell.id}>", "exec"), namespace)
+
+    figure = namespace["pairwise_probability_figure"]("overall")
+    probabilities = np.asarray(figure.data[0].z, dtype=float)
+    text = np.asarray(figure.data[0].text, dtype=str)
+    off_diagonal = ~np.eye(len(MODEL_ORDER), dtype=bool)
+
+    np.testing.assert_allclose(np.diag(probabilities), 0.5)
+    assert np.isfinite(probabilities[off_diagonal]).all()
+    assert (np.diag(text) == "0.50").all()
+
+
+def test_rendered_figure_contract_preserves_precision_and_readability(
+    monkeypatch,
+) -> None:
+    notebook = nbformat.read(NOTEBOOK, as_version=4)
+    namespace: dict[str, object] = {}
+    required_cells = {
+        "ranking-setup",
+        "ranking-configuration",
+        "frozen-validation",
+        "main-plot-functions",
+        "agreement-plot-functions",
+    }
+    monkeypatch.chdir(FIGURE_DIR)
+    for cell in notebook.cells:
+        if cell.cell_type == "code" and cell.id in required_cells:
+            exec(compile(cell.source, f"<{cell.id}>", "exec"), namespace)
+
+    supplementary = namespace["expert_agreement_figure"]()
+    assert supplementary.layout.yaxis3.title.text == "Cumulative genes (%)"
+    top1_traces = {
+        trace.name: trace
+        for trace in supplementary.data
+        if trace.name and trace.name.startswith("Top-1:")
+    }
+    unanimous = top1_traces["Top-1: Unanimous"]
+    majority = top1_traces["Top-1: 2-of-3 majority"]
+    assert unanimous.text[0] == "12.5%"
+    assert unanimous.text[3] == "5.0%"
+    assert majority.text[0] == "53.5%"
+
+    model_labels = {
+        "Phytomni",
+        "Gemini Deep Research",
+        "Claude deep research",
+        "ChatGPT Agent mode",
+        "Grok DeepSearch",
+    }
+    model_kappa_traces = [
+        trace
+        for trace in supplementary.data
+        if len(trace.y) == 1 and trace.y[0] in model_labels
+    ]
+    assert len(model_kappa_traces) == 5
+    assert all(
+        not str(trace.marker.symbol).endswith("-open")
+        for trace in model_kappa_traces
+    )
+
+    rank_figure = namespace["rank_distribution_figure"]("overall")
+    assert rank_figure.layout.legend.x <= 0.98
+    pairwise_figure = namespace["pairwise_probability_figure"]("overall")
+    assert "expert–gene rankings" in pairwise_figure.layout.title.text
+
+    score_figure = namespace["score_interval_figure"]("overall")
+    near_reference = [
+        trace
+        for trace in score_figure.data
+        if abs(float(trace.x[0]) - 1500) < 40
+    ]
+    assert near_reference
+    assert all(trace.textposition != "top center" for trace in near_reference)
+    reference_labels = [
+        annotation
+        for annotation in score_figure.layout.annotations
+        if annotation.text == "Reference = 1,500"
+    ]
+    assert len(reference_labels) == 1
+    assert reference_labels[0].yref == "paper"
+    assert reference_labels[0].y < 0
 
 
 def test_supplementary_notebook_uses_requested_claude_label_and_order() -> None:
@@ -135,17 +841,45 @@ def test_manifest_connects_fig2def_and_marks_fig2h_pending() -> None:
     assert fig2def["path"] == (
         "Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb"
     )
-    assert set(fig2def["requires_data"]) == {
+    expected_frozen_inputs = {
         "Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/frozen/"
-        "rank_distribution.tsv",
-        "Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/frozen/"
-        "pl_scores.tsv",
-        "Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/frozen/"
-        "pl_pairwise.tsv",
-        "Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/frozen/"
-        "provenance.json",
+        f"{filename}"
+        for filename in EXPECTED_FROZEN_FILES
     }
-    assert len(fig2def["expected_artifacts"]) == 3
+    assert set(fig2def["requires_data"]) == expected_frozen_inputs
+    assert set(fig2def["expected_artifacts"]) == {
+        "Supplementary Fig. 10-13/output/"
+        "fig.2d.phytobench-gene.percent.bar.pdf",
+        "Supplementary Fig. 10-13/output/"
+        "fig.2e.phytobench-gene.prob.heatmap.pdf",
+        "Supplementary Fig. 10-13/output/"
+        "fig.2f.phytobench-gene.score.bar.pdf",
+    }
+
+    supplementary = targets["supp-10-13"]
+    assert set(supplementary["requires_data"]) == expected_frozen_inputs
+    expected_supplementary_artifacts = {
+        "Supplementary Fig. 10-13/output/"
+        f"supplementary_fig.10.phytobench-gene.{scope}.percent.bar.pdf"
+        for scope in STRATIFIED_SCOPES
+    }
+    expected_supplementary_artifacts.add(
+        "Supplementary Fig. 10-13/output/"
+        "supplementary_fig.11.expert-panel-and-agreement.pdf"
+    )
+    expected_supplementary_artifacts.update(
+        "Supplementary Fig. 10-13/output/"
+        f"supplementary_fig.12.phytobench-gene.{scope}.prob.heatmap.pdf"
+        for scope in STRATIFIED_SCOPES
+    )
+    expected_supplementary_artifacts.update(
+        "Supplementary Fig. 10-13/output/"
+        f"supplementary_fig.13.phytobench-gene.{scope}.score.bar.pdf"
+        for scope in STRATIFIED_SCOPES
+    )
+    assert set(supplementary["expected_artifacts"]) == (
+        expected_supplementary_artifacts
+    )
 
     fig2h = targets["fig-2h"]
     assert fig2h["status"] == "skip_until_data"
