@@ -1703,6 +1703,19 @@ def _bootstrap_pl_fit(
     )
     if (
         not result.success
+        and str(result.message).startswith("ABNORMAL")
+        and np.isfinite(result.fun)
+        and np.isfinite(result.x).all()
+    ):
+        result = minimize(
+            objective,
+            start,
+            jac=True,
+            method="L-BFGS-B",
+            options={**OPTIMIZER_OPTIONS, "maxls": 50},
+        )
+    if (
+        not result.success
         or not np.isfinite(result.fun)
         or not np.isfinite(result.x).all()
     ):

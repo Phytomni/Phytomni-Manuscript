@@ -1,6 +1,8 @@
 from collections import Counter
 from dataclasses import FrozenInstanceError
 from itertools import permutations
+from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
@@ -1289,6 +1291,207 @@ INTERVAL_ANALYSES = (
     "expert_cluster",
     "gene_cluster",
 )
+
+
+def _production_gene_cluster_abnormal_case(
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    root = Path(__file__).resolve().parents[1]
+    release = pd.read_csv(
+        root
+        / "DeepGenomeAgent Evaluation"
+        / "supplementary"
+        / "Supplementary_Data_Expert_Rankings.tsv",
+        sep="\t",
+        dtype=str,
+    ).rename(columns={"AnonymousExpertID": "Expert"})
+    categories = pd.read_csv(
+        root
+        / "Supplementary Fig. 10-13"
+        / "PhytoBench-Gene-for_plot"
+        / "gene_categories.tsv",
+        sep="\t",
+        dtype=str,
+    ).set_index(["Species", "Gene"])["StudyStatus"]
+    release_keys = pd.MultiIndex.from_frame(release[["Species", "Gene"]])
+    assert release["StudyStatus"].tolist() == categories.reindex(
+        release_keys
+    ).tolist()
+
+    working = ranking_statistics._validate_pl_bootstrap_frame(
+        release,
+        MODEL_COLUMNS,
+    )
+    registry = ranking_statistics.ranking_scope_registry()
+    assert registry[11].scope == "uncharacterized.soybean"
+    scope_indices = ranking_statistics._ranking_scope_indices(
+        working,
+        registry,
+    )
+    rank_lookup = {f"R{rank}": rank - 1 for rank in range(1, 6)}
+    rank_numbers = np.array(
+        [
+            [rank_lookup[value] for value in row]
+            for row in working.loc[:, MODEL_COLUMNS].itertuples(
+                index=False,
+                name=None,
+            )
+        ],
+        dtype=int,
+    )
+    encoded_rankings = np.argsort(rank_numbers, axis=1, kind="stable")
+    unique_rankings, row_permutations = np.unique(
+        encoded_rankings,
+        axis=0,
+        return_inverse=True,
+    )
+    *_, initial_vectors = ranking_statistics._scope_point_statistics(
+        working,
+        MODEL_COLUMNS,
+        registry,
+        scope_indices,
+        encoded_rankings,
+    )
+
+    genes = (
+        working[["Species", "Gene", "StudyStatus"]]
+        .drop_duplicates()
+        .reset_index(drop=True)
+    )
+    gene_keys = pd.MultiIndex.from_frame(genes[["Species", "Gene"]])
+    row_gene_indices = gene_keys.get_indexer(
+        pd.MultiIndex.from_frame(working[["Species", "Gene"]])
+    )
+    gene_seed = np.random.SeedSequence(20260714).spawn(2)[1]
+    gene_rng = np.random.default_rng(gene_seed)
+    gene_counts = None
+    for _ in range(391):
+        gene_counts = ranking_statistics.sample_within_strata(
+            genes,
+            id_columns=("Species", "Gene"),
+            strata=("Species", "StudyStatus"),
+            rng=gene_rng,
+        ).to_numpy(dtype=float)
+    assert gene_counts is not None
+
+    row_indices = scope_indices[11]
+    selected_weights = gene_counts[row_gene_indices][row_indices]
+    permutation_weights = np.bincount(
+        row_permutations[row_indices],
+        weights=selected_weights,
+        minlength=len(unique_rankings),
+    )
+    retained = permutation_weights > 0
+    return (
+        unique_rankings[retained],
+        permutation_weights[retained],
+        initial_vectors[11],
+    )
+
+
+def test_bootstrap_pl_fit_retries_production_abnormal_line_search(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    rankings, weights, initial_vector = (
+        _production_gene_cluster_abnormal_case()
+    )
+    implementation = ranking_statistics.minimize
+    calls: list[tuple[np.ndarray, str, dict[str, object]]] = []
+
+    def record_minimize(fun, x0, *, jac, method, options):
+        calls.append((np.asarray(x0).copy(), method, dict(options)))
+        return implementation(
+            fun,
+            x0,
+            jac=jac,
+            method=method,
+            options=options,
+        )
+
+    monkeypatch.setattr(ranking_statistics, "minimize", record_minimize)
+    fit = ranking_statistics._bootstrap_pl_fit(
+        rankings,
+        weights,
+        MODEL_COLUMNS,
+        initial_vector,
+    )
+
+    assert len(calls) == 2
+    np.testing.assert_array_equal(calls[0][0], initial_vector)
+    np.testing.assert_array_equal(calls[1][0], initial_vector)
+    assert calls[0][1] == calls[1][1] == "L-BFGS-B"
+    assert calls[0][2] == ranking_statistics.OPTIMIZER_OPTIONS
+    assert calls[1][2] == {
+        **ranking_statistics.OPTIMIZER_OPTIONS,
+        "maxls": 50,
+    }
+    assert fit["optimizer_result"].success
+    assert np.isfinite(fit["elo"]).all()
+    probabilities = fit["pairwise_probabilities"]
+    off_diagonal = ~np.eye(len(MODEL_COLUMNS), dtype=bool)
+    assert np.isfinite(probabilities[off_diagonal]).all()
+
+
+@pytest.mark.parametrize(
+    ("message", "fun", "vector"),
+    [
+        ("STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT", 1.0, np.zeros(4)),
+        ("ABNORMAL: ", np.inf, np.zeros(4)),
+        ("ABNORMAL: ", 1.0, np.full(4, np.nan)),
+    ],
+)
+def test_bootstrap_pl_fit_only_retries_finite_abnormal_results(
+    monkeypatch: pytest.MonkeyPatch,
+    message: str,
+    fun: float,
+    vector: np.ndarray,
+) -> None:
+    calls = 0
+
+    def failed_minimize(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return SimpleNamespace(
+            success=False,
+            fun=fun,
+            x=vector.copy(),
+            message=message,
+        )
+
+    monkeypatch.setattr(ranking_statistics, "minimize", failed_minimize)
+    with pytest.raises(RuntimeError, match="optimization failed"):
+        ranking_statistics._bootstrap_pl_fit(
+            np.array([[0, 1, 2, 3, 4]]),
+            np.array([1.0]),
+            MODEL_COLUMNS,
+            np.zeros(4),
+        )
+    assert calls == 1
+
+
+def test_bootstrap_pl_fit_rejects_failed_abnormal_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = 0
+
+    def failed_minimize(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return SimpleNamespace(
+            success=False,
+            fun=1.0,
+            x=np.zeros(4),
+            message="ABNORMAL: ",
+        )
+
+    monkeypatch.setattr(ranking_statistics, "minimize", failed_minimize)
+    with pytest.raises(RuntimeError, match="optimization failed"):
+        ranking_statistics._bootstrap_pl_fit(
+            np.array([[0, 1, 2, 3, 4]]),
+            np.array([1.0]),
+            MODEL_COLUMNS,
+            np.zeros(4),
+        )
+    assert calls == 2
 
 
 @pytest.fixture(scope="module")
