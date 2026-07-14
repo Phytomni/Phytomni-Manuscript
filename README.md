@@ -98,7 +98,7 @@ Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) 
 |---|---|---|---|---|---|
 | Fig. 2a-c,g | `Fig. 2/fig. 2.ipynb` | `python3` | `PhytoBench-Gene-BERTScore-for_plot.tsv` ✓ | `run` | `fig.2a.phytobench-knowledge.bar.pdf` / `fig.2b.phytobench-data.bar.pdf` / `fig.2c.phytobench-analysis.violin.pdf` / `fig.2g.phytobench-gene.well_studied.bar.pdf` |
 | Fig. 2h | `Fig. 2/fig. 2.ipynb` | `python3` | `PhytoBench-Gene-BERTScore-for_plot.tsv` ✓, `PhytoBench-Gene-hallucination-for_plot.tsv` ⚠ | `skip_until_data` | `fig.2h.phytobench-gene.uncharacterized.bar.pdf` |
-| Fig. 2d-f | `Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb` | `python3` | `rank_distribution.tsv` ✓, … (4 files) | `run` | `fig.2d.phytobench-gene.percent.bar.pdf` / `fig.2e.phytobench-gene.prob.heatmap.pdf` / `fig.2f.phytobench-gene.score.bar.pdf` |
+| Fig. 2d-f | `Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb` | `python3` | `rank_distribution.tsv` ✓, … (13 files) | `run` | `fig.2d.phytobench-gene.percent.bar.pdf` / `fig.2e.phytobench-gene.prob.heatmap.pdf` / `fig.2f.phytobench-gene.score.bar.pdf` |
 | Fig. 3 | `Fig. 3/fig. 3.ipynb` | `python3` | `PhytoBench-Paper-for_plot.xlsx` ✓ | `run` | `fig.3d.phytobench-paper.line.pdf` / `fig.3e.phytobench-paper.heatmap.pdf` |
 | Ext. Data 5a | `Extended Data Fig. 5/extended_data_fig. 5ab.ipynb` | `ir` (R) | `Phytomni-PaperYear-for_plot.csv` ✓ | `run` | `extended_data_fig.5a.pdf` |
 | Ext. Data 5b | `Extended Data Fig. 5/extended_data_fig. 5ab.ipynb` | `ir` (R) | `Phytomni-DocType-for_plot.csv` ⚠ | `skip_until_data` | `extended_data_fig.5b.pdf` |
@@ -116,7 +116,7 @@ Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) 
 | Supp. 7 | `Supplementary Fig. 7/supplementary_fig. 7.py` | `python3` (script) | `PhytoBench-Data-for_plot.xlsx` ✓ | `run` | `model_accuracy_by_species.pdf` |
 | Supp. 8 | `Supplementary Fig. 8/supplementary_fig. 8.ipynb` | `python3` | *inline* | `run` | `model_compare_agent_split.pdf` |
 | Supp. 9 | `Supplementary Fig. 9/supplementary_fig. 9.ipynb` | `python3` | *inline* | `run` | `model_compare_agent_split_across_speciesv1.pdf` |
-| Supp. 10-13 | `Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb` | `python3` | `rank_distribution.tsv` ✓, … (4 files) | `run` | `supplementary_fig.7.phytobench-gene.well_studied.percent.bar.pdf` / `supplementary_fig.7.phytobench-gene.uncharacterized.percent.bar.pdf` |
+| Supp. 10-13 | `Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb` | `python3` | `rank_distribution.tsv` ✓, … (13 files) | `run` | `supplementary_fig.10.phytobench-gene.well_studied.percent.bar.pdf` / `supplementary_fig.10.phytobench-gene.well_studied.rice.percent.bar.pdf` / `supplementary_fig.10.phytobench-gene.well_studied.maize.percent.bar.pdf` / … (52 files) |
 | Supp. 14 | `Supplementary Fig. 14/supplementary_fig. 14.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.6a.model.paperbench-mp.line.pdf` / `supplementary_fig.6b.model.paperbench-as.line.pdf` / `supplementary_fig.6c.model.paperbench-cr.line.pdf` / … (5 files) |
 | Supp. 19 | `Supplementary Fig. 19/supplementary_fig. 19.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.19.pdf` |
 | Supp. 24 | `Supplementary Fig. 24/supplementary_fig. 24.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.13.phytobench-review.polar.pdf` |
@@ -162,9 +162,11 @@ The `output/` and `result/` directories it creates are gitignored.
 
 `DeepGenomeAgent Evaluation/` contains two canonical scoring notebooks. `score_hallucination.ipynb` measures cross-response inconsistency. For each gene and model, it compares three repeated responses over every ordered response pair, records window-level pairwise entailment judgments, clusters mutually entailing responses to calculate normalized semantic entropy, and summarizes structurally complete logs with the primary `mean_directional_contradiction_ratio` and the inclusive-threshold `high_contradiction_gene_fraction`. Neither cross-response consistency nor semantic entropy directly verifies factual truth: a false claim repeated consistently across all three responses can score as consistent.
 
-`DeepGenomeAgent Evaluation/score_plackett_luce.ipynb` converts complete expert rankings into Plackett–Luce log-strengths, Elo-like scores and confidence intervals, and pairwise win probabilities. Its default target set contains five models (`Gemini`, `Grok`, `OpenAI`, `Phytomni`, and `Claude`), while the likelihood implementation supports any configured count of at least two models.
+`DeepGenomeAgent Evaluation/score_plackett_luce.ipynb` converts complete expert rankings into Plackett–Luce log-strengths, Elo-like scores and confidence intervals, and pairwise win probabilities. Its default target set contains five models (`Gemini`, `Grok`, `OpenAI`, `Phytomni`, and `Claude`), while the likelihood implementation supports any configured count of at least two models. The manuscript freezer deliberately uses the fixed five-model public-release schema so that the published figures and their checksums cannot drift with notebook configuration.
 
-The private query workbook, response corpus, judgment logs, and `score.tsv` are not shipped. Exact numeric reproduction of the inconsistency results requires the frozen judgment logs used for the reported run; rerunning a drifting external judge alias can change entailment labels and therefore does not guarantee the same numbers.
+The full anonymized scoring attachment is tracked at `DeepGenomeAgent Evaluation/supplementary/Supplementary_Data_Expert_Rankings.tsv`, with its field definitions in `Supplementary_Data_Expert_Rankings_Codebook.tsv`. It contains 600 expert–gene assignments from 120 anonymized experts and 200 genes: each row is one complete, no-tie R1–R5 ranking of the five models. The public `expert_panel_category_map.tsv` records the privacy-reviewed category aggregation used for the panel-composition summary. Row-level expert demographics are not released; only the aggregate panel summary is used by the figure notebook.
+
+The private query workbook, response corpus, hallucination-judgment logs, expert metadata workbook, and private lineage `score.tsv` are not shipped. Exact numeric reproduction of the inconsistency results requires the frozen judgment logs used for the reported run; rerunning a drifting external judge alias can change entailment labels and therefore does not guarantee the same numbers. The checked-in schema-2 ranking aggregates reproduce the reported ranking figures without those private inputs.
 
 For an offline repository check, install only the locked base environment and run the scoring contract tests. The Plackett–Luce notebook can also execute without private data:
 
@@ -181,18 +183,33 @@ uv run --no-sync jupyter nbconvert --to notebook --execute \
 
 Set `DEEPGENOME_SCORE_TSV=/absolute/path/to/score.tsv` to fit the private rankings. The five default model columns match the planned benchmark input; set `DEEPGENOME_MODEL_COLUMNS=Gemini,Claude,Model_X` to supply a different comma-separated set while retaining `Gemini` as the reference model. Add `DEEPGENOME_SAVE_RESULTS=1` only to write `pl_elo_results.csv` and `pl_pairwise_probs.csv`; exports are disabled by default. If `DEEPGENOME_SCORE_TSV` is unset, the notebook completes its deterministic checks, reports `SKIPPED`, and does not fit or invent private benchmark results.
 
-The manuscript figures do not read the private `score.tsv` directly. Freeze one validated private run into aggregate-only, tracked tables before plotting:
+The manuscript figures do not read private row-level data directly. To rebuild the schema-2 snapshot, combine the tracked anonymized ranking release and public mappings with the private expert metadata and lineage file in a controlled environment:
 
 ```bash
 uv run --no-sync python -m scripts.freeze_deepgenome_rankings \
-  --score-tsv /absolute/path/to/score.tsv \
+  --score-tsv \
+  "DeepGenomeAgent Evaluation/supplementary/Supplementary_Data_Expert_Rankings.tsv" \
+  --expert-column AnonymousExpertID \
   --gene-categories \
   "Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/gene_categories.tsv" \
+  --expert-metadata /absolute/path/to/expert_metadata.xlsx \
+  --private-lineage-score /absolute/path/to/private/score.tsv \
+  --panel-category-map \
+  "DeepGenomeAgent Evaluation/supplementary/expert_panel_category_map.tsv" \
+  --bootstrap-replicates 10000 \
+  --seed 20260714 \
+  --max-failed-fits 10 \
   --output-dir \
   "Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/frozen"
 ```
 
-The freezer rejects incomplete rankings, records source and scoring-notebook SHA-256 hashes in `provenance.json`, and writes only rank distributions, fitted scores, and pairwise probabilities. The new private five-model source, individual responses, and judgment logs are not committed. The older four-model `score*.tsv` files remain only as legacy provenance and are not read by the current plotting path. `Fig. 2d-f` and all stratified Supplementary Fig. 10-13 panels read the frozen aggregate tables; `Fig. 2g` reads the tracked BERTScore table. Generate them directly with:
+The freezer rejects incomplete rankings and writes exactly 13 tracked inputs: 12 aggregate TSV tables plus `provenance.json`. The snapshot contains rank-distribution, Plackett–Luce score, and pairwise-probability point estimates and 95% confidence intervals; Fleiss-κ, per-gene Kendall W, ordinal-agreement, and top-1-consensus results; expert-panel and assignment summaries; and checksummed provenance. Both the Plackett–Luce and agreement analyses use 10,000 successful bootstrap replicates. Plackett–Luce intervals use the crossed expert–gene percentile analysis, while agreement intervals use a gene-block percentile bootstrap stratified by species and study status.
+
+For Fleiss-κ, an item is one gene×model pair, R1–R5 are the rating categories, and each item has three expert ratings. `fleiss_kappa.tsv` retains all 58 locked scopes: 1 primary overall scope, 12 locked secondary scopes (five species, two study-status groups, and five models), and 45 locked exploratory interaction scopes. Supplementary Fig. 11 displays the 13 primary/locked-secondary κ estimates; the complete 58-scope table remains available for audit. Kendall W summarizes each gene's three complete rankings across the five models, and the top-1 table classifies each gene as unanimous, two-of-three majority, or all different. The four Supplementary Fig. 11 panels report panel composition and assignment balance, Fleiss-κ, Kendall W distributions, and top-1 consensus, respectively.
+
+Panel-composition percentages are explicit about their denominator. The multi-select `Research_domains` and `Study_species` dimensions use all 120 experts, so their category percentages need not sum to 100%; single-select dimensions use nonmissing respondents and report the missing count. Conflict of interest is reported as a self-declaration: all 120 experts selected `No`, so the supported statement is that no conflicts were declared, not that conflicts were independently excluded.
+
+The older four-model `score*.tsv` files remain only as legacy provenance and are not read by the current plotting path. `Fig. 2d-f` and all stratified Supplementary Fig. 10-13 panels read the frozen aggregate tables; `Fig. 2g` reads the tracked BERTScore table. Generate them directly with:
 
 ```bash
 mkdir -p /tmp/phytomni-figure-runs
