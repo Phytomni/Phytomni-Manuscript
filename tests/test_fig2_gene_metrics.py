@@ -701,6 +701,17 @@ def test_provenance_contains_complete_non_secret_lineage(
         "invalid_judgment_logs": 0, "extra_judgment_logs": 0,
     }
     assert "api_key" not in json.dumps(provenance).lower()
+    known_override = build_provenance(
+        source=source,
+        bertscore=bert_rows,
+        hallucination_pairs=pairs,
+        hallucination=gene_rows,
+        judgment_dir=directory,
+        hallucination_notebook=hallucination_notebook,
+        core=load_hallucination_core(hallucination_notebook),
+        anomalies=["Os01g0107900-R1 is byte-identical to Os01g0107900-R3."],
+    )
+    assert "private response text" not in json.dumps(known_override)
     with pytest.raises(ValueError, match="unknown entries"):
         build_provenance(
             source=source,
