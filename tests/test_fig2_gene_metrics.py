@@ -671,6 +671,36 @@ def test_figure_tables_preserve_historical_values_and_fixed_order() -> None:
     )
 
 
+def test_figure_tables_reject_bertscore_outside_fixed_fig2g_range() -> None:
+    source = _historical_source()
+    bert_rows = pd.DataFrame(
+        [
+            {
+                "Model": "Claude",
+                "Gene": f"well_studied-{i:03d}",
+                "BERTScorePrecision": 0.4759,
+            }
+            for i in range(100)
+        ]
+    )
+    hallucination_rows = pd.DataFrame(
+        [
+            {
+                "Model": "Claude",
+                "Gene": f"uncharacterized-{i:03d}",
+                "DirectionalPairCount": 6,
+                "MeanDirectionalContradictionRatio": 0.35,
+            }
+            for i in range(100)
+        ]
+    )
+    with pytest.raises(
+        ValueError,
+        match=r"Fig\. 2g BERTScore value for Claude .*\[0\.50, 0\.58\].*refusing to publish",
+    ):
+        build_figure_tables(source, bert_rows, hallucination_rows)
+
+
 def test_provenance_contains_complete_non_secret_lineage(
     formal_full_judgment_fixture: tuple[Path, list[str], dict[tuple[str, str], str], pd.DataFrame],
     hallucination_notebook: Path,
@@ -699,6 +729,10 @@ def test_provenance_contains_complete_non_secret_lineage(
         hallucination_notebook=hallucination_notebook,
         core=load_hallucination_core(hallucination_notebook),
     )
+    assert provenance["anomalies"] == [
+        "Os01g0107900-R1 is byte-identical to Os01g0107900-R3.",
+        "Os06g0665200-R1 is byte-identical to Os06g0665200-R3.",
+    ]
     assert provenance["judge"]["api_base_url"] == "https://api.modelarts-maas.com/v2"
     assert provenance["judge"]["model"] == "deepseek-v3.2"
     assert provenance["judge"]["temperature"] == 0
@@ -731,6 +765,20 @@ def test_provenance_contains_complete_non_secret_lineage(
             hallucination_notebook=hallucination_notebook,
             core=load_hallucination_core(hallucination_notebook),
             anomalies=["private response text should not be serialized"],
+        )
+    with pytest.raises(ValueError, match="unknown entries"):
+        build_provenance(
+            source=source,
+            bertscore=bert_rows,
+            hallucination_pairs=pairs,
+            hallucination=gene_rows,
+            judgment_dir=directory,
+            hallucination_notebook=hallucination_notebook,
+            core=load_hallucination_core(hallucination_notebook),
+            anomalies=[
+                "Zm00001eb140160-R1 is byte-identical to Zm00001eb063410-R1, "
+                "and its content describes the latter gene."
+            ],
         )
 
 

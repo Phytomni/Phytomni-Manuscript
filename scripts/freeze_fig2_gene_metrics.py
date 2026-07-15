@@ -26,6 +26,7 @@ import pandas as pd
 
 
 MODEL_ORDER = ["Phytomni", "Gemini", "Claude", "OpenAI", "Grok"]
+FIG2_BERTSCORE_Y_RANGE = (0.50, 0.58)
 DISPLAY_LABELS = {
     "Phytomni": "Phytomni",
     "Gemini": "Gemini Deep Research",
@@ -141,7 +142,6 @@ _EXPECTED_CLAUDE_PAIR_COUNT = 600
 _KNOWN_ARCHIVE_ANOMALIES = [
     "Os01g0107900-R1 is byte-identical to Os01g0107900-R3.",
     "Os06g0665200-R1 is byte-identical to Os06g0665200-R3.",
-    "Zm00001eb140160-R1 is byte-identical to Zm00001eb063410-R1, and its content describes the latter gene.",
 ]
 
 
@@ -926,6 +926,20 @@ def _validated_metric_mean(frame: pd.DataFrame, column: str, label: str) -> floa
     return float(values.mean())
 
 
+def _validate_fig2_bertscore_range(values: dict[str, float]) -> None:
+    """Reject Fig. 2g values that cannot be shown on its fixed y-axis."""
+
+    lower, upper = FIG2_BERTSCORE_Y_RANGE
+    for model, value in values.items():
+        if not math.isfinite(value) or value < lower or value > upper:
+            raise ValueError(
+                f"Fig. 2g BERTScore value for {model} ({value:.6f}) is outside "
+                f"the fixed panel y-axis range [{lower:.2f}, {upper:.2f}]; "
+                "refusing to publish figure inputs. Recompute or inspect the "
+                "metric before changing the figure specification."
+            )
+
+
 def build_figure_tables(
     source: pd.DataFrame,
     bertscore: pd.DataFrame,
@@ -959,6 +973,7 @@ def build_figure_tables(
         **historical["bertscore"],
         "Claude": claude_bert,
     }
+    _validate_fig2_bertscore_range(bert_values)
     hallucination_values = {
         **historical["hallucination"],
         "Claude": claude_hallucination,
