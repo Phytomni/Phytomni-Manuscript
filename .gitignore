@@ -223,6 +223,7 @@ DataAgent Evaluation/result/
 DeepGenomeAgent Evaluation/score.tsv
 DeepGenomeAgent Evaluation/evaluation_expert_metadata*.xlsx
 DeepGenomeAgent Evaluation/private/
+DeepGenomeAgent Evaluation/private_inputs/
 DeepGenomeAgent Evaluation/*crosswalk*.tsv
 DeepGenomeAgent Evaluation/hallucination_analysis/
 DeepGenomeAgent Evaluation/export/
