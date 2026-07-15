@@ -1,12 +1,20 @@
 from __future__ import annotations
 
+import hashlib
+import sys
+import types
 from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 
 import openpyxl
+import pandas as pd
 import pytest
 
 from scripts.freeze_fig2_gene_metrics import (
+    EXPECTED_HISTORICAL_MEANS,
+    calculate_claude_bertscore,
+    create_bertscorer,
+    historical_model_means,
     load_claude_archive,
     load_gene_categories,
     load_source_workbook,
@@ -222,3 +230,157 @@ def test_claude_archive_rejects_missing_extra_or_empty_members(
     categories = load_gene_categories(gene_categories)
     with pytest.raises(ValueError, match="Claude archive member contract"):
         load_claude_archive(archive_path, categories)
+
+
+def _historical_source() -> pd.DataFrame:
+    rows: list[dict[str, object]] = []
+    for status in ("well_studied", "uncharacterized"):
+        for index in range(100):
+            row: dict[str, object] = {
+                "Species": "Rice",
+                "GeneID": f"{status}-{index:03d}",
+                "StudyStatus": status,
+                "Query": f"query {status} {index}",
+            }
+            for metric, model_values in EXPECTED_HISTORICAL_MEANS.items():
+                suffix = "BERTScorePrecision" if metric == "bertscore" else "Hallucination"
+                for model, value in model_values.items():
+                    target_status = "well_studied" if metric == "bertscore" else "uncharacterized"
+                    row[f"{model}{suffix}"] = value if status == target_status else float("nan")
+            rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def test_historical_means_are_unweighted_and_match_reference_values() -> None:
+    means = historical_model_means(_historical_source())
+    for metric, expected_models in EXPECTED_HISTORICAL_MEANS.items():
+        assert means[metric] == pytest.approx(expected_models, abs=1e-12)
+
+
+def test_historical_means_reject_nonfinite_target_cells() -> None:
+    source = _historical_source()
+    source.loc[0, "PhytomniBERTScorePrecision"] = float("nan")
+    with pytest.raises(ValueError, match="non-finite bertscore"):
+        historical_model_means(source)
+
+
+class _TensorLike:
+    def __init__(self, values: list[float]) -> None:
+        self.values = values
+
+    def detach(self) -> "_TensorLike":
+        return self
+
+    def cpu(self) -> "_TensorLike":
+        return self
+
+    def tolist(self) -> list[float]:
+        return self.values
+
+
+class _RecordingScorer:
+    def __init__(self, precision: list[float]) -> None:
+        self.precision = precision
+        self.calls: list[tuple[list[str], list[str], int]] = []
+
+    def score(
+        self,
+        candidates: list[str],
+        references: list[str],
+        *,
+        batch_size: int,
+    ) -> tuple[_TensorLike, None, None]:
+        self.calls.append((candidates, references, batch_size))
+        return _TensorLike(self.precision), None, None
+
+
+def test_claude_bertscore_uses_response_as_candidate_and_query_as_reference() -> None:
+    source = pd.DataFrame(
+        [
+            {
+                "Species": "Rice",
+                "GeneID": "WELL2",
+                "StudyStatus": "well_studied",
+                "Query": "query 2",
+            },
+            {
+                "Species": "Rice",
+                "GeneID": "WELL1",
+                "StudyStatus": "well_studied",
+                "Query": "query 1",
+            },
+        ]
+    )
+    responses = {
+        ("WELL1", "single"): "# WELL1 response\n",
+        ("WELL2", "single"): "# WELL2 response\n",
+    }
+    scorer = _RecordingScorer(precision=[0.51, 0.53])
+
+    result = calculate_claude_bertscore(source, responses, scorer, batch_size=16)
+
+    assert scorer.calls == [
+        (["# WELL1 response\n", "# WELL2 response\n"], ["query 1", "query 2"], 16)
+    ]
+    assert result.columns.tolist() == [
+        "Model",
+        "Gene",
+        "BERTScorePrecision",
+        "QuerySHA256",
+        "ResponseSHA256",
+    ]
+    assert result["BERTScorePrecision"].tolist() == [0.51, 0.53]
+    assert result["Gene"].tolist() == ["WELL1", "WELL2"]
+    assert result["QuerySHA256"].tolist() == [
+        hashlib.sha256(b"query 1").hexdigest(),
+        hashlib.sha256(b"query 2").hexdigest(),
+    ]
+    assert result["ResponseSHA256"].tolist() == [
+        hashlib.sha256(b"# WELL1 response\n").hexdigest(),
+        hashlib.sha256(b"# WELL2 response\n").hexdigest(),
+    ]
+
+
+def test_bertscorer_configuration_matches_review_evaluator(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured_kwargs: dict[str, object] = {}
+
+    class FakeBERTScorer:
+        def __init__(self, **kwargs: object) -> None:
+            captured_kwargs.update(kwargs)
+
+    fake_module = types.ModuleType("bert_score")
+    fake_module.BERTScorer = FakeBERTScorer  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "bert_score", fake_module)
+
+    create_bertscorer(device="cpu", batch_size=16)
+
+    assert captured_kwargs == {
+        "model_type": "bert-base-uncased",
+        "num_layers": 9,
+        "batch_size": 16,
+        "nthreads": 1,
+        "all_layers": False,
+        "idf": False,
+        "device": "cpu",
+        "rescale_with_baseline": False,
+        "lang": "en",
+    }
+
+
+@pytest.mark.parametrize("invalid_precision", [float("nan"), -0.01, 1.01])
+def test_claude_bertscore_rejects_nonfinite_or_out_of_range_precision(
+    invalid_precision: float,
+) -> None:
+    source = pd.DataFrame(
+        [
+            {
+                "GeneID": "WELL1",
+                "StudyStatus": "well_studied",
+                "Query": "query 1",
+            }
+        ]
+    )
+    responses = {("WELL1", "single"): "response 1"}
+    scorer = _RecordingScorer(precision=[invalid_precision])
+    with pytest.raises(ValueError, match=r"precision must be finite and in \[0, 1\]"):
+        calculate_claude_bertscore(source, responses, scorer)

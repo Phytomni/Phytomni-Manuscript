@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import math
 from pathlib import Path, PurePosixPath
 from typing import Iterable
 from zipfile import ZipFile
 
+import numpy as np
 import pandas as pd
 
 
@@ -83,6 +85,24 @@ _STATUS_ALIASES = {
     "well-studied": "well_studied",
     "well_studied": "well_studied",
     "uncharacterized": "uncharacterized",
+}
+_HISTORICAL_COLUMNS = {
+    "bertscore": {
+        "Phytomni": "PhytomniBERTScorePrecision",
+        "Gemini": "GeminiBERTScorePrecision",
+        "OpenAI": "OpenAIBERTScorePrecision",
+        "Grok": "GrokBERTScorePrecision",
+    },
+    "hallucination": {
+        "Phytomni": "PhytomniHallucination",
+        "Gemini": "GeminiHallucination",
+        "OpenAI": "OpenAIHallucination",
+        "Grok": "GrokHallucination",
+    },
+}
+_HISTORICAL_STATUSES = {
+    "bertscore": "well_studied",
+    "hallucination": "uncharacterized",
 }
 
 
@@ -262,6 +282,192 @@ def load_claude_archive(
     except (OSError, EOFError) as exc:
         raise ValueError(f"Claude archive member contract violation: unreadable ZIP {path}") from exc
     return responses
+
+
+def _require_historical_source(source: pd.DataFrame) -> None:
+    """Validate the fixed 100/100 source cohort used by the baseline means."""
+
+    required_columns = {
+        "GeneID",
+        "StudyStatus",
+        "Query",
+        *(
+            column
+            for metric_columns in _HISTORICAL_COLUMNS.values()
+            for column in metric_columns.values()
+        ),
+    }
+    missing = sorted(required_columns.difference(source.columns))
+    if missing:
+        raise ValueError(f"Historical source is missing columns: {missing}")
+    counts = source["StudyStatus"].value_counts(dropna=False).to_dict()
+    expected_counts = {"well_studied": 100, "uncharacterized": 100}
+    if counts != expected_counts:
+        raise ValueError(
+            "Historical source must contain exactly 100 well_studied and 100 "
+            f"uncharacterized rows, got {counts}"
+        )
+
+
+def historical_model_means(source: pd.DataFrame) -> dict[str, dict[str, float]]:
+    """Return unweighted baseline means after validating the frozen cohort.
+
+    The workbook contains one row per gene, with BERTScore cells populated for
+    the 100 well-studied genes and hallucination cells populated for the 100
+    uncharacterized genes.  Every gene in the relevant status contributes
+    equally to its model mean.  The values are checked against the historical
+    reference before a downstream caller accepts any new metric output.
+    """
+
+    _require_historical_source(source)
+    means: dict[str, dict[str, float]] = {metric: {} for metric in _HISTORICAL_COLUMNS}
+    for metric, model_columns in _HISTORICAL_COLUMNS.items():
+        status = _HISTORICAL_STATUSES[metric]
+        selected = source.loc[source["StudyStatus"].eq(status)]
+        for model, column in model_columns.items():
+            values = pd.to_numeric(selected[column], errors="coerce").to_numpy(dtype=float)
+            if not np.isfinite(values).all():
+                raise ValueError(f"Historical source contains non-finite {metric} values in {column}")
+            if ((values < 0) | (values > 1)).any():
+                raise ValueError(f"Historical source contains out-of-range {metric} values in {column}")
+            mean = float(values.mean())
+            expected = EXPECTED_HISTORICAL_MEANS[metric][model]
+            if not math.isfinite(mean) or abs(mean - expected) > 1e-12:
+                raise ValueError(
+                    f"Historical {metric} mean for {model} changed: "
+                    f"expected {expected:.16g}, got {mean:.16g}"
+                )
+            means[metric][model] = mean
+    return means
+
+
+def create_bertscorer(device: str, batch_size: int) -> object:
+    """Lazily construct the BERTScore evaluator used by Knowledge&Review."""
+
+    if batch_size < 1:
+        raise ValueError("BERTScore batch_size must be positive")
+    try:
+        from bert_score import BERTScorer
+    except ImportError as exc:  # pragma: no cover - dependency is optional at import time.
+        raise RuntimeError(
+            "BERTScore is unavailable; install the deepgenome-eval extra before scoring"
+        ) from exc
+    return BERTScorer(
+        model_type="bert-base-uncased",
+        num_layers=9,
+        batch_size=batch_size,
+        nthreads=1,
+        all_layers=False,
+        idf=False,
+        device=device,
+        rescale_with_baseline=False,
+        lang="en",
+    )
+
+
+def _tensor_values(value: object) -> list[float]:
+    """Convert a BERTScore tensor-like result into Python floats."""
+
+    current = value
+    for method_name in ("detach", "cpu"):
+        method = getattr(current, method_name, None)
+        if callable(method):
+            current = method()
+    tolist = getattr(current, "tolist", None)
+    if callable(tolist):
+        current = tolist()
+    if isinstance(current, (str, bytes)):
+        raise ValueError("BERTScore precision result is not numeric")
+    if np.isscalar(current):
+        current = [current]
+    try:
+        return [float(item) for item in current]  # type: ignore[union-attr]
+    except (TypeError, ValueError) as exc:
+        raise ValueError("BERTScore precision result is not a one-dimensional sequence") from exc
+
+
+def _sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def calculate_claude_bertscore(
+    source: pd.DataFrame,
+    responses: dict[tuple[str, str], str],
+    scorer: object,
+    batch_size: int = 16,
+) -> pd.DataFrame:
+    """Score Claude's well-studied responses against workbook queries.
+
+    BERTScore receives the raw Markdown response as the candidate and the
+    corresponding query as the reference.  Only hashes are retained in the
+    returned table so response and query text never enter tracked artifacts.
+    """
+
+    if batch_size < 1:
+        raise ValueError("BERTScore batch_size must be positive")
+    required = {"GeneID", "StudyStatus", "Query"}
+    missing = sorted(required.difference(source.columns))
+    if missing:
+        raise ValueError(f"Claude BERTScore source is missing columns: {missing}")
+    selected = (
+        source.loc[source["StudyStatus"].eq("well_studied"), ["GeneID", "Query"]]
+        .sort_values("GeneID", kind="mergesort")
+        .reset_index(drop=True)
+    )
+    if selected.empty:
+        raise ValueError("Claude BERTScore source contains no well_studied genes")
+
+    candidates: list[str] = []
+    references: list[str] = []
+    for row in selected.itertuples(index=False):
+        gene = str(row.GeneID)
+        query = str(row.Query)
+        if not query.strip():
+            raise ValueError(f"Empty query for Claude BERTScore gene {gene}")
+        key = (gene, "single")
+        if key not in responses:
+            raise ValueError(f"Missing Claude response for {gene}")
+        response = responses[key]
+        if not isinstance(response, str) or not response.strip():
+            raise ValueError(f"Empty Claude response for {gene}")
+        candidates.append(response)
+        references.append(query)
+
+    score_method = getattr(scorer, "score", None)
+    if not callable(score_method):
+        raise TypeError("BERTScore scorer must provide a callable score method")
+    score_result = score_method(candidates, references, batch_size=batch_size)
+    try:
+        precision_result = score_result[0]
+    except (IndexError, KeyError, TypeError) as exc:
+        raise ValueError("BERTScore scorer returned no precision component") from exc
+    precision = _tensor_values(precision_result)
+    if len(precision) != len(selected):
+        raise ValueError(
+            "BERTScore scorer returned an unexpected number of precision values: "
+            f"expected {len(selected)}, got {len(precision)}"
+        )
+    for value in precision:
+        if not math.isfinite(value) or not 0 <= value <= 1:
+            raise ValueError(f"BERTScore precision must be finite and in [0, 1], got {value!r}")
+
+    records = []
+    for row, value, query, response in zip(
+        selected.itertuples(index=False), precision, references, candidates, strict=True
+    ):
+        records.append(
+            {
+                "Model": "Claude",
+                "Gene": str(row.GeneID),
+                "BERTScorePrecision": float(value),
+                "QuerySHA256": _sha256_text(query),
+                "ResponseSHA256": _sha256_text(response),
+            }
+        )
+    return pd.DataFrame(
+        records,
+        columns=["Model", "Gene", "BERTScorePrecision", "QuerySHA256", "ResponseSHA256"],
+    )
 
 
 def _parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
