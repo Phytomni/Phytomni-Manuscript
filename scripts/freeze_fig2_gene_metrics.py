@@ -138,10 +138,6 @@ _GENE_HALLUCINATION_COLUMNS = [
 ]
 _EXPECTED_CLAUDE_LOG_COUNT = 100
 _EXPECTED_CLAUDE_PAIR_COUNT = 600
-_STATIC_JUDGE_SETTINGS = {
-    "api_base_url": "https://www.dmxapi.cn/v1",
-    "model": "deepseek-v3.2-exp",
-}
 _KNOWN_ARCHIVE_ANOMALIES = [
     "Os01g0107900-R1 is byte-identical to Os01g0107900-R3.",
     "Os06g0665200-R1 is byte-identical to Os06g0665200-R3.",
@@ -640,11 +636,36 @@ def _validated_judge_settings(
 
 
 def _expected_judge_settings(core: dict[str, object] | None) -> dict[str, object]:
-    """Resolve active settings from canonical-core constants with safe fallbacks."""
+    """Resolve active judge settings from the current runtime environment.
+
+    The freezer must validate logs against the run that produced them.  The
+    endpoint and model are therefore read at call time, never captured as
+    static defaults (and never accompanied by a credential fallback).
+    """
 
     namespace = core or {}
+    api_base_url = os.getenv("DEEPGENOME_API_BASE_URL")
+    if api_base_url is None:
+        api_base_url = namespace.get("API_BASE_URL")
+    judge_model = os.getenv("DEEPGENOME_JUDGE_MODEL")
+    if judge_model is None:
+        judge_model = namespace.get("JUDGE_MODEL")
+    if not isinstance(api_base_url, str) or not api_base_url.strip():
+        raise ValueError(
+            "DEEPGENOME_API_BASE_URL must be set when validating Claude judgment logs"
+        )
+    if not isinstance(judge_model, str) or not judge_model.strip():
+        raise ValueError(
+            "DEEPGENOME_JUDGE_MODEL must be set when validating Claude judgment logs"
+        )
+    sanitize = namespace.get("sanitize_api_base_url")
+    if callable(sanitize):
+        api_base_url = str(sanitize(api_base_url))
+    else:
+        api_base_url = api_base_url.rstrip("/")
     return {
-        **_STATIC_JUDGE_SETTINGS,
+        "api_base_url": api_base_url,
+        "model": judge_model.strip(),
         "temperature": namespace.get("JUDGE_TEMPERATURE", 0),
         "max_tokens": namespace.get("JUDGE_MAX_TOKENS", 10),
         "max_concurrent": namespace.get("JUDGE_MAX_CONCURRENT", 32),

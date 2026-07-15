@@ -1,4 +1,5 @@
 import ast
+import asyncio
 import hashlib
 import json
 import re
@@ -194,6 +195,86 @@ def test_hallucination_notebook_contract() -> None:
         maxsplit=1,
     )[1].split("def ordered_judgment_records", maxsplit=1)[0]
     assert '"hallucination_risk": semantic_entropy' in analyze_source
+
+
+def test_hallucination_runtime_concurrency_is_environment_backed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DEEPGENOME_MAX_CONCURRENT", "4")
+    namespace: dict[str, object] = {"__name__": "notebook_contract_test"}
+    source = code_cell_source(HALLUCINATION_NOTEBOOK, "hallucination-config")
+    exec(compile(source, str(HALLUCINATION_NOTEBOOK), "exec"), namespace)
+    assert namespace["MAX_CONCURRENT"] == 4
+
+    core = execute_tagged_source(HALLUCINATION_NOTEBOOK, "hallucination-core")
+    assert core["JUDGE_MAX_CONCURRENT"] == 4
+
+
+def test_hallucination_detector_retries_rate_limits_with_bounded_backoff(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("DEEPGENOME_MAX_CONCURRENT", raising=False)
+    notebook = load_notebook(HALLUCINATION_NOTEBOOK)
+    namespace: dict[str, object] = {"__name__": "notebook_contract_test"}
+    source = "\n\n".join(
+        [
+            tagged_source(notebook, "hallucination-core"),
+            code_cell_source(HALLUCINATION_NOTEBOOK, "hallucination-detector"),
+        ]
+    )
+    exec(compile(source, str(HALLUCINATION_NOTEBOOK), "exec"), namespace)
+    namespace["JUDGE_RETRY_BASE_SECONDS"] = 0.0
+
+    class RateLimitError(Exception):
+        status_code = 429
+
+    class _Message:
+        content = "entailment"
+
+    class _Choice:
+        message = _Message()
+
+    class _Response:
+        choices = [_Choice()]
+
+    class _Completions:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def create(self, **_: object) -> _Response:
+            self.calls += 1
+            if self.calls < 3:
+                raise RateLimitError("rate limited")
+            return _Response()
+
+    class _Chat:
+        def __init__(self) -> None:
+            self.completions = _Completions()
+
+    class _Client:
+        def __init__(self) -> None:
+            self.chat = _Chat()
+
+    detector_class = namespace["AsyncLongTextHallucinationDetector"]
+    detector = detector_class(
+        base_url="https://judge.example/v1",
+        openai_api_key="test-key",
+        model="judge-model",
+        max_concurrent=1,
+    )
+    detector.client = _Client()
+    result = asyncio.run(
+        detector.judge_entailment(
+            "hypothesis",
+            "context",
+            source_index=0,
+            target_index=1,
+            window_index=0,
+        )
+    )
+    assert result == "entailment"
+    assert detector.client.chat.completions.calls == 3
+    assert "error" not in detector.judgments_log[0]
 
 
 def test_hallucination_uses_public_gene_categories_and_claude_archive() -> None:

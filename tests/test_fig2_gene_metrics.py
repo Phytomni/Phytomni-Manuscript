@@ -28,6 +28,14 @@ from scripts.freeze_fig2_gene_metrics import (
 )
 
 
+@pytest.fixture(autouse=True)
+def judge_runtime_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep fixture logs aligned with the runtime-resolved judge settings."""
+
+    monkeypatch.setenv("DEEPGENOME_API_BASE_URL", "https://api.modelarts-maas.com/v2")
+    monkeypatch.setenv("DEEPGENOME_JUDGE_MODEL", "deepseek-v3.2")
+
+
 @pytest.fixture
 def gene_categories(tmp_path: Path) -> Path:
     path = tmp_path / "gene_categories.tsv"
@@ -409,8 +417,8 @@ def _write_formal_log(
         "model_id": "claude",
         "gene_id": gene,
         "response_ids": response_ids,
-        "api_base_url": "https://www.dmxapi.cn/v1",
-        "judge_model": "deepseek-v3.2-exp",
+        "api_base_url": "https://api.modelarts-maas.com/v2",
+        "judge_model": "deepseek-v3.2",
         "judge_prompt_sha256": core["JUDGE_PROMPT_SHA256"],
         "temperature": 0,
         "max_tokens": 10,
@@ -691,7 +699,8 @@ def test_provenance_contains_complete_non_secret_lineage(
         hallucination_notebook=hallucination_notebook,
         core=load_hallucination_core(hallucination_notebook),
     )
-    assert provenance["judge"]["model"] == "deepseek-v3.2-exp"
+    assert provenance["judge"]["api_base_url"] == "https://api.modelarts-maas.com/v2"
+    assert provenance["judge"]["model"] == "deepseek-v3.2"
     assert provenance["judge"]["temperature"] == 0
     assert provenance["judge"]["max_tokens"] == 10
     assert provenance["counts"] == {
