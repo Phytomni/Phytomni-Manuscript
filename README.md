@@ -110,8 +110,8 @@ Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) 
 | Ext. Data 6f,g | `Extended Data Fig. 6/extended_data_fig. 6fg.ipynb` | `python3` | *inline* | `run` | `model_compare_agent_total.pdf` / `model_compare_agent_total_across_speciesv1.pdf` |
 | Ext. Data 7 | `Extended Data Fig. 7/extended_data_fig. 7.ipynb` | `ir` (R) | *inline* | `run` | `extended_data_fig.7.pdf` |
 | Supp. 1 | `Supplementary Fig. 1/supplementary_fig. 1.ipynb` | `python3` | `Phyto-Chatbot-Pretrain.loss.json` ✓, … (4 files) | `run` | `supplementary_fig.1a.chatbot_pretrain_loss.line.pdf` / `supplementary_fig.1b.reasoner_pretrain_loss.line.pdf` / `supplementary_fig.1c.chatbot_sft_loss.line.pdf` / `supplementary_fig.1d.reasoner_sft_loss.line.pdf` |
-| Supp. 6 | `Supplementary Fig. 6/supplementary_fig.6.ipynb` | `ir` (R) | *inline* | `run` | `supplementary_fig.6a.pdf` / `supplementary_fig.6b.pdf` |
-| Supp. 17 | `Supplementary Fig. 17/supplementary_fig.17.ipynb` | `ir` (R) | *inline* | `run` | `supplementary_fig.17.pdf` |
+| Supp. 6 | `Supplementary Fig. 6/supplementary_fig. 6.ipynb` | `ir` (R) | *inline* | `run` | `supplementary_fig.6a.pdf` / `supplementary_fig.6b.pdf` |
+| Supp. 17 | `Supplementary Fig. 17/supplementary_fig. 17.ipynb` | `ir` (R) | *inline* | `run` | `supplementary_fig.17.pdf` |
 | Ext. Data 6ab (deprecated notebook) | `Extended Data Fig. 6/extended_data_fig.6ab.ipynb` | none | *inline* | `deprecated` | — |
 | Supp. 7 | `Supplementary Fig. 7/supplementary_fig. 7.py` | `python3` (script) | `PhytoBench-Data-for_plot.xlsx` ✓ | `run` | `model_accuracy_by_species.pdf` |
 | Supp. 8 | `Supplementary Fig. 8/supplementary_fig. 8.ipynb` | `python3` | *inline* | `run` | `model_compare_agent_split.pdf` |
@@ -181,7 +181,7 @@ uv run --no-sync jupyter nbconvert --to notebook --execute \
 
 `nbconvert` writes executed copies to `/tmp/deepgenome-notebook-runs/score_plackett_luce.ipynb` and `/tmp/deepgenome-notebook-runs/score_hallucination.ipynb`; the tracked canonical notebooks remain output-free. The same temporary output directory is used in the private-log and live examples below.
 
-Set `DEEPGENOME_SCORE_TSV=/absolute/path/to/score.tsv` to fit the private rankings. The five default model columns match the planned benchmark input; set `DEEPGENOME_MODEL_COLUMNS=Gemini,Claude,Model_X` to supply a different comma-separated set while retaining `Gemini` as the reference model. Add `DEEPGENOME_SAVE_RESULTS=1` only to write `pl_elo_results.csv` and `pl_pairwise_probs.csv`; exports are disabled by default. If `DEEPGENOME_SCORE_TSV` is unset, the notebook completes its deterministic checks, reports `SKIPPED`, and does not fit or invent private benchmark results.
+Set `DEEPGENOME_SCORE_TSV=/absolute/path/to/score.tsv` to fit a private ranking table. The five default model columns match the public benchmark input; set `DEEPGENOME_MODEL_COLUMNS=Gemini,Claude,Model_X` to supply a different comma-separated set while retaining `Gemini` as the reference model. Set `DEEPGENOME_EXPORT_DIR=/absolute/path/to/export-dir` to opt in to writing the computed aggregate TSV tables; exports are disabled by default and should be directed to a temporary or explicitly managed data directory. If `DEEPGENOME_SCORE_TSV` is unset, the notebook completes its deterministic checks, reports `SKIPPED`, and does not fit or invent private benchmark results.
 
 The manuscript figures do not read private row-level data directly. To rebuild the schema-2 snapshot, combine the tracked anonymized ranking release and public mappings with the private expert metadata and lineage file in a controlled environment:
 
@@ -209,7 +209,7 @@ For Fleiss-κ, an item is one gene×model pair, R1–R5 are the rating categorie
 
 Panel-composition percentages are explicit about their denominator. The multi-select `Research_domains` and `Study_species` dimensions use all 120 experts, so their category percentages need not sum to 100%; single-select dimensions use nonmissing respondents and report the missing count. Conflict of interest is reported as a self-declaration: all 120 experts selected `No`, so the supported statement is that no conflicts were declared, not that conflicts were independently excluded.
 
-The older four-model `score*.tsv` files remain only as legacy provenance and are not read by the current plotting path. `Fig. 2d-f` and all stratified Supplementary Fig. 10-13 panels read the frozen aggregate tables; `Fig. 2g` reads the tracked BERTScore table. Generate them directly with:
+The older four-model `legacy/score*.tsv` files remain only as legacy provenance and are not read by the current plotting path. `Fig. 2d-f` and all stratified Supplementary Fig. 10-13 panels read the frozen aggregate tables; `Fig. 2g` reads the tracked BERTScore table. Generate them directly with:
 
 ```bash
 mkdir -p /tmp/phytomni-figure-runs

@@ -225,8 +225,7 @@ DeepGenomeAgent Evaluation/evaluation_expert_metadata*.xlsx
 DeepGenomeAgent Evaluation/private/
 DeepGenomeAgent Evaluation/*crosswalk*.tsv
 DeepGenomeAgent Evaluation/hallucination_analysis/
-DeepGenomeAgent Evaluation/pl_elo_results.csv
-DeepGenomeAgent Evaluation/pl_pairwise_probs.csv
+DeepGenomeAgent Evaluation/export/
 
 # Figure artifacts emitted when PHYTOMNI_SAVE=1 (per-figure-dir output/)
 output/

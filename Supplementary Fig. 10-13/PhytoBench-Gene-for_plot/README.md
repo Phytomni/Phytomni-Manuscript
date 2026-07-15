@@ -44,9 +44,9 @@ responses, and judgment logs are not tracked. They are required only to rebuild
 the frozen snapshot, not to reproduce the figures from a clone. The root README
 contains the complete deterministic freeze command.
 
-The `score*.tsv` files in this directory are legacy four-model inputs retained
-for historical provenance. They are not read by the current plotting notebook
-or by `reproduce.manifest.yaml`. Do not use them to regenerate the current
+The `legacy/score*.tsv` files are legacy four-model inputs retained for
+historical provenance. They are not read by the current plotting notebook or
+by `reproduce.manifest.yaml`. Do not use them to regenerate the current
 five-model panels.
 
 See the repository README for the deterministic freeze and direct plotting

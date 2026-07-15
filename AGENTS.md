@@ -48,7 +48,7 @@ All other data-consuming notebooks read via relative paths and run end-to-end fr
 - `Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/frozen/` (authoritative schema-2 snapshot: 12 aggregate TSVs plus `provenance.json`; includes rank distributions, Plackett-Luce scores/pairwise probabilities and their 10,000-bootstrap 95% confidence intervals, Fleiss-κ, per-gene Kendall W, top-1 consensus, panel composition, and assignment summaries)
 - `Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/gene_categories.tsv` (public study-status mapping used when regenerating the frozen aggregates from the anonymized ranking release)
 - `DeepGenomeAgent Evaluation/supplementary/Supplementary_Data_Expert_Rankings.tsv` (full public anonymized table: 600 expert–gene assignments from 120 experts, one complete five-model ranking per row), with `Supplementary_Data_Expert_Rankings_Codebook.tsv` and `expert_panel_category_map.tsv` alongside it
-- `Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/score*.tsv` (legacy four-model row-level inputs retained for historical provenance; not consumed by the current notebook or manifest)
+- `Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/legacy/score*.tsv` (legacy four-model row-level inputs retained for historical provenance; not consumed by the current notebook or manifest)
 - `Supplementary Fig. 7/PhytoBench-Data-for_plot.xlsx` (consumed by `supplementary_fig. 7.py` via bare relative path — run from inside the dir)
 - `DataAgent Evaluation/data/PhytoBench-Data.xlsx` (consumed by `src/exp_rewrite.py` via the `../data/` relative path — run from inside `src/`)
 

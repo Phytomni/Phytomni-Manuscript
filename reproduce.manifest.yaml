@@ -209,7 +209,7 @@ targets:
     label: Supp. 6
     phase: figure
     kind: notebook
-    path: "Supplementary Fig. 6/supplementary_fig.6.ipynb"
+    path: "Supplementary Fig. 6/supplementary_fig. 6.ipynb"
     kernel: ir
     requires_toolchain: [ir, ggradar]
     status: run
@@ -221,7 +221,7 @@ targets:
     label: Supp. 17
     phase: figure
     kind: notebook
-    path: "Supplementary Fig. 17/supplementary_fig.17.ipynb"
+    path: "Supplementary Fig. 17/supplementary_fig. 17.ipynb"
     kernel: ir
     requires_toolchain: [ir]
     status: run
