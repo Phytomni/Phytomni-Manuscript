@@ -250,6 +250,52 @@ def test_hallucination_hash_current_log_is_reused_and_stale_log_is_rejected(
     assert namespace["load_reusable_judgment_log"](path, changed) is None
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("temperature", 1),
+        ("max_tokens", 11),
+        ("max_concurrent", 16),
+        ("window_size_sentences", 4),
+        ("window_stride_sentences", 1),
+    ],
+)
+def test_hallucination_resume_rejects_stale_active_settings(
+    tmp_path: Path,
+    field: str,
+    value: object,
+) -> None:
+    namespace = execute_tagged_source(HALLUCINATION_NOTEBOOK, "hallucination-core")
+    expected = {
+        **complete_metadata_with_hashes(),
+        "temperature": 0,
+        "max_tokens": 10,
+        "max_concurrent": 32,
+        "window_size_sentences": 3,
+        "window_stride_sentences": 2,
+    }
+    path = write_complete_log(tmp_path, expected)
+    changed = {**expected, field: value}
+    assert namespace["load_reusable_judgment_log"](path, changed) is None
+
+
+def test_hallucination_resume_rejects_missing_active_settings(
+    tmp_path: Path,
+) -> None:
+    namespace = execute_tagged_source(HALLUCINATION_NOTEBOOK, "hallucination-core")
+    observed = complete_metadata_with_hashes()
+    path = write_complete_log(tmp_path, observed)
+    expected = {
+        **observed,
+        "temperature": 0,
+        "max_tokens": 10,
+        "max_concurrent": 32,
+        "window_size_sentences": 3,
+        "window_stride_sentences": 2,
+    }
+    assert namespace["load_reusable_judgment_log"](path, expected) is None
+
+
 def test_hallucination_progress_reports_every_ten_percent() -> None:
     namespace = execute_tagged_source(HALLUCINATION_NOTEBOOK, "hallucination-core")
     reportable = namespace["progress_is_reportable"]

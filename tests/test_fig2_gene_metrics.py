@@ -646,12 +646,12 @@ def test_figure_tables_preserve_historical_values_and_fixed_order() -> None:
             {
                 "Model": "Claude",
                 "Gene": f"uncharacterized-{i:03d}",
+                "DirectionalPairCount": 6,
                 "MeanDirectionalContradictionRatio": 0.35,
             }
             for i in range(100)
         ]
     )
-    hallucination_rows.attrs["directed_pair_rows"] = 600
     bert_plot, hallucination_plot = build_figure_tables(
         source, bert_rows, hallucination_rows
     )
@@ -701,6 +701,17 @@ def test_provenance_contains_complete_non_secret_lineage(
         "invalid_judgment_logs": 0, "extra_judgment_logs": 0,
     }
     assert "api_key" not in json.dumps(provenance).lower()
+    with pytest.raises(ValueError, match="unknown entries"):
+        build_provenance(
+            source=source,
+            bertscore=bert_rows,
+            hallucination_pairs=pairs,
+            hallucination=gene_rows,
+            judgment_dir=directory,
+            hallucination_notebook=hallucination_notebook,
+            core=load_hallucination_core(hallucination_notebook),
+            anomalies=["private response text should not be serialized"],
+        )
 
 
 def test_publication_transaction_rolls_back_every_destination_on_failure(
@@ -738,3 +749,33 @@ def test_publication_transaction_rolls_back_every_destination_on_failure(
     assert {destination: destination.read_bytes() for destination in destinations} == old_bytes
     assert not list((tmp_path / "frozen").glob(".*.tmp"))
     assert not list((tmp_path / "figure").glob(".*.tmp"))
+
+
+def test_publication_transaction_rolls_back_when_replace_mutates_then_raises(
+    tmp_path: Path,
+) -> None:
+    destinations = {
+        tmp_path / "frozen" / f"old-{index}.tsv": f"old-{index}\n".encode()
+        for index in range(3)
+    }
+    for destination, payload in destinations.items():
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(payload)
+    old_bytes = {destination: destination.read_bytes() for destination in destinations}
+    new_payloads = {
+        destination: f"new-{index}\n".encode()
+        for index, destination in enumerate(destinations)
+    }
+    calls = 0
+
+    def mutate_then_fail(source: Path, destination: Path) -> None:
+        nonlocal calls
+        calls += 1
+        source.replace(destination)
+        if calls == 2:
+            raise OSError("simulated post-replace failure")
+
+    with pytest.raises(OSError, match="simulated post-replace failure"):
+        _publish_transaction(new_payloads, replace_path=mutate_then_fail)
+    assert {destination: destination.read_bytes() for destination in destinations} == old_bytes
+    assert not list((tmp_path / "frozen").glob(".*.tmp"))

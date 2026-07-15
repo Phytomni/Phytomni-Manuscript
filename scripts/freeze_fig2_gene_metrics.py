@@ -138,14 +138,9 @@ _GENE_HALLUCINATION_COLUMNS = [
 ]
 _EXPECTED_CLAUDE_LOG_COUNT = 100
 _EXPECTED_CLAUDE_PAIR_COUNT = 600
-_EXPECTED_JUDGE_SETTINGS = {
+_STATIC_JUDGE_SETTINGS = {
     "api_base_url": "https://www.dmxapi.cn/v1",
     "model": "deepseek-v3.2-exp",
-    "temperature": 0,
-    "max_tokens": 10,
-    "max_concurrent": 32,
-    "window_size_sentences": 3,
-    "window_stride_sentences": 2,
 }
 _KNOWN_ARCHIVE_ANOMALIES = [
     "Os01g0107900-R1 is byte-identical to Os01g0107900-R3.",
@@ -632,7 +627,7 @@ def _validated_judge_settings(
         "window_stride_sentences": metadata.get("window_stride_sentences"),
         "prompt_sha256": metadata.get("judge_prompt_sha256"),
     }
-    expected = dict(_EXPECTED_JUDGE_SETTINGS)
+    expected = _expected_judge_settings(core)
     expected["prompt_sha256"] = core.get("JUDGE_PROMPT_SHA256")
     for key, expected_value in expected.items():
         if observed.get(key) != expected_value:
@@ -642,6 +637,20 @@ def _validated_judge_settings(
             )
     observed["prompt_sha256"] = str(observed["prompt_sha256"])
     return observed
+
+
+def _expected_judge_settings(core: dict[str, object] | None) -> dict[str, object]:
+    """Resolve active settings from canonical-core constants with safe fallbacks."""
+
+    namespace = core or {}
+    return {
+        **_STATIC_JUDGE_SETTINGS,
+        "temperature": namespace.get("JUDGE_TEMPERATURE", 0),
+        "max_tokens": namespace.get("JUDGE_MAX_TOKENS", 10),
+        "max_concurrent": namespace.get("JUDGE_MAX_CONCURRENT", 32),
+        "window_size_sentences": namespace.get("WINDOW_SIZE_SENTENCES", 3),
+        "window_stride_sentences": namespace.get("WINDOW_STRIDE_SENTENCES", 2),
+    }
 
 
 def _window_counts(
@@ -908,8 +917,17 @@ def build_figure_tables(
         raise ValueError("Claude BERTScore table must contain exactly 100 gene rows")
     if len(hallucination) != _EXPECTED_CLAUDE_LOG_COUNT:
         raise ValueError("Claude hallucination table must contain exactly 100 gene rows")
-    if hallucination.attrs.get("directed_pair_rows") != _EXPECTED_CLAUDE_PAIR_COUNT:
-        raise ValueError("Claude hallucination table must carry exactly 600 directed pair rows")
+    if "DirectionalPairCount" not in hallucination:
+        raise ValueError("Claude hallucination table is missing DirectionalPairCount")
+    pair_counts = pd.to_numeric(
+        hallucination["DirectionalPairCount"], errors="coerce"
+    ).to_numpy(dtype=float)
+    if (
+        not np.isfinite(pair_counts).all()
+        or not np.equal(pair_counts, 6).all()
+        or int(pair_counts.sum()) != _EXPECTED_CLAUDE_PAIR_COUNT
+    ):
+        raise ValueError("Claude hallucination table must describe exactly 600 directed pair rows")
     claude_bert = _validated_metric_mean(bertscore, "BERTScorePrecision", "BERTScore")
     claude_hallucination = _validated_metric_mean(
         hallucination,
@@ -998,7 +1016,7 @@ def build_provenance(
     validated_judge = hallucination_pairs.attrs.get("validated_judge")
     if not isinstance(validated_judge, dict):
         raise ValueError("Claude provenance requires settings from validated judgment metadata")
-    for key, expected_value in _EXPECTED_JUDGE_SETTINGS.items():
+    for key, expected_value in _expected_judge_settings(core).items():
         if key == "api_base_url":
             observed_value = validated_judge.get(key)
         else:
@@ -1053,6 +1071,15 @@ def build_provenance(
         raise ValueError("Claude provenance requires exactly 100 logs and 600 directed pair rows")
     if counts["archive_member_count"] <= 0:
         raise ValueError("Claude provenance is missing the archive member count")
+    anomaly_values = list(_KNOWN_ARCHIVE_ANOMALIES if anomalies is None else anomalies)
+    if any(not isinstance(value, str) for value in anomaly_values):
+        raise ValueError("Provenance anomaly override must contain strings only")
+    unknown_anomalies = sorted(set(anomaly_values).difference(_KNOWN_ARCHIVE_ANOMALIES))
+    if unknown_anomalies:
+        raise ValueError(
+            "Provenance anomaly override contains unknown entries: "
+            + ", ".join(unknown_anomalies)
+        )
     bert_plot, hallucination_plot = build_figure_tables(
         source,
         bertscore,
@@ -1094,7 +1121,7 @@ def build_provenance(
         "judge": judge_payload,
         "package_versions": _package_versions(),
         "counts": counts,
-        "anomalies": list(anomalies or _KNOWN_ARCHIVE_ANOMALIES),
+        "anomalies": anomaly_values,
         "tables": {
             "bertscore_by_gene_sha256": _frame_sha256(bertscore),
             "hallucination_pairs_sha256": _frame_sha256(hallucination_pairs),
@@ -1163,8 +1190,8 @@ def _publish_transaction(
                 os.fsync(handle.fileno())
             staged[destination] = temporary
         for destination, temporary in staged.items():
-            replacer(temporary, destination)  # type: ignore[operator]
             replaced.append(destination)
+            replacer(temporary, destination)  # type: ignore[operator]
         for parent in {path.parent for path in payloads}:
             _fsync_directory(parent)
     except Exception:
