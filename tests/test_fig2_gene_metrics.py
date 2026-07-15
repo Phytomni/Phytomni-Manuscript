@@ -678,7 +678,7 @@ def test_figure_tables_reject_bertscore_outside_fixed_fig2g_range() -> None:
             {
                 "Model": "Claude",
                 "Gene": f"well_studied-{i:03d}",
-                "BERTScorePrecision": 0.4759,
+                "BERTScorePrecision": 0.4699,
             }
             for i in range(100)
         ]
@@ -696,7 +696,7 @@ def test_figure_tables_reject_bertscore_outside_fixed_fig2g_range() -> None:
     )
     with pytest.raises(
         ValueError,
-        match=r"Fig\. 2g BERTScore value for Claude .*\[0\.50, 0\.58\].*refusing to publish",
+        match=r"Fig\. 2g BERTScore value for Claude .*\[0\.47, 0\.58\].*refusing to publish",
     ):
         build_figure_tables(source, bert_rows, hallucination_rows)
 

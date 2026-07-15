@@ -26,7 +26,7 @@ import pandas as pd
 
 
 MODEL_ORDER = ["Phytomni", "Gemini", "Claude", "OpenAI", "Grok"]
-FIG2_BERTSCORE_Y_RANGE = (0.50, 0.58)
+FIG2_BERTSCORE_Y_RANGE = (0.47, 0.58)
 DISPLAY_LABELS = {
     "Phytomni": "Phytomni",
     "Gemini": "Gemini Deep Research",
