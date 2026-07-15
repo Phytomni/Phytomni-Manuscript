@@ -113,21 +113,40 @@ _HISTORICAL_STATUSES = {
 
 _CLAUDE_LOG_FILENAME = "claude__{gene}__rep_1-rep_2-rep_3.json"
 _PAIR_COLUMNS = [
-    "Model",
+    "Species",
     "Gene",
-    "SourceResponse",
-    "TargetResponse",
+    "StudyStatus",
+    "Model",
+    "SourceResponseID",
+    "TargetResponseID",
+    "WindowJudgmentCount",
+    "EntailmentCount",
+    "ContradictionCount",
+    "NeutralCount",
     "SupportRatio",
     "ContradictionRatio",
-    "EntailmentEstablished",
     "JudgmentLogSHA256",
 ]
 _GENE_HALLUCINATION_COLUMNS = [
-    "Model",
+    "Species",
     "Gene",
+    "StudyStatus",
+    "Model",
+    "DirectionalPairCount",
     "MeanDirectionalContradictionRatio",
     "HighContradiction",
 ]
+_EXPECTED_CLAUDE_LOG_COUNT = 100
+_EXPECTED_CLAUDE_PAIR_COUNT = 600
+_EXPECTED_JUDGE_SETTINGS = {
+    "api_base_url": "https://www.dmxapi.cn/v1",
+    "model": "deepseek-v3.2-exp",
+    "temperature": 0,
+    "max_tokens": 10,
+    "max_concurrent": 32,
+    "window_size_sentences": 3,
+    "window_stride_sentences": 2,
+}
 _KNOWN_ARCHIVE_ANOMALIES = [
     "Os01g0107900-R1 is byte-identical to Os01g0107900-R3.",
     "Os06g0665200-R1 is byte-identical to Os06g0665200-R3.",
@@ -578,32 +597,132 @@ def _metadata_record(records: list[dict[str, object]]) -> dict[str, object]:
     return metadata[0]
 
 
-def compact_claude_judgments(
+def _category_lookup(categories: pd.DataFrame) -> dict[str, tuple[str, str]]:
+    required = {"Species", "Gene", "StudyStatus"}
+    missing = sorted(required.difference(categories.columns))
+    if missing:
+        raise ValueError(f"Claude category mapping is missing columns: {missing}")
+    lookup: dict[str, tuple[str, str]] = {}
+    for row in categories.itertuples(index=False):
+        species = str(row.Species).strip()
+        gene = str(row.Gene).strip()
+        status = _normalise_status(row.StudyStatus)
+        if not species or not gene or not status:
+            raise ValueError("Claude category mapping contains an empty or invalid row")
+        if gene in lookup:
+            raise ValueError(f"Claude category mapping contains duplicate gene: {gene}")
+        lookup[gene] = (species, status)
+    return lookup
+
+
+def _validated_judge_settings(
+    metadata: dict[str, object],
+    core: dict[str, object],
+) -> dict[str, object]:
+    sanitize = core.get("sanitize_api_base_url")
+    if not callable(sanitize):
+        raise TypeError("hallucination-core does not expose sanitize_api_base_url")
+    observed = {
+        "api_base_url": sanitize(str(metadata.get("api_base_url", ""))),
+        "model": metadata.get("judge_model"),
+        "temperature": metadata.get("temperature"),
+        "max_tokens": metadata.get("max_tokens"),
+        "max_concurrent": metadata.get("max_concurrent"),
+        "window_size_sentences": metadata.get("window_size_sentences"),
+        "window_stride_sentences": metadata.get("window_stride_sentences"),
+        "prompt_sha256": metadata.get("judge_prompt_sha256"),
+    }
+    expected = dict(_EXPECTED_JUDGE_SETTINGS)
+    expected["prompt_sha256"] = core.get("JUDGE_PROMPT_SHA256")
+    for key, expected_value in expected.items():
+        if observed.get(key) != expected_value:
+            raise ValueError(
+                f"Claude judgment log setting mismatch for {key}: "
+                f"expected {expected_value!r}, got {observed.get(key)!r}"
+            )
+    observed["prompt_sha256"] = str(observed["prompt_sha256"])
+    return observed
+
+
+def _window_counts(
+    records: list[dict[str, object]],
+    pair: tuple[int, int],
+    core: dict[str, object],
+) -> tuple[int, int, int, int]:
+    normalizer = core.get("normalized_record_label")
+    if not callable(normalizer):
+        raise TypeError("hallucination-core does not expose normalized_record_label")
+    windows = [
+        record
+        for record in records
+        if record.get("type") == "window_judgment"
+        and tuple(record.get("version_pair", [])) == pair
+    ]
+    if not windows:
+        raise ValueError(f"missing window judgments for ordered pair {pair}")
+    labels = [normalizer(record.get("label")) for record in windows]
+    if any(label is None for label in labels):
+        raise ValueError(f"invalid window label for ordered pair {pair}")
+    entailment = labels.count("entailment")
+    contradiction = labels.count("contradiction")
+    neutral = labels.count("neutral")
+    return len(labels), entailment, contradiction, neutral
+
+
+def _compact_claude_judgments_impl(
     judgment_dir: Path,
     genes: list[str],
     responses: dict[tuple[str, str], str],
     core: dict[str, object],
+    categories: pd.DataFrame | None,
+    *,
+    require_full: bool,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Validate complete Claude logs and return compact pair/gene tables.
-
-    Validation is deliberately strict: every requested gene needs one current
-    formal log, six unique directed summaries, matching response hashes, and
-    no API-error records.  The canonical notebook validator and extractor are
-    called from ``core`` so this function cannot drift from notebook semantics.
-    """
-
     if not judgment_dir.is_dir():
         raise FileNotFoundError(f"Judgment directory does not exist: {judgment_dir}")
     if not genes:
-        raise ValueError("100 valid Claude judgment logs required; no genes supplied")
+        raise ValueError("Claude judgment logs require at least one gene")
     if list(genes) != sorted(genes) or len(set(genes)) != len(genes):
         raise ValueError("Claude uncharacterized genes must be sorted and unique")
+    if require_full and len(genes) != _EXPECTED_CLAUDE_LOG_COUNT:
+        raise ValueError("100 valid Claude judgment logs required; got a different gene count")
+    if categories is None:
+        if require_full:
+            raise ValueError("Formal Claude compaction requires the gene category mapping")
+        metadata = {gene: ("", "uncharacterized") for gene in genes}
+    else:
+        metadata = _category_lookup(categories)
+        if require_full:
+            uncharacterized = sorted(
+                gene for gene, (_, status) in metadata.items() if status == "uncharacterized"
+            )
+            if uncharacterized != genes:
+                raise ValueError("Claude category mapping does not match the sorted uncharacterized cohort")
+        missing_metadata = sorted(set(genes).difference(metadata))
+        if missing_metadata:
+            raise ValueError(f"Claude category mapping is missing genes: {missing_metadata}")
     validator = core.get("validate_judgment_records")
     formal = core.get("formal_metadata_is_complete")
     extractor = core.get("extract_gene_contradiction")
     sha_text = core.get("sha256_text", _sha256_text)
     if not all(callable(function) for function in (validator, formal, extractor, sha_text)):
         raise TypeError("hallucination-core does not expose callable validation helpers")
+    expected_paths = {_log_path(judgment_dir, gene) for gene in genes}
+    observed_paths = {
+        path for path in judgment_dir.glob("claude__*.json") if path.is_file()
+    }
+    extra_paths = sorted(observed_paths.difference(expected_paths))
+    missing_paths = sorted(path for path in expected_paths if not path.is_file())
+    if extra_paths:
+        raise ValueError(
+            "Unexpected extra Claude judgment logs: "
+            + ", ".join(path.name for path in extra_paths[:5])
+        )
+    if missing_paths:
+        raise ValueError(
+            "100 valid Claude judgment logs required; missing logs: "
+            + ", ".join(path.name for path in missing_paths[:5])
+        )
 
     pair_records: list[dict[str, object]] = []
     gene_records: list[dict[str, object]] = []
@@ -615,6 +734,7 @@ def compact_claude_judgments(
         if source != target
     }
     high_threshold = float(core.get("GENE_HIGH_CONTRADICTION_THRESHOLD", 0.6))
+    validated_settings: dict[str, object] | None = None
     for gene in genes:
         path = _log_path(judgment_dir, gene)
         try:
@@ -624,11 +744,16 @@ def compact_claude_judgments(
                 raise ValueError("; ".join(str(error) for error in errors))
             if not formal(records, "claude", gene, expected_response_count=3):
                 raise ValueError("formal metadata is incomplete")
-            metadata = _metadata_record(records)
-            response_ids = metadata.get("response_ids")
+            metadata_record = _metadata_record(records)
+            settings = _validated_judge_settings(metadata_record, core)
+            if validated_settings is None:
+                validated_settings = settings
+            elif settings != validated_settings:
+                raise ValueError("Claude judgment logs use mixed active run settings")
+            response_ids = metadata_record.get("response_ids")
             if response_ids != ["rep_1", "rep_2", "rep_3"]:
                 raise ValueError("metadata response IDs must be rep_1, rep_2, rep_3")
-            response_hashes = metadata.get("response_sha256")
+            response_hashes = metadata_record.get("response_sha256")
             expected_hashes = [
                 sha_text(_response_text(responses, gene, response_id))
                 for response_id in response_ids
@@ -641,29 +766,36 @@ def compact_claude_judgments(
                 if isinstance(record, dict)
                 and record.get("type") == "version_pair_summary"
             ]
-            observed_pairs = {
-                tuple(record.get("version_pair", []))
-                for record in summaries
-            }
+            observed_pairs = {tuple(record.get("version_pair", [])) for record in summaries}
             if len(summaries) != 6 or observed_pairs != expected_pairs:
                 raise ValueError("judgment log must contain six unique ordered pairs")
             log_hash = sha256_file(path)
-            for summary in sorted(
-                summaries,
-                key=lambda item: tuple(item["version_pair"]),  # type: ignore[index]
-            ):
+            species, study_status = metadata.get(gene, ("", "uncharacterized"))
+            for summary in sorted(summaries, key=lambda item: tuple(item["version_pair"])):  # type: ignore[index]
                 source_index, target_index = summary["version_pair"]  # type: ignore[misc]
+                window_count, entailment_count, contradiction_count, neutral_count = _window_counts(
+                    records, (source_index, target_index), core
+                )
+                support_ratio = float(summary["support_ratio"])
+                contradiction_ratio = float(summary["contra_ratio"])
+                if not math.isclose(support_ratio, entailment_count / window_count, abs_tol=1e-15):
+                    raise ValueError("support ratio disagrees with window labels")
+                if not math.isclose(contradiction_ratio, contradiction_count / window_count, abs_tol=1e-15):
+                    raise ValueError("contradiction ratio disagrees with window labels")
                 pair_records.append(
                     {
-                        "Model": "Claude",
+                        "Species": species,
                         "Gene": gene,
-                        "SourceResponse": response_ids[source_index],
-                        "TargetResponse": response_ids[target_index],
-                        "SupportRatio": float(summary["support_ratio"]),
-                        "ContradictionRatio": float(summary["contra_ratio"]),
-                        "EntailmentEstablished": bool(
-                            summary["entailment_established"]
-                        ),
+                        "StudyStatus": study_status,
+                        "Model": "Claude",
+                        "SourceResponseID": response_ids[source_index],
+                        "TargetResponseID": response_ids[target_index],
+                        "WindowJudgmentCount": window_count,
+                        "EntailmentCount": entailment_count,
+                        "ContradictionCount": contradiction_count,
+                        "NeutralCount": neutral_count,
+                        "SupportRatio": support_ratio,
+                        "ContradictionRatio": contradiction_ratio,
                         "JudgmentLogSHA256": log_hash,
                     }
                 )
@@ -671,15 +803,16 @@ def compact_claude_judgments(
             if extracted is None:
                 raise ValueError("canonical extractor returned no aggregate")
             extracted_mean = float(extracted[0])  # type: ignore[index]
-            direct_mean = float(
-                sum(float(summary["contra_ratio"]) for summary in summaries) / 6
-            )
+            direct_mean = float(sum(float(summary["contra_ratio"]) for summary in summaries) / 6)
             if not math.isclose(extracted_mean, direct_mean, rel_tol=0.0, abs_tol=1e-15):
                 raise ValueError("canonical extractor disagrees with pair-row mean")
             gene_records.append(
                 {
-                    "Model": "Claude",
+                    "Species": species,
                     "Gene": gene,
+                    "StudyStatus": study_status,
+                    "Model": "Claude",
+                    "DirectionalPairCount": 6,
                     "MeanDirectionalContradictionRatio": direct_mean,
                     "HighContradiction": direct_mean >= high_threshold,
                 }
@@ -687,14 +820,67 @@ def compact_claude_judgments(
         except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError, KeyError) as exc:
             invalid.append(f"{gene}: {exc}")
     if invalid:
-        details = "; ".join(invalid[:3])
         raise ValueError(
-            "100 valid Claude judgment logs required; invalid or missing logs: "
-            + details
+            "100 valid Claude judgment logs required; invalid logs: "
+            + "; ".join(invalid[:3])
         )
     pairs = pd.DataFrame(pair_records, columns=_PAIR_COLUMNS)
     genes_frame = pd.DataFrame(gene_records, columns=_GENE_HALLUCINATION_COLUMNS)
+    if require_full and (len(genes_frame) != _EXPECTED_CLAUDE_LOG_COUNT or len(pairs) != _EXPECTED_CLAUDE_PAIR_COUNT):
+        raise ValueError(
+            "Formal Claude compaction requires exactly 100 gene rows and 600 directed pair rows"
+        )
+    if validated_settings is None:
+        raise ValueError("No validated Claude judgment settings were found")
+    inventory = {
+        "valid_log_count": len(genes_frame),
+        "missing_log_count": len(missing_paths),
+        "invalid_log_count": len(invalid),
+        "extra_log_count": len(extra_paths),
+        "archive_member_count": len(responses),
+    }
+    pairs.attrs["validated_judge"] = dict(validated_settings)
+    pairs.attrs["log_inventory"] = inventory
+    pairs.attrs["directed_pair_rows"] = len(pairs)
+    genes_frame.attrs.update(pairs.attrs)
     return pairs, genes_frame
+
+
+def _compact_claude_judgments_for_test(
+    judgment_dir: Path,
+    genes: list[str],
+    responses: dict[tuple[str, str], str],
+    core: dict[str, object],
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Private small-cohort arithmetic fixture helper; never used for publication."""
+
+    return _compact_claude_judgments_impl(
+        judgment_dir,
+        genes,
+        responses,
+        core,
+        categories=None,
+        require_full=False,
+    )
+
+
+def compact_claude_judgments(
+    judgment_dir: Path,
+    genes: list[str],
+    responses: dict[tuple[str, str], str],
+    core: dict[str, object],
+    categories: pd.DataFrame | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Validate the complete 100-gene Claude cohort and return compact tables."""
+
+    return _compact_claude_judgments_impl(
+        judgment_dir,
+        genes,
+        responses,
+        core,
+        categories,
+        require_full=True,
+    )
 
 
 def _validated_metric_mean(frame: pd.DataFrame, column: str, label: str) -> float:
@@ -718,6 +904,12 @@ def build_figure_tables(
     """Assemble fixed-order five-model Fig. 2g and Fig. 2h inputs."""
 
     historical = historical_model_means(source)
+    if len(bertscore) != _EXPECTED_CLAUDE_LOG_COUNT:
+        raise ValueError("Claude BERTScore table must contain exactly 100 gene rows")
+    if len(hallucination) != _EXPECTED_CLAUDE_LOG_COUNT:
+        raise ValueError("Claude hallucination table must contain exactly 100 gene rows")
+    if hallucination.attrs.get("directed_pair_rows") != _EXPECTED_CLAUDE_PAIR_COUNT:
+        raise ValueError("Claude hallucination table must carry exactly 600 directed pair rows")
     claude_bert = _validated_metric_mean(bertscore, "BERTScorePrecision", "BERTScore")
     claude_hallucination = _validated_metric_mean(
         hallucination,
@@ -803,19 +995,28 @@ def build_provenance(
     """Build non-secret, checksummed lineage for the frozen metrics."""
 
     historical = historical_model_means(source)
+    validated_judge = hallucination_pairs.attrs.get("validated_judge")
+    if not isinstance(validated_judge, dict):
+        raise ValueError("Claude provenance requires settings from validated judgment metadata")
+    for key, expected_value in _EXPECTED_JUDGE_SETTINGS.items():
+        if key == "api_base_url":
+            observed_value = validated_judge.get(key)
+        else:
+            observed_value = validated_judge.get(key)
+        if observed_value != expected_value:
+            raise ValueError(f"Claude provenance contains an unexpected judge setting: {key}")
+    if not isinstance(validated_judge.get("prompt_sha256"), str) or not validated_judge["prompt_sha256"]:
+        raise ValueError("Claude provenance is missing the validated judge prompt hash")
     judge_payload = {
-        "api_base_url": "https://www.dmxapi.cn/v1",
-        "model": "deepseek-v3.2-exp",
-        "temperature": 0,
-        "max_tokens": 10,
-        "max_concurrent": 32,
+        "api_base_url": validated_judge["api_base_url"],
+        "model": validated_judge["model"],
+        "temperature": validated_judge["temperature"],
+        "max_tokens": validated_judge["max_tokens"],
+        "max_concurrent": validated_judge["max_concurrent"],
+        "window_size_sentences": validated_judge["window_size_sentences"],
+        "window_stride_sentences": validated_judge["window_stride_sentences"],
+        "prompt_sha256": validated_judge["prompt_sha256"],
     }
-    if judge:
-        for key, value in judge.items():
-            if key.casefold() not in {"api_key", "key", "token", "authorization"}:
-                judge_payload[key] = value
-    if core and isinstance(core.get("JUDGE_PROMPT_SHA256"), str):
-        judge_payload["prompt_sha256"] = core["JUDGE_PROMPT_SHA256"]
     inputs = {
         "source_workbook": _safe_input_record("source workbook", source_workbook),
         "claude_archive": _safe_input_record("Claude response archive", claude_archive),
@@ -835,12 +1036,23 @@ def build_provenance(
             "sha256_by_name": log_hashes,
         }
     inputs = {key: value for key, value in inputs.items() if value is not None}
+    inventory = hallucination_pairs.attrs.get("log_inventory", {})
+    if not isinstance(inventory, dict):
+        inventory = {}
     counts = {
         "well_studied_genes": int(source["StudyStatus"].eq("well_studied").sum()),
         "uncharacterized_genes": int(source["StudyStatus"].eq("uncharacterized").sum()),
         "valid_judgment_logs": int(hallucination["Gene"].nunique()),
         "directed_pair_rows": int(len(hallucination_pairs)),
+        "archive_member_count": int(inventory.get("archive_member_count", 0)),
+        "missing_judgment_logs": int(inventory.get("missing_log_count", 0)),
+        "invalid_judgment_logs": int(inventory.get("invalid_log_count", 0)),
+        "extra_judgment_logs": int(inventory.get("extra_log_count", 0)),
     }
+    if counts["valid_judgment_logs"] != _EXPECTED_CLAUDE_LOG_COUNT or counts["directed_pair_rows"] != _EXPECTED_CLAUDE_PAIR_COUNT:
+        raise ValueError("Claude provenance requires exactly 100 logs and 600 directed pair rows")
+    if counts["archive_member_count"] <= 0:
+        raise ValueError("Claude provenance is missing the archive member count")
     bert_plot, hallucination_plot = build_figure_tables(
         source,
         bertscore,
@@ -893,40 +1105,85 @@ def build_provenance(
     }
 
 
-def _atomic_write_bytes(path: Path, payload: bytes) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary: Path | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            mode="wb",
-            dir=path.parent,
-            prefix=f".{path.name}.",
-            suffix=".tmp",
-            delete=False,
-        ) as handle:
-            temporary = Path(handle.name)
-            handle.write(payload)
-            handle.flush()
-            os.fsync(handle.fileno())
-        temporary.replace(path)
-    finally:
-        if temporary is not None and temporary.exists():
-            temporary.unlink()
-
-
-def _atomic_write_frame(path: Path, frame: pd.DataFrame) -> None:
+def _frame_bytes(frame: pd.DataFrame) -> bytes:
     payload = frame.to_csv(
         sep="\t",
         index=False,
         lineterminator="\n",
         float_format="%.15g",
     ).encode("utf-8")
-    _atomic_write_bytes(path, payload)
+    return payload
 
 
-def _atomic_write_json(path: Path, payload: dict[str, object]) -> None:
+def _json_bytes(payload: dict[str, object]) -> bytes:
     serialized = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
-    _atomic_write_bytes(path, serialized.encode("utf-8"))
+    return serialized.encode("utf-8")
+
+
+def _fsync_directory(path: Path) -> None:
+    try:
+        descriptor = os.open(path, os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _publish_transaction(
+    payloads: dict[Path, bytes],
+    *,
+    replace_path: object | None = None,
+) -> None:
+    """Publish all outputs together and restore every old byte on failure."""
+
+    if not payloads:
+        raise ValueError("No output payloads were supplied")
+    replacer = replace_path or Path.replace
+    staged: dict[Path, Path] = {}
+    backups: dict[Path, bytes | None] = {}
+    replaced: list[Path] = []
+    try:
+        for destination, payload in payloads.items():
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            if destination in staged or destination in backups:
+                raise ValueError(f"Duplicate output destination: {destination}")
+            backups[destination] = destination.read_bytes() if destination.exists() else None
+            with tempfile.NamedTemporaryFile(
+                mode="wb",
+                dir=destination.parent,
+                prefix=f".{destination.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as handle:
+                temporary = Path(handle.name)
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            staged[destination] = temporary
+        for destination, temporary in staged.items():
+            replacer(temporary, destination)  # type: ignore[operator]
+            replaced.append(destination)
+        for parent in {path.parent for path in payloads}:
+            _fsync_directory(parent)
+    except Exception:
+        for destination in reversed(replaced):
+            previous = backups[destination]
+            try:
+                if previous is None:
+                    destination.unlink(missing_ok=True)
+                else:
+                    with destination.open("wb") as handle:
+                        handle.write(previous)
+                        handle.flush()
+                        os.fsync(handle.fileno())
+            except OSError:
+                pass
+        raise
+    finally:
+        for temporary in staged.values():
+            temporary.unlink(missing_ok=True)
 
 
 def _parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
@@ -1009,6 +1266,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         uncharacterized,
         responses,
         core,
+        categories,
     )
     bert_plot, hallucination_plot = build_figure_tables(
         source,
@@ -1028,37 +1286,15 @@ def main(argv: Iterable[str] | None = None) -> int:
         freezer_script=Path(__file__).resolve(),
         core=core,
     )
-    frozen_outputs = {
-        args.frozen_dir / "PhytoBench-Gene-Claude-BERTScore-by-gene.tsv": (
-            bertscore,
-            "frame",
-        ),
-        args.frozen_dir / "PhytoBench-Gene-Claude-hallucination-pairs.tsv": (
-            pairs,
-            "frame",
-        ),
-        args.frozen_dir / "PhytoBench-Gene-Claude-hallucination-by-gene.tsv": (
-            hallucination,
-            "frame",
-        ),
-        args.frozen_dir / "PhytoBench-Gene-Claude-metrics-provenance.json": (
-            provenance,
-            "json",
-        ),
-        args.figure_dir / "PhytoBench-Gene-BERTScore-for_plot.tsv": (
-            bert_plot,
-            "frame",
-        ),
-        args.figure_dir / "PhytoBench-Gene-hallucination-for_plot.tsv": (
-            hallucination_plot,
-            "frame",
-        ),
+    payloads = {
+        args.frozen_dir / "PhytoBench-Gene-Claude-BERTScore-by-gene.tsv": _frame_bytes(bertscore),
+        args.frozen_dir / "PhytoBench-Gene-Claude-hallucination-pairs.tsv": _frame_bytes(pairs),
+        args.frozen_dir / "PhytoBench-Gene-Claude-hallucination-by-gene.tsv": _frame_bytes(hallucination),
+        args.frozen_dir / "PhytoBench-Gene-Claude-metrics-provenance.json": _json_bytes(provenance),
+        args.figure_dir / "PhytoBench-Gene-BERTScore-for_plot.tsv": _frame_bytes(bert_plot),
+        args.figure_dir / "PhytoBench-Gene-hallucination-for_plot.tsv": _frame_bytes(hallucination_plot),
     }
-    for path, (payload, kind) in frozen_outputs.items():
-        if kind == "frame":
-            _atomic_write_frame(path, payload)  # type: ignore[arg-type]
-        else:
-            _atomic_write_json(path, payload)  # type: ignore[arg-type]
+    _publish_transaction(payloads)
     print(
         f"Published {len(bertscore)} Claude BERTScore rows, "
         f"{len(pairs)} directed hallucination rows, and five-model figure tables"

@@ -23,6 +23,8 @@ from scripts.freeze_fig2_gene_metrics import (
     load_claude_archive,
     load_gene_categories,
     load_source_workbook,
+    _publish_transaction,
+    _compact_claude_judgments_for_test,
 )
 
 
@@ -410,6 +412,11 @@ def _write_formal_log(
         "api_base_url": "https://www.dmxapi.cn/v1",
         "judge_model": "deepseek-v3.2-exp",
         "judge_prompt_sha256": core["JUDGE_PROMPT_SHA256"],
+        "temperature": 0,
+        "max_tokens": 10,
+        "max_concurrent": 32,
+        "window_size_sentences": 3,
+        "window_stride_sentences": 2,
         "response_sha256": [
             hashlib.sha256(responses[(gene, f"R{i}")].encode()).hexdigest()
             for i in range(1, 4)
@@ -422,16 +429,36 @@ def _write_formal_log(
         if source != target
     ]
     records = [metadata]
-    records.extend(
-        {
-            "type": "version_pair_summary",
-            "version_pair": pair,
-            "support_ratio": 1.0 - ratio,
-            "contra_ratio": ratio,
-            "entailment_established": False,
-        }
-        for pair, ratio in zip(pairs, ratios, strict=True)
-    )
+    for pair, ratio in zip(pairs, ratios, strict=True):
+        contradiction_count = int(round(ratio * 20))
+        entailment_count = int(round((1.0 - ratio) * 20))
+        neutral_count = 20 - contradiction_count - entailment_count
+        records.extend(
+            {
+                "type": "window_judgment",
+                "version_pair": pair,
+                "source_index": pair[0],
+                "target_index": pair[1],
+                "window_index": index,
+                "label": label,
+            }
+            for index, label in enumerate(
+                [
+                    "contradiction" for _ in range(contradiction_count)
+                ]
+                + ["entailment" for _ in range(entailment_count)]
+                + ["neutral" for _ in range(neutral_count)]
+            )
+        )
+        records.append(
+            {
+                "type": "version_pair_summary",
+                "version_pair": pair,
+                "support_ratio": entailment_count / 20,
+                "contra_ratio": contradiction_count / 20,
+                "entailment_established": False,
+            }
+        )
     path = directory / f"claude__{gene}__rep_1-rep_2-rep_3.json"
     path.write_text(json.dumps(records), encoding="utf-8")
 
@@ -458,12 +485,119 @@ def formal_judgment_fixture(
     return directory, genes, responses
 
 
+@pytest.fixture
+def formal_full_judgment_fixture(
+    tmp_path: Path,
+    hallucination_notebook: Path,
+) -> tuple[Path, list[str], dict[tuple[str, str], str], pd.DataFrame]:
+    directory = tmp_path / "full-judgments"
+    directory.mkdir()
+    genes = [f"UN{i:03d}" for i in range(100)]
+    responses: dict[tuple[str, str], str] = {}
+    for gene in genes:
+        for replicate in range(1, 4):
+            responses[(gene, f"R{replicate}")] = f"{gene} response {replicate}."
+        _write_formal_log(directory, gene, responses, hallucination_notebook)
+    categories = pd.DataFrame(
+        {
+            "Species": ["Rice"] * 100,
+            "Gene": genes,
+            "StudyStatus": ["uncharacterized"] * 100,
+        }
+    )
+    return directory, genes, responses, categories
+
+
+def test_formal_compaction_enforces_100_logs_and_600_pairs(
+    formal_full_judgment_fixture: tuple[Path, list[str], dict[tuple[str, str], str], pd.DataFrame],
+    hallucination_notebook: Path,
+) -> None:
+    directory, genes, responses, categories = formal_full_judgment_fixture
+    pairs, gene_rows = compact_claude_judgments(
+        directory,
+        genes,
+        responses,
+        load_hallucination_core(hallucination_notebook),
+        categories,
+    )
+    assert len(gene_rows) == 100
+    assert len(pairs) == 600
+    assert gene_rows.columns.tolist() == [
+        "Species", "Gene", "StudyStatus", "Model", "DirectionalPairCount",
+        "MeanDirectionalContradictionRatio", "HighContradiction",
+    ]
+    assert gene_rows["Species"].eq("Rice").all()
+    assert gene_rows["StudyStatus"].eq("uncharacterized").all()
+    assert gene_rows["DirectionalPairCount"].eq(6).all()
+
+
+@pytest.mark.parametrize("mutation", ["missing", "extra", "partial"])
+def test_formal_compaction_rejects_missing_extra_or_partial_logs(
+    formal_full_judgment_fixture: tuple[Path, list[str], dict[tuple[str, str], str], pd.DataFrame],
+    hallucination_notebook: Path,
+    mutation: str,
+) -> None:
+    directory, genes, responses, categories = formal_full_judgment_fixture
+    target = directory / "claude__UN000__rep_1-rep_2-rep_3.json"
+    if mutation == "missing":
+        target.unlink()
+    elif mutation == "extra":
+        (directory / "claude__EXTRA__rep_1-rep_2-rep_3.json").write_text(
+            target.read_text(encoding="utf-8"), encoding="utf-8"
+        )
+    else:
+        records = json.loads(target.read_text(encoding="utf-8"))
+        target.write_text(json.dumps(records[:-1]), encoding="utf-8")
+    with pytest.raises(ValueError, match="100 valid Claude judgment logs required|Unexpected extra"):
+        compact_claude_judgments(
+            directory,
+            genes,
+            responses,
+            load_hallucination_core(hallucination_notebook),
+            categories,
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("api_base_url", "https://other.example/v1"),
+        ("judge_model", "other-judge"),
+        ("temperature", 1),
+        ("max_tokens", 11),
+        ("max_concurrent", 16),
+        ("window_size_sentences", 4),
+        ("window_stride_sentences", 1),
+        ("judge_prompt_sha256", "stale-prompt"),
+    ],
+)
+def test_formal_compaction_rejects_mixed_active_judge_settings(
+    formal_full_judgment_fixture: tuple[Path, list[str], dict[tuple[str, str], str], pd.DataFrame],
+    hallucination_notebook: Path,
+    field: str,
+    value: object,
+) -> None:
+    directory, genes, responses, categories = formal_full_judgment_fixture
+    target = directory / "claude__UN000__rep_1-rep_2-rep_3.json"
+    records = json.loads(target.read_text(encoding="utf-8"))
+    records[0][field] = value
+    target.write_text(json.dumps(records), encoding="utf-8")
+    with pytest.raises(ValueError, match="setting mismatch|mixed active run settings"):
+        compact_claude_judgments(
+            directory,
+            genes,
+            responses,
+            load_hallucination_core(hallucination_notebook),
+            categories,
+        )
+
+
 def test_compaction_writes_six_pairs_and_one_gene_row(
     formal_judgment_fixture: tuple[Path, list[str], dict[tuple[str, str], str]],
     hallucination_notebook: Path,
 ) -> None:
     directory, genes, responses = formal_judgment_fixture
-    pairs, gene_rows = compact_claude_judgments(
+    pairs, gene_rows = _compact_claude_judgments_for_test(
         directory,
         genes,
         responses,
@@ -471,12 +605,14 @@ def test_compaction_writes_six_pairs_and_one_gene_row(
     )
     assert len(pairs) == 6
     assert pairs.columns.tolist() == [
-        "Model", "Gene", "SourceResponse", "TargetResponse",
-        "SupportRatio", "ContradictionRatio", "EntailmentEstablished",
-        "JudgmentLogSHA256",
+        "Species", "Gene", "StudyStatus", "Model", "SourceResponseID",
+        "TargetResponseID", "WindowJudgmentCount", "EntailmentCount",
+        "ContradictionCount", "NeutralCount", "SupportRatio",
+        "ContradictionRatio", "JudgmentLogSHA256",
     ]
     assert gene_rows.to_dict("records") == [{
-        "Model": "Claude", "Gene": "UN1",
+        "Species": "", "Gene": "UN1", "StudyStatus": "uncharacterized",
+        "Model": "Claude", "DirectionalPairCount": 6,
         "MeanDirectionalContradictionRatio": pytest.approx(0.35),
         "HighContradiction": False,
     }]
@@ -489,7 +625,7 @@ def test_compaction_rejects_any_missing_invalid_or_hash_stale_gene(
     directory, genes, responses = formal_judgment_fixture
     responses[("UN1", "R1")] = "changed response"
     with pytest.raises(ValueError, match="100 valid Claude judgment logs required"):
-        compact_claude_judgments(
+        _compact_claude_judgments_for_test(
             directory,
             genes,
             responses,
@@ -500,15 +636,22 @@ def test_compaction_rejects_any_missing_invalid_or_hash_stale_gene(
 def test_figure_tables_preserve_historical_values_and_fixed_order() -> None:
     source = _historical_source()
     bert_rows = pd.DataFrame(
-        [{"Model": "Claude", "Gene": "well_studied-000", "BERTScorePrecision": 0.55}]
+        [
+            {"Model": "Claude", "Gene": f"well_studied-{i:03d}", "BERTScorePrecision": 0.55}
+            for i in range(100)
+        ]
     )
     hallucination_rows = pd.DataFrame(
-        [{
-            "Model": "Claude",
-            "Gene": "uncharacterized-000",
-            "MeanDirectionalContradictionRatio": 0.35,
-        }]
+        [
+            {
+                "Model": "Claude",
+                "Gene": f"uncharacterized-{i:03d}",
+                "MeanDirectionalContradictionRatio": 0.35,
+            }
+            for i in range(100)
+        ]
     )
+    hallucination_rows.attrs["directed_pair_rows"] = 600
     bert_plot, hallucination_plot = build_figure_tables(
         source, bert_rows, hallucination_rows
     )
@@ -521,19 +664,23 @@ def test_figure_tables_preserve_historical_values_and_fixed_order() -> None:
 
 
 def test_provenance_contains_complete_non_secret_lineage(
-    formal_judgment_fixture: tuple[Path, list[str], dict[tuple[str, str], str]],
+    formal_full_judgment_fixture: tuple[Path, list[str], dict[tuple[str, str], str], pd.DataFrame],
     hallucination_notebook: Path,
 ) -> None:
-    directory, genes, responses = formal_judgment_fixture
+    directory, genes, responses, categories = formal_full_judgment_fixture
     pairs, gene_rows = compact_claude_judgments(
         directory,
         genes,
         responses,
         load_hallucination_core(hallucination_notebook),
+        categories,
     )
     source = _historical_source()
     bert_rows = pd.DataFrame(
-        [{"Model": "Claude", "Gene": "well_studied-000", "BERTScorePrecision": 0.55}]
+        [
+            {"Model": "Claude", "Gene": f"well_studied-{i:03d}", "BERTScorePrecision": 0.55}
+            for i in range(100)
+        ]
     )
     provenance = build_provenance(
         source=source,
@@ -549,6 +696,45 @@ def test_provenance_contains_complete_non_secret_lineage(
     assert provenance["judge"]["max_tokens"] == 10
     assert provenance["counts"] == {
         "well_studied_genes": 100, "uncharacterized_genes": 100,
-        "valid_judgment_logs": 1, "directed_pair_rows": 6,
+        "valid_judgment_logs": 100, "directed_pair_rows": 600,
+        "archive_member_count": 300, "missing_judgment_logs": 0,
+        "invalid_judgment_logs": 0, "extra_judgment_logs": 0,
     }
     assert "api_key" not in json.dumps(provenance).lower()
+
+
+def test_publication_transaction_rolls_back_every_destination_on_failure(
+    tmp_path: Path,
+) -> None:
+    destinations = {
+        tmp_path / "frozen" / f"old-{index}.tsv": f"old-{index}\n".encode()
+        for index in range(4)
+    }
+    destinations.update(
+        {
+            tmp_path / "figure" / f"old-{index}.tsv": f"old-figure-{index}\n".encode()
+            for index in range(2)
+        }
+    )
+    for destination in destinations:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(destinations[destination])
+    old_bytes = {destination: destination.read_bytes() for destination in destinations}
+    new_payloads = {
+        destination: f"new-{index}\n".encode()
+        for index, destination in enumerate(destinations)
+    }
+    calls = 0
+
+    def fail_on_second(source: Path, destination: Path) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 4:
+            raise OSError("simulated later publication failure")
+        source.replace(destination)
+
+    with pytest.raises(OSError, match="simulated later publication failure"):
+        _publish_transaction(new_payloads, replace_path=fail_on_second)
+    assert {destination: destination.read_bytes() for destination in destinations} == old_bytes
+    assert not list((tmp_path / "frozen").glob(".*.tmp"))
+    assert not list((tmp_path / "figure").glob(".*.tmp"))
