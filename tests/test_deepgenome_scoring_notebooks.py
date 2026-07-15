@@ -2,6 +2,7 @@ import ast
 import hashlib
 import json
 import re
+import zipfile
 from itertools import permutations
 from pathlib import Path
 import tomllib
@@ -116,10 +117,46 @@ def assert_clean_notebook(path: Path, required_headings: list[str]) -> None:
     assert positions == sorted(positions)
 
 
+def build_three_member_zip(tmp_path: Path, gene_id: str) -> Path:
+    archive_path = tmp_path / "claude-responses.zip"
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        for replicate in range(1, 4):
+            archive.writestr(
+                f"Claude/Claude-{gene_id}-R{replicate}.md",
+                f"response {replicate}",
+            )
+    return archive_path
+
+
+def complete_metadata_with_hashes() -> dict[str, object]:
+    responses = ["response 1", "response 2", "response 3"]
+    return {
+        "type": "metadata",
+        "model_id": "claude",
+        "gene_id": "GENE1",
+        "response_ids": RESPONSE_IDS.copy(),
+        "response_sha256": [
+            hashlib.sha256(response.encode("utf-8")).hexdigest()
+            for response in responses
+        ],
+        "api_base_url": "https://judge.example/v1",
+        "judge_model": "judge-model-v1",
+        "judge_prompt_sha256": "prompt-hash",
+    }
+
+
+def write_complete_log(
+    tmp_path: Path,
+    expected_metadata: dict[str, object],
+) -> Path:
+    path = tmp_path / "claude__GENE1__rep_1-rep_2-rep_3.json"
+    records = [expected_metadata, *complete_summary_records()]
+    path.write_text(json.dumps(records), encoding="utf-8")
+    return path
+
+
 def test_hallucination_notebook_contract() -> None:
     assert HALLUCINATION_NOTEBOOK.exists()
-    assert not (EVAL_DIR / "test_hallucination.ipynb").exists()
-    assert not (EVAL_DIR / "cal_hallucination.ipynb").exists()
     assert_clean_notebook(
         HALLUCINATION_NOTEBOOK,
         [
@@ -157,6 +194,68 @@ def test_hallucination_notebook_contract() -> None:
         maxsplit=1,
     )[1].split("def ordered_judgment_records", maxsplit=1)[0]
     assert '"hallucination_risk": semantic_entropy' in analyze_source
+
+
+def test_hallucination_uses_public_gene_categories_and_claude_archive() -> None:
+    source = code_cell_source(HALLUCINATION_NOTEBOOK, "hallucination-inputs")
+    text = notebook_text(load_notebook(HALLUCINATION_NOTEBOOK))
+    assert "gene_categories.tsv" in text
+    assert "score.uncharacterized.tsv" not in text
+    assert '"claude"' in source
+    assert "DEEPGENOME_RESPONSE_ARCHIVE" in text
+    assert "DEEPGENOME_MODEL_IDS" in text
+
+
+def test_claude_triplet_loads_directly_from_zip(tmp_path: Path) -> None:
+    namespace = execute_tagged_source(
+        HALLUCINATION_NOTEBOOK,
+        "hallucination-input-core",
+    )
+    archive = build_three_member_zip(tmp_path, "GENE1")
+    assert namespace["load_claude_response_triplet"](archive, "GENE1") == [
+        "response 1",
+        "response 2",
+        "response 3",
+    ]
+
+
+def test_hallucination_model_selection_is_configurable() -> None:
+    namespace = execute_tagged_source(
+        HALLUCINATION_NOTEBOOK,
+        "hallucination-input-core",
+    )
+    parse_model_ids = namespace["parse_model_ids"]
+    assert parse_model_ids(None) == (
+        "phytomni",
+        "gemini",
+        "claude",
+        "openai",
+        "grok",
+    )
+    assert parse_model_ids("claude") == ("claude",)
+    with pytest.raises(ValueError, match="duplicate"):
+        parse_model_ids("claude,claude")
+    with pytest.raises(ValueError, match="Unknown"):
+        parse_model_ids("not-a-model")
+
+
+def test_hallucination_hash_current_log_is_reused_and_stale_log_is_rejected(
+    tmp_path: Path,
+) -> None:
+    namespace = execute_tagged_source(HALLUCINATION_NOTEBOOK, "hallucination-core")
+    expected = complete_metadata_with_hashes()
+    path = write_complete_log(tmp_path, expected)
+    assert namespace["load_reusable_judgment_log"](path, expected)
+    changed = {**expected, "response_sha256": ["changed", "b", "c"]}
+    assert namespace["load_reusable_judgment_log"](path, changed) is None
+
+
+def test_hallucination_progress_reports_every_ten_percent() -> None:
+    namespace = execute_tagged_source(HALLUCINATION_NOTEBOOK, "hallucination-core")
+    reportable = namespace["progress_is_reportable"]
+    assert [i for i in range(1, 101) if reportable(i, 100)] == list(
+        range(10, 101, 10)
+    )
 
 
 def test_hallucination_core_equivalence() -> None:
@@ -356,6 +455,45 @@ def test_hallucination_live_preflight_fails_before_client_construction(
     assert "SKIPPED: Live judging configuration is incomplete" not in runner_source
 
 
+def test_hallucination_claude_only_preflight_requires_archive(
+    tmp_path: Path,
+) -> None:
+    namespace = execute_tagged_source(HALLUCINATION_NOTEBOOK, "hallucination-core")
+    validate_live_configuration = namespace["validate_live_configuration"]
+    workbook = tmp_path / "queries.xlsx"
+    workbook.touch()
+    judgment_dir = tmp_path / "judgments"
+    judgment_dir.mkdir()
+    with pytest.raises(RuntimeError, match="DEEPGENOME_RESPONSE_ARCHIVE"):
+        validate_live_configuration(
+            query_workbook=workbook,
+            response_root=None,
+            judgment_dir=judgment_dir,
+            api_base_url="https://judge.example/v1",
+            api_key="private-key",
+            judge_model="judge-model-v1",
+            punkt_tab_available=True,
+            model_ids=("claude",),
+            response_archive=None,
+        )
+    archive = tmp_path / "claude-responses.zip"
+    archive.touch()
+    assert (
+        validate_live_configuration(
+            query_workbook=workbook,
+            response_root=None,
+            judgment_dir=judgment_dir,
+            api_base_url="https://judge.example/v1",
+            api_key="private-key",
+            judge_model="judge-model-v1",
+            punkt_tab_available=True,
+            model_ids=("claude",),
+            response_archive=archive,
+        )
+        is None
+    )
+
+
 def test_hallucination_gene_loader_matches_authoritative_baseline(
     tmp_path: Path,
 ) -> None:
@@ -492,7 +630,6 @@ def test_hallucination_semantic_risk_threshold_is_strict() -> None:
 
 def test_plackett_luce_notebook_contract() -> None:
     assert PL_NOTEBOOK.exists()
-    assert not (EVAL_DIR / "cal_score.ipynb").exists()
     assert not (EVAL_DIR / "statistics.ipynb").exists()
     assert_clean_notebook(
         PL_NOTEBOOK,
