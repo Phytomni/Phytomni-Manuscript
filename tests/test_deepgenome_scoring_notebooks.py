@@ -514,6 +514,27 @@ def test_hallucination_gene_loader_matches_authoritative_baseline(
     assert namespace["load_gene_ids"](gene_list) == ["GENE_A", "GENE_B"]
 
 
+def test_hallucination_query_loader_uses_second_excel_header_row(
+    tmp_path: Path,
+) -> None:
+    namespace = execute_tagged_source(
+        HALLUCINATION_NOTEBOOK,
+        "hallucination-input-core",
+    )
+    workbook = tmp_path / "supplementary-data-7.xlsx"
+    pd.DataFrame(
+        [
+            ["Title row", None, None, None],
+            ["Species", "Gene ID", "Gene type", "Query"],
+            ["rice", "GENE1", "uncharacterized", "What does GENE1 do?"],
+        ]
+    ).to_excel(workbook, header=False, index=False)
+
+    assert namespace["load_gene_queries"](workbook, ["GENE1"]) == {
+        "GENE1": "What does GENE1 do?"
+    }
+
+
 def test_hallucination_aggregation_omits_scores_without_evidence(
     tmp_path: Path,
 ) -> None:
@@ -529,6 +550,40 @@ def test_hallucination_aggregation_omits_scores_without_evidence(
     assert result["invalid_log_count"] == 1
     assert result["high_contradiction_gene_fraction"] is None
     assert result["mean_directional_contradiction_ratio"] is None
+
+
+def test_hallucination_formal_claude_aggregation_requires_metadata_hashes(
+    tmp_path: Path,
+) -> None:
+    namespace = execute_tagged_source(HALLUCINATION_NOTEBOOK, "hallucination-core")
+    aggregate = namespace["aggregate_model_logs"]
+    summary_only_log = tmp_path / "claude__GENE1__rep_1-rep_2-rep_3.json"
+    summary_only_log.write_text(
+        json.dumps(complete_primary_log([0.2] * 6)),
+        encoding="utf-8",
+    )
+    rejected = aggregate(
+        "claude",
+        ["GENE1"],
+        tmp_path,
+        require_metadata=True,
+    )
+    assert rejected["valid_log_count"] == 0
+    assert rejected["invalid_log_count"] == 1
+
+    expected = complete_metadata_with_hashes()
+    summary_only_log.write_text(
+        json.dumps([expected, *complete_summary_records([0.2] * 6)]),
+        encoding="utf-8",
+    )
+    accepted = aggregate(
+        "claude",
+        ["GENE1"],
+        tmp_path,
+        require_metadata=True,
+    )
+    assert accepted["valid_log_count"] == 1
+    assert accepted["invalid_log_count"] == 0
 
 
 def test_hallucination_malformed_summary_stubs_cannot_score(
