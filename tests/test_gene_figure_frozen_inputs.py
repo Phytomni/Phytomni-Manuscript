@@ -57,7 +57,7 @@ EXPECTED_OUTPUT_FILENAMES = {
     "expert_panel_summary": "expert_panel_summary.tsv",
     "assignment_summary": "assignment_summary.tsv",
 }
-EXPECTED_FROZEN_FILES = {
+EXPECTED_RANKING_FROZEN_FILES = {
     "rank_distribution.tsv",
     "pl_scores.tsv",
     "pl_pairwise.tsv",
@@ -72,6 +72,15 @@ EXPECTED_FROZEN_FILES = {
     "assignment_summary.tsv",
     "provenance.json",
 }
+EXPECTED_CLAUDE_FROZEN_FILES = {
+    "PhytoBench-Gene-Claude-BERTScore-by-gene.tsv",
+    "PhytoBench-Gene-Claude-hallucination-pairs.tsv",
+    "PhytoBench-Gene-Claude-hallucination-by-gene.tsv",
+    "PhytoBench-Gene-Claude-metrics-provenance.json",
+}
+EXPECTED_FROZEN_FILES = (
+    EXPECTED_RANKING_FROZEN_FILES | EXPECTED_CLAUDE_FROZEN_FILES
+)
 EXPECTED_OUTPUT_SCHEMAS = {
     "rank_distribution": (
         "Scope",
@@ -354,7 +363,9 @@ def test_frozen_tables_are_complete_and_traceable() -> None:
     assert OUTPUT_SCHEMAS == EXPECTED_OUTPUT_SCHEMAS
     assert OUTPUT_UNIQUE_KEYS == EXPECTED_OUTPUT_UNIQUE_KEYS
     assert DATA_DIR.is_dir()
-    assert {path.name for path in DATA_DIR.iterdir()} == EXPECTED_FROZEN_FILES
+    assert {path.name for path in DATA_DIR.iterdir()} == (
+        EXPECTED_FROZEN_FILES
+    )
 
     tables = {
         name: pd.read_csv(DATA_DIR / filename, sep="\t")
@@ -383,6 +394,58 @@ def test_frozen_tables_are_complete_and_traceable() -> None:
     top1 = tables["top1_consensus"]
     panel = tables["expert_panel_summary"]
     assignment = tables["assignment_summary"]
+
+    claude_bertscore = pd.read_csv(
+        DATA_DIR / "PhytoBench-Gene-Claude-BERTScore-by-gene.tsv",
+        sep="\t",
+    )
+    assert claude_bertscore.columns.tolist() == [
+        "Model",
+        "Gene",
+        "BERTScorePrecision",
+        "QuerySHA256",
+        "ResponseSHA256",
+    ]
+    assert len(claude_bertscore) == 100
+    assert claude_bertscore["Model"].eq("Claude").all()
+    assert claude_bertscore["Gene"].is_unique
+    assert claude_bertscore["BERTScorePrecision"].between(0.0, 1.0).all()
+
+    claude_hallucination = pd.read_csv(
+        DATA_DIR / "PhytoBench-Gene-Claude-hallucination-by-gene.tsv",
+        sep="\t",
+    )
+    assert claude_hallucination.columns.tolist() == [
+        "Species",
+        "Gene",
+        "StudyStatus",
+        "Model",
+        "DirectionalPairCount",
+        "MeanDirectionalContradictionRatio",
+        "HighContradiction",
+    ]
+    assert len(claude_hallucination) == 100
+    assert claude_hallucination["Model"].eq("Claude").all()
+    assert claude_hallucination["Gene"].is_unique
+    assert claude_hallucination["DirectionalPairCount"].eq(6).all()
+    assert claude_hallucination[
+        "MeanDirectionalContradictionRatio"
+    ].between(0.0, 1.0).all()
+
+    claude_pairs = pd.read_csv(
+        DATA_DIR / "PhytoBench-Gene-Claude-hallucination-pairs.tsv",
+        sep="\t",
+    )
+    assert len(claude_pairs) == 600
+    assert claude_pairs["Model"].eq("Claude").all()
+    assert (
+        claude_pairs[["Gene", "SourceResponseID", "TargetResponseID"]]
+        .duplicated()
+        .sum()
+        == 0
+    )
+    assert claude_pairs["WindowJudgmentCount"].gt(0).all()
+    assert claude_pairs["ContradictionRatio"].between(0.0, 1.0).all()
 
     assert ranks["Scope"].nunique() == 18
     assert set(ranks["Model"]) == set(MODEL_ORDER)
@@ -649,11 +712,56 @@ def test_frozen_tables_are_complete_and_traceable() -> None:
         atol=1e-10,
     )
 
+    claude_provenance_path = (
+        DATA_DIR / "PhytoBench-Gene-Claude-metrics-provenance.json"
+    )
+    claude_provenance = json.loads(claude_provenance_path.read_text())
+    assert claude_provenance["schema_version"] == 1
+    assert claude_provenance["counts"] == {
+        "archive_member_count": 400,
+        "directed_pair_rows": 600,
+        "extra_judgment_logs": 0,
+        "invalid_judgment_logs": 0,
+        "missing_judgment_logs": 0,
+        "uncharacterized_genes": 100,
+        "valid_judgment_logs": 100,
+        "well_studied_genes": 100,
+    }
+    assert claude_provenance["judge"] == {
+        "api_base_url": "https://api.modelarts-maas.com/v2",
+        "max_concurrent": 4,
+        "max_tokens": 10,
+        "model": "deepseek-v3.2",
+        "prompt_sha256": (
+            "d2cf7c33fe97c307be3ac471f40b2260d48b42068ef4fd6bdf3cfe9d76b72e2e"
+        ),
+        "temperature": 0,
+        "window_size_sentences": 3,
+        "window_stride_sentences": 2,
+    }
+    for table_name, digest_key in (
+        (
+            "PhytoBench-Gene-Claude-BERTScore-by-gene.tsv",
+            "bertscore_by_gene_sha256",
+        ),
+        (
+            "PhytoBench-Gene-Claude-hallucination-by-gene.tsv",
+            "hallucination_by_gene_sha256",
+        ),
+        (
+            "PhytoBench-Gene-Claude-hallucination-pairs.tsv",
+            "hallucination_pairs_sha256",
+        ),
+    ):
+        assert hashlib.sha256((DATA_DIR / table_name).read_bytes()).hexdigest() == (
+            claude_provenance["tables"][digest_key]
+        )
+
 
 def test_supplementary_notebook_only_plots_frozen_five_model_results() -> None:
     source = notebook_source()
 
-    for filename in EXPECTED_FROZEN_FILES:
+    for filename in EXPECTED_RANKING_FROZEN_FILES:
         assert filename in source
     for model in MODEL_ORDER:
         assert f'"{model}"' in source
@@ -965,7 +1073,7 @@ def test_supplementary_notebook_uses_requested_claude_label_and_order() -> None:
     assert '"Claude": "Claude deep research"' in source
 
 
-def test_fig2g_reads_frozen_metric_and_fig2h_is_pending() -> None:
+def test_fig2g_and_fig2h_read_frozen_five_model_metrics() -> None:
     bertscore = pd.read_csv(FIG2_BERTSCORE, sep="\t")
     assert bertscore.columns.tolist() == [
         "Model",
@@ -975,9 +1083,31 @@ def test_fig2g_reads_frozen_metric_and_fig2h_is_pending() -> None:
     assert bertscore["Model"].tolist() == [
         "Phytomni",
         "Gemini",
+        "Claude",
         "OpenAI",
         "Grok",
     ]
+    assert bertscore["DisplayLabel"].tolist() == [
+        "Phytomni",
+        "Gemini Deep Research",
+        "Claude deep research",
+        "ChatGPT Agent mode",
+        "Grok DeepSearch",
+    ]
+
+    hallucination = pd.read_csv(
+        FIG2_DIR / "PhytoBench-Gene-hallucination-for_plot.tsv",
+        sep="\t",
+    )
+    assert hallucination.columns.tolist() == [
+        "Model",
+        "DisplayLabel",
+        "MeanDirectionalContradictionRatio",
+    ]
+    assert hallucination["Model"].tolist() == MODEL_ORDER
+    assert hallucination["DisplayLabel"].tolist() == (
+        bertscore["DisplayLabel"].tolist()
+    )
 
     notebook = nbformat.read(FIG2_NOTEBOOK, as_version=4)
     nbformat.validate(notebook)
@@ -991,13 +1121,15 @@ def test_fig2g_reads_frozen_metric_and_fig2h_is_pending() -> None:
     )
     assert "PhytoBench-Gene-BERTScore-for_plot.tsv" in source
     assert "PhytoBench-Gene-hallucination-for_plot.tsv" in source
-    assert "if HALLUCINATION_DATA.is_file():" in source
-    assert "SKIPPED: Fig. 2h" in source
+    assert "if HALLUCINATION_DATA.is_file():" not in source
+    assert "SKIPPED: Fig. 2h" not in source
+    assert "range': [0.47, 0.58]" in source
+    assert '"range": [0.1, 0.7]' in source
     assert "0.561641241" not in source
     assert "0.12216996785802783" not in source
 
 
-def test_manifest_connects_fig2def_and_marks_fig2h_pending() -> None:
+def test_manifest_connects_fig2def_and_marks_fig2h_runnable() -> None:
     import yaml
 
     manifest = yaml.safe_load((ROOT / "reproduce.manifest.yaml").read_text())
@@ -1010,7 +1142,7 @@ def test_manifest_connects_fig2def_and_marks_fig2h_pending() -> None:
     expected_frozen_inputs = {
         "Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/frozen/"
         f"{filename}"
-        for filename in EXPECTED_FROZEN_FILES
+        for filename in EXPECTED_RANKING_FROZEN_FILES
     }
     assert set(fig2def["requires_data"]) == expected_frozen_inputs
     assert set(fig2def["expected_artifacts"]) == {
@@ -1048,10 +1180,13 @@ def test_manifest_connects_fig2def_and_marks_fig2h_pending() -> None:
     )
 
     fig2h = targets["fig-2h"]
-    assert fig2h["status"] == "skip_until_data"
+    assert fig2h["status"] == "run"
     assert fig2h["requires_data"] == [
         "Fig. 2/PhytoBench-Gene-BERTScore-for_plot.tsv",
         "Fig. 2/PhytoBench-Gene-hallucination-for_plot.tsv"
+    ]
+    assert fig2h["expected_artifacts"] == [
+        "Fig. 2/output/fig.2h.phytobench-gene.uncharacterized.bar.pdf"
     ]
     fig2 = targets["fig-2"]
     assert all("fig.2h" not in path for path in fig2["expected_artifacts"])

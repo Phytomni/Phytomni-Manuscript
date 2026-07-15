@@ -44,8 +44,8 @@ All other data-consuming notebooks read via relative paths and run end-to-end fr
 - `Fig. 3/PhytoBench-Paper-for_plot.xlsx`
 - `Extended Data Fig. 5/Phytomni-Multiomics-for_plot.txt`, `Phytomni-PaperYear-for_plot.csv`
 - `Extended Data Fig. 6/PhytoBench-Knowledge-for_plot.xlsx` (consumed by `6abc.ipynb` via relative path — works out of the box)
-- `Fig. 2/PhytoBench-Gene-BERTScore-for_plot.tsv` (frozen input for Fig. 2g; Fig. 2h remains pending until its separate hallucination table is supplied)
-- `Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/frozen/` (authoritative schema-2 snapshot: 12 aggregate TSVs plus `provenance.json`; includes rank distributions, Plackett-Luce scores/pairwise probabilities and their 10,000-bootstrap 95% confidence intervals, Fleiss-κ, per-gene Kendall W, top-1 consensus, panel composition, and assignment summaries)
+- `Fig. 2/PhytoBench-Gene-BERTScore-for_plot.tsv` and `Fig. 2/PhytoBench-Gene-hallucination-for_plot.tsv` (frozen five-model inputs for Fig. 2g-h)
+- `Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/frozen/` (authoritative schema-2 snapshot: 12 aggregate TSVs plus `provenance.json`; includes rank distributions, Plackett-Luce scores/pairwise probabilities and their 10,000-bootstrap 95% confidence intervals, Fleiss-κ, per-gene Kendall W, top-1 consensus, panel composition, and assignment summaries; it also contains the four compact Claude metric tables and provenance record used to assemble Fig. 2g-h)
 - `Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/gene_categories.tsv` (public study-status mapping used when regenerating the frozen aggregates from the anonymized ranking release)
 - `DeepGenomeAgent Evaluation/supplementary/Supplementary_Data_Expert_Rankings.tsv` (full public anonymized table: 600 expert–gene assignments from 120 experts, one complete five-model ranking per row), with `Supplementary_Data_Expert_Rankings_Codebook.tsv` and `expert_panel_category_map.tsv` alongside it
 - `Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/legacy/score*.tsv` (legacy four-model row-level inputs retained for historical provenance; not consumed by the current notebook or manifest)
@@ -62,7 +62,7 @@ dimensions use nonmissing respondents. The COI result is a self-report: all 120
 experts selected `No`, so describe it as "no conflicts were declared," not as
 independent exclusion of conflicts.
 
-The five newer Supplementary notebooks (`Supplementary Fig. 8`, `9`, `14`, `19`, `24`) carry their data **inline** (hardcoded Python dicts / numpy arrays). `Fig. 2a-c` remain inline, `Fig. 2g` reads its tracked BERTScore table, and `Fig. 2h` skips honestly until its hallucination table is supplied. (The R notebook `Extended Data Fig. 7/extended_data_fig. 7.ipynb` likewise carries its inline data as an R `data.frame`.)
+The five newer Supplementary notebooks (`Supplementary Fig. 8`, `9`, `14`, `19`, `24`) carry their data **inline** (hardcoded Python dicts / numpy arrays). `Fig. 2a-c` remain inline, while `Fig. 2g-h` read their tracked five-model metric tables. (The R notebook `Extended Data Fig. 7/extended_data_fig. 7.ipynb` likewise carries its inline data as an R `data.frame`.)
 
 ## Working with the notebooks
 

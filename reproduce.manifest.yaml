@@ -21,7 +21,7 @@ targets:
     kind: notebook
     path: "Fig. 2/fig. 2.ipynb"
     kernel: py
-    status: skip_until_data
+    status: run
     requires_data:
       - "Fig. 2/PhytoBench-Gene-BERTScore-for_plot.tsv"
       - "Fig. 2/PhytoBench-Gene-hallucination-for_plot.tsv"
