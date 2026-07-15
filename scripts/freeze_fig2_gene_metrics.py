@@ -10,7 +10,13 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import math
+import os
+import platform
+import tempfile
+from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path, PurePosixPath
 from typing import Iterable
 from zipfile import ZipFile
@@ -104,6 +110,29 @@ _HISTORICAL_STATUSES = {
     "bertscore": "well_studied",
     "hallucination": "uncharacterized",
 }
+
+_CLAUDE_LOG_FILENAME = "claude__{gene}__rep_1-rep_2-rep_3.json"
+_PAIR_COLUMNS = [
+    "Model",
+    "Gene",
+    "SourceResponse",
+    "TargetResponse",
+    "SupportRatio",
+    "ContradictionRatio",
+    "EntailmentEstablished",
+    "JudgmentLogSHA256",
+]
+_GENE_HALLUCINATION_COLUMNS = [
+    "Model",
+    "Gene",
+    "MeanDirectionalContradictionRatio",
+    "HighContradiction",
+]
+_KNOWN_ARCHIVE_ANOMALIES = [
+    "Os01g0107900-R1 is byte-identical to Os01g0107900-R3.",
+    "Os06g0665200-R1 is byte-identical to Os06g0665200-R3.",
+    "Zm00001eb140160-R1 is byte-identical to Zm00001eb063410-R1, and its content describes the latter gene.",
+]
 
 
 def sha256_file(path: Path) -> str:
@@ -470,12 +499,448 @@ def calculate_claude_bertscore(
     )
 
 
+def load_hallucination_core(notebook_path: Path) -> dict[str, object]:
+    """Load the canonical hallucination helpers from a tagged notebook cell.
+
+    The freezer intentionally executes only the ``hallucination-core`` cell.
+    This keeps the validator and aggregation semantics in one place while
+    avoiding notebook input, API, or live-run cells.
+    """
+
+    _require_file(notebook_path, "Hallucination notebook")
+    try:
+        import nbformat
+
+        notebook = nbformat.read(notebook_path, as_version=4)
+    except Exception as exc:  # pragma: no cover - malformed notebooks are rare.
+        raise ValueError(f"Unable to read hallucination notebook: {notebook_path}") from exc
+    cells = [
+        cell
+        for cell in notebook.cells
+        if cell.get("id") == "hallucination-core"
+    ]
+    if len(cells) != 1:
+        raise ValueError(
+            "Hallucination notebook must contain exactly one hallucination-core cell"
+        )
+    namespace: dict[str, object] = {"__name__": "_fig2_hallucination_core"}
+    try:
+        exec("".join(cells[0].get("source", [])), namespace)
+    except Exception as exc:
+        raise ValueError("Unable to load the hallucination-core cell") from exc
+    required = (
+        "validate_judgment_records",
+        "formal_metadata_is_complete",
+        "extract_gene_contradiction",
+        "sanitize_api_base_url",
+        "sha256_text",
+        "JUDGE_PROMPT_SHA256",
+    )
+    missing = [name for name in required if name not in namespace]
+    if missing:
+        raise ValueError(
+            "hallucination-core is missing required helpers: " + ", ".join(missing)
+        )
+    return namespace
+
+
+def _response_text(
+    responses: dict[tuple[str, str], str],
+    gene: str,
+    response_id: str,
+) -> str:
+    """Resolve both archive (R1) and notebook (rep_1) response IDs."""
+
+    candidates = [response_id]
+    if response_id.startswith("rep_"):
+        candidates.append("R" + response_id.removeprefix("rep_"))
+    elif response_id.startswith("R"):
+        candidates.append("rep_" + response_id.removeprefix("R"))
+    for candidate in candidates:
+        value = responses.get((gene, candidate))
+        if isinstance(value, str) and value.strip():
+            return value
+    raise ValueError(f"Missing Claude response text for {gene}/{response_id}")
+
+
+def _log_path(judgment_dir: Path, gene: str) -> Path:
+    return judgment_dir / _CLAUDE_LOG_FILENAME.format(gene=gene)
+
+
+def _metadata_record(records: list[dict[str, object]]) -> dict[str, object]:
+    metadata = [
+        record
+        for record in records
+        if isinstance(record, dict) and record.get("type") == "metadata"
+    ]
+    if len(metadata) != 1:
+        raise ValueError("Claude judgment log must contain exactly one metadata record")
+    return metadata[0]
+
+
+def compact_claude_judgments(
+    judgment_dir: Path,
+    genes: list[str],
+    responses: dict[tuple[str, str], str],
+    core: dict[str, object],
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Validate complete Claude logs and return compact pair/gene tables.
+
+    Validation is deliberately strict: every requested gene needs one current
+    formal log, six unique directed summaries, matching response hashes, and
+    no API-error records.  The canonical notebook validator and extractor are
+    called from ``core`` so this function cannot drift from notebook semantics.
+    """
+
+    if not judgment_dir.is_dir():
+        raise FileNotFoundError(f"Judgment directory does not exist: {judgment_dir}")
+    if not genes:
+        raise ValueError("100 valid Claude judgment logs required; no genes supplied")
+    if list(genes) != sorted(genes) or len(set(genes)) != len(genes):
+        raise ValueError("Claude uncharacterized genes must be sorted and unique")
+    validator = core.get("validate_judgment_records")
+    formal = core.get("formal_metadata_is_complete")
+    extractor = core.get("extract_gene_contradiction")
+    sha_text = core.get("sha256_text", _sha256_text)
+    if not all(callable(function) for function in (validator, formal, extractor, sha_text)):
+        raise TypeError("hallucination-core does not expose callable validation helpers")
+
+    pair_records: list[dict[str, object]] = []
+    gene_records: list[dict[str, object]] = []
+    invalid: list[str] = []
+    expected_pairs = {
+        (source, target)
+        for source in range(3)
+        for target in range(3)
+        if source != target
+    }
+    high_threshold = float(core.get("GENE_HIGH_CONTRADICTION_THRESHOLD", 0.6))
+    for gene in genes:
+        path = _log_path(judgment_dir, gene)
+        try:
+            records = json.loads(path.read_text(encoding="utf-8"))
+            errors = validator(records, expected_response_count=3)
+            if errors:
+                raise ValueError("; ".join(str(error) for error in errors))
+            if not formal(records, "claude", gene, expected_response_count=3):
+                raise ValueError("formal metadata is incomplete")
+            metadata = _metadata_record(records)
+            response_ids = metadata.get("response_ids")
+            if response_ids != ["rep_1", "rep_2", "rep_3"]:
+                raise ValueError("metadata response IDs must be rep_1, rep_2, rep_3")
+            response_hashes = metadata.get("response_sha256")
+            expected_hashes = [
+                sha_text(_response_text(responses, gene, response_id))
+                for response_id in response_ids
+            ]
+            if response_hashes != expected_hashes:
+                raise ValueError("response hash is stale")
+            summaries = [
+                record
+                for record in records
+                if isinstance(record, dict)
+                and record.get("type") == "version_pair_summary"
+            ]
+            observed_pairs = {
+                tuple(record.get("version_pair", []))
+                for record in summaries
+            }
+            if len(summaries) != 6 or observed_pairs != expected_pairs:
+                raise ValueError("judgment log must contain six unique ordered pairs")
+            log_hash = sha256_file(path)
+            for summary in sorted(
+                summaries,
+                key=lambda item: tuple(item["version_pair"]),  # type: ignore[index]
+            ):
+                source_index, target_index = summary["version_pair"]  # type: ignore[misc]
+                pair_records.append(
+                    {
+                        "Model": "Claude",
+                        "Gene": gene,
+                        "SourceResponse": response_ids[source_index],
+                        "TargetResponse": response_ids[target_index],
+                        "SupportRatio": float(summary["support_ratio"]),
+                        "ContradictionRatio": float(summary["contra_ratio"]),
+                        "EntailmentEstablished": bool(
+                            summary["entailment_established"]
+                        ),
+                        "JudgmentLogSHA256": log_hash,
+                    }
+                )
+            extracted = extractor(records)
+            if extracted is None:
+                raise ValueError("canonical extractor returned no aggregate")
+            extracted_mean = float(extracted[0])  # type: ignore[index]
+            direct_mean = float(
+                sum(float(summary["contra_ratio"]) for summary in summaries) / 6
+            )
+            if not math.isclose(extracted_mean, direct_mean, rel_tol=0.0, abs_tol=1e-15):
+                raise ValueError("canonical extractor disagrees with pair-row mean")
+            gene_records.append(
+                {
+                    "Model": "Claude",
+                    "Gene": gene,
+                    "MeanDirectionalContradictionRatio": direct_mean,
+                    "HighContradiction": direct_mean >= high_threshold,
+                }
+            )
+        except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError, KeyError) as exc:
+            invalid.append(f"{gene}: {exc}")
+    if invalid:
+        details = "; ".join(invalid[:3])
+        raise ValueError(
+            "100 valid Claude judgment logs required; invalid or missing logs: "
+            + details
+        )
+    pairs = pd.DataFrame(pair_records, columns=_PAIR_COLUMNS)
+    genes_frame = pd.DataFrame(gene_records, columns=_GENE_HALLUCINATION_COLUMNS)
+    return pairs, genes_frame
+
+
+def _validated_metric_mean(frame: pd.DataFrame, column: str, label: str) -> float:
+    if "Model" in frame and not frame["Model"].astype(str).eq("Claude").all():
+        raise ValueError(f"Claude {label} table contains non-Claude rows")
+    if "Gene" in frame and frame["Gene"].duplicated().any():
+        raise ValueError(f"Claude {label} table contains duplicate genes")
+    if column not in frame:
+        raise ValueError(f"Claude {label} table is missing {column}")
+    values = pd.to_numeric(frame[column], errors="coerce").to_numpy(dtype=float)
+    if len(values) == 0 or not np.isfinite(values).all() or not ((values >= 0) & (values <= 1)).all():
+        raise ValueError(f"Claude {label} values must be finite and in [0, 1]")
+    return float(values.mean())
+
+
+def build_figure_tables(
+    source: pd.DataFrame,
+    bertscore: pd.DataFrame,
+    hallucination: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Assemble fixed-order five-model Fig. 2g and Fig. 2h inputs."""
+
+    historical = historical_model_means(source)
+    claude_bert = _validated_metric_mean(bertscore, "BERTScorePrecision", "BERTScore")
+    claude_hallucination = _validated_metric_mean(
+        hallucination,
+        "MeanDirectionalContradictionRatio",
+        "hallucination",
+    )
+    bert_values = {
+        **historical["bertscore"],
+        "Claude": claude_bert,
+    }
+    hallucination_values = {
+        **historical["hallucination"],
+        "Claude": claude_hallucination,
+    }
+    bert_plot = pd.DataFrame(
+        [
+            {
+                "Model": model,
+                "DisplayLabel": DISPLAY_LABELS[model],
+                "BERTScorePrecision": bert_values[model],
+            }
+            for model in MODEL_ORDER
+        ],
+        columns=["Model", "DisplayLabel", "BERTScorePrecision"],
+    )
+    hallucination_plot = pd.DataFrame(
+        [
+            {
+                "Model": model,
+                "DisplayLabel": DISPLAY_LABELS[model],
+                "MeanDirectionalContradictionRatio": hallucination_values[model],
+            }
+            for model in MODEL_ORDER
+        ],
+        columns=["Model", "DisplayLabel", "MeanDirectionalContradictionRatio"],
+    )
+    return bert_plot, hallucination_plot
+
+
+def _package_versions() -> dict[str, str]:
+    names = ("bert-score", "nbformat", "networkx", "nltk", "numpy", "pandas", "torch")
+    result: dict[str, str] = {}
+    for name in names:
+        try:
+            result[name] = version(name)
+        except PackageNotFoundError:
+            result[name] = "not-installed"
+    return result
+
+
+def _safe_input_record(label: str, path: Path | None) -> dict[str, object] | None:
+    if path is None:
+        return None
+    return {"label": label, "sha256": sha256_file(path)}
+
+
+def _frame_sha256(frame: pd.DataFrame) -> str:
+    payload = frame.to_csv(
+        sep="\t",
+        index=False,
+        lineterminator="\n",
+        float_format="%.15g",
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def build_provenance(
+    source: pd.DataFrame,
+    bertscore: pd.DataFrame,
+    hallucination_pairs: pd.DataFrame,
+    hallucination: pd.DataFrame,
+    source_workbook: Path | None = None,
+    claude_archive: Path | None = None,
+    gene_categories: Path | None = None,
+    judgment_dir: Path | None = None,
+    hallucination_notebook: Path | None = None,
+    freezer_script: Path | None = None,
+    core: dict[str, object] | None = None,
+    judge: dict[str, object] | None = None,
+    anomalies: list[str] | None = None,
+    generated_at_utc: str | None = None,
+) -> dict[str, object]:
+    """Build non-secret, checksummed lineage for the frozen metrics."""
+
+    historical = historical_model_means(source)
+    judge_payload = {
+        "api_base_url": "https://www.dmxapi.cn/v1",
+        "model": "deepseek-v3.2-exp",
+        "temperature": 0,
+        "max_tokens": 10,
+        "max_concurrent": 32,
+    }
+    if judge:
+        for key, value in judge.items():
+            if key.casefold() not in {"api_key", "key", "token", "authorization"}:
+                judge_payload[key] = value
+    if core and isinstance(core.get("JUDGE_PROMPT_SHA256"), str):
+        judge_payload["prompt_sha256"] = core["JUDGE_PROMPT_SHA256"]
+    inputs = {
+        "source_workbook": _safe_input_record("source workbook", source_workbook),
+        "claude_archive": _safe_input_record("Claude response archive", claude_archive),
+        "gene_categories": _safe_input_record("gene category table", gene_categories),
+        "hallucination_notebook": _safe_input_record("canonical hallucination notebook", hallucination_notebook),
+        "freezer_script": _safe_input_record("figure-metric freezer", freezer_script),
+    }
+    if judgment_dir is not None and judgment_dir.is_dir():
+        log_hashes = {
+            path.name: sha256_file(path)
+            for path in sorted(judgment_dir.glob(_CLAUDE_LOG_FILENAME.format(gene="*")))
+            if path.is_file()
+        }
+        inputs["judgment_logs"] = {
+            "label": "Claude judgment logs",
+            "count": len(log_hashes),
+            "sha256_by_name": log_hashes,
+        }
+    inputs = {key: value for key, value in inputs.items() if value is not None}
+    counts = {
+        "well_studied_genes": int(source["StudyStatus"].eq("well_studied").sum()),
+        "uncharacterized_genes": int(source["StudyStatus"].eq("uncharacterized").sum()),
+        "valid_judgment_logs": int(hallucination["Gene"].nunique()),
+        "directed_pair_rows": int(len(hallucination_pairs)),
+    }
+    bert_plot, hallucination_plot = build_figure_tables(
+        source,
+        bertscore,
+        hallucination,
+    )
+    final_values = {
+        "bertscore": {
+            row.Model: float(row.BERTScorePrecision)
+            for row in bert_plot.itertuples()
+        },
+        "hallucination": {
+            row.Model: float(row.MeanDirectionalContradictionRatio)
+            for row in hallucination_plot.itertuples()
+        },
+    }
+    return {
+        "schema_version": 1,
+        "generated_at_utc": generated_at_utc
+        or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "platform": platform.python_version(),
+        "inputs": inputs,
+        "cohort": {
+            "well_studied_genes": int(source["StudyStatus"].eq("well_studied").sum()),
+            "uncharacterized_genes": int(source["StudyStatus"].eq("uncharacterized").sum()),
+            "source_frame_sha256": _frame_sha256(source),
+        },
+        "bertscore": {
+            "model_type": "bert-base-uncased",
+            "num_layers": 9,
+            "lang": "en",
+            "all_layers": False,
+            "idf": False,
+            "rescale_with_baseline": False,
+            "nthreads": 1,
+            "batch_size": 16,
+            "rows": len(bertscore),
+            "table_sha256": _frame_sha256(bertscore),
+        },
+        "judge": judge_payload,
+        "package_versions": _package_versions(),
+        "counts": counts,
+        "anomalies": list(anomalies or _KNOWN_ARCHIVE_ANOMALIES),
+        "tables": {
+            "bertscore_by_gene_sha256": _frame_sha256(bertscore),
+            "hallucination_pairs_sha256": _frame_sha256(hallucination_pairs),
+            "hallucination_by_gene_sha256": _frame_sha256(hallucination),
+        },
+        "historical_values": historical,
+        "final_values": final_values,
+    }
+
+
+def _atomic_write_bytes(path: Path, payload: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary = Path(handle.name)
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        temporary.replace(path)
+    finally:
+        if temporary is not None and temporary.exists():
+            temporary.unlink()
+
+
+def _atomic_write_frame(path: Path, frame: pd.DataFrame) -> None:
+    payload = frame.to_csv(
+        sep="\t",
+        index=False,
+        lineterminator="\n",
+        float_format="%.15g",
+    ).encode("utf-8")
+    _atomic_write_bytes(path, payload)
+
+
+def _atomic_write_json(path: Path, payload: dict[str, object]) -> None:
+    serialized = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    _atomic_write_bytes(path, serialized.encode("utf-8"))
+
+
 def _parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--validate-only", action="store_true")
     parser.add_argument("--source-workbook", type=Path, required=True)
     parser.add_argument("--claude-archive", type=Path, required=True)
     parser.add_argument("--gene-categories", type=Path, required=True)
+    parser.add_argument("--judgment-dir", type=Path)
+    parser.add_argument("--hallucination-notebook", type=Path)
+    parser.add_argument("--frozen-dir", type=Path)
+    parser.add_argument("--figure-dir", type=Path)
+    parser.add_argument("--device", default=None)
+    parser.add_argument("--batch-size", type=int, default=16)
     return parser.parse_args(argv)
 
 
@@ -491,8 +956,113 @@ def main(argv: Iterable[str] | None = None) -> int:
             f"{len(source)} source rows; {well_studied} well-studied responses; "
             f"{uncharacterized} complete response triplets; validation passed"
         )
-    else:
-        print(f"Validated {len(source)} source rows and {len(responses)} Claude responses")
+        return 0
+
+    required_outputs = {
+        "--judgment-dir": args.judgment_dir,
+        "--hallucination-notebook": args.hallucination_notebook,
+        "--frozen-dir": args.frozen_dir,
+        "--figure-dir": args.figure_dir,
+    }
+    missing_outputs = [name for name, value in required_outputs.items() if value is None]
+    if missing_outputs:
+        raise SystemExit(
+            "Normal freezer mode requires: " + ", ".join(missing_outputs)
+        )
+    if args.batch_size < 1:
+        raise SystemExit("--batch-size must be positive")
+    categories = categories.sort_values("Gene", kind="mergesort").reset_index(drop=True)
+    uncharacterized = categories.loc[
+        categories["StudyStatus"].eq("uncharacterized"), "Gene"
+    ].tolist()
+    if len(uncharacterized) != 100 or uncharacterized != sorted(uncharacterized):
+        raise ValueError(
+            "Exactly 100 sorted uncharacterized genes are required for formal aggregation"
+        )
+    source_genes = set(source["GeneID"])
+    category_genes = set(categories["Gene"])
+    if source_genes != category_genes:
+        raise ValueError("Source workbook and gene-category table contain different gene cohorts")
+    source_status = dict(zip(source["GeneID"], source["StudyStatus"], strict=True))
+    category_status = dict(zip(categories["Gene"], categories["StudyStatus"], strict=True))
+    if source_status != category_status:
+        raise ValueError("Source workbook and gene-category table have inconsistent study statuses")
+    historical_model_means(source)
+    core = load_hallucination_core(args.hallucination_notebook)
+    device = args.device
+    if device is None:
+        try:
+            import torch
+
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        except ImportError:
+            device = "cpu"
+    scorer = create_bertscorer(device=device, batch_size=args.batch_size)
+    bertscore = calculate_claude_bertscore(
+        source,
+        responses,
+        scorer,
+        batch_size=args.batch_size,
+    )
+    pairs, hallucination = compact_claude_judgments(
+        args.judgment_dir,
+        uncharacterized,
+        responses,
+        core,
+    )
+    bert_plot, hallucination_plot = build_figure_tables(
+        source,
+        bertscore,
+        hallucination,
+    )
+    provenance = build_provenance(
+        source=source,
+        bertscore=bertscore,
+        hallucination_pairs=pairs,
+        hallucination=hallucination,
+        source_workbook=args.source_workbook,
+        claude_archive=args.claude_archive,
+        gene_categories=args.gene_categories,
+        judgment_dir=args.judgment_dir,
+        hallucination_notebook=args.hallucination_notebook,
+        freezer_script=Path(__file__).resolve(),
+        core=core,
+    )
+    frozen_outputs = {
+        args.frozen_dir / "PhytoBench-Gene-Claude-BERTScore-by-gene.tsv": (
+            bertscore,
+            "frame",
+        ),
+        args.frozen_dir / "PhytoBench-Gene-Claude-hallucination-pairs.tsv": (
+            pairs,
+            "frame",
+        ),
+        args.frozen_dir / "PhytoBench-Gene-Claude-hallucination-by-gene.tsv": (
+            hallucination,
+            "frame",
+        ),
+        args.frozen_dir / "PhytoBench-Gene-Claude-metrics-provenance.json": (
+            provenance,
+            "json",
+        ),
+        args.figure_dir / "PhytoBench-Gene-BERTScore-for_plot.tsv": (
+            bert_plot,
+            "frame",
+        ),
+        args.figure_dir / "PhytoBench-Gene-hallucination-for_plot.tsv": (
+            hallucination_plot,
+            "frame",
+        ),
+    }
+    for path, (payload, kind) in frozen_outputs.items():
+        if kind == "frame":
+            _atomic_write_frame(path, payload)  # type: ignore[arg-type]
+        else:
+            _atomic_write_json(path, payload)  # type: ignore[arg-type]
+    print(
+        f"Published {len(bertscore)} Claude BERTScore rows, "
+        f"{len(pairs)} directed hallucination rows, and five-model figure tables"
+    )
     return 0
 
 

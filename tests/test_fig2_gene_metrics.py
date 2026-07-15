@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import sys
 import types
 from pathlib import Path
@@ -13,8 +14,12 @@ import pytest
 from scripts.freeze_fig2_gene_metrics import (
     EXPECTED_HISTORICAL_MEANS,
     calculate_claude_bertscore,
+    build_figure_tables,
+    build_provenance,
+    compact_claude_judgments,
     create_bertscorer,
     historical_model_means,
+    load_hallucination_core,
     load_claude_archive,
     load_gene_categories,
     load_source_workbook,
@@ -384,3 +389,166 @@ def test_claude_bertscore_rejects_nonfinite_or_out_of_range_precision(
     scorer = _RecordingScorer(precision=[invalid_precision])
     with pytest.raises(ValueError, match=r"precision must be finite and in \[0, 1\]"):
         calculate_claude_bertscore(source, responses, scorer)
+
+
+def _write_formal_log(
+    directory: Path,
+    gene: str,
+    responses: dict[tuple[str, str], str],
+    notebook_path: Path,
+    *,
+    ratios: list[float] | None = None,
+) -> None:
+    core = load_hallucination_core(notebook_path)
+    ratios = ratios or [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+    response_ids = ["rep_1", "rep_2", "rep_3"]
+    metadata = {
+        "type": "metadata",
+        "model_id": "claude",
+        "gene_id": gene,
+        "response_ids": response_ids,
+        "api_base_url": "https://www.dmxapi.cn/v1",
+        "judge_model": "deepseek-v3.2-exp",
+        "judge_prompt_sha256": core["JUDGE_PROMPT_SHA256"],
+        "response_sha256": [
+            hashlib.sha256(responses[(gene, f"R{i}")].encode()).hexdigest()
+            for i in range(1, 4)
+        ],
+    }
+    pairs = [
+        [source, target]
+        for source in range(3)
+        for target in range(3)
+        if source != target
+    ]
+    records = [metadata]
+    records.extend(
+        {
+            "type": "version_pair_summary",
+            "version_pair": pair,
+            "support_ratio": 1.0 - ratio,
+            "contra_ratio": ratio,
+            "entailment_established": False,
+        }
+        for pair, ratio in zip(pairs, ratios, strict=True)
+    )
+    path = directory / f"claude__{gene}__rep_1-rep_2-rep_3.json"
+    path.write_text(json.dumps(records), encoding="utf-8")
+
+
+@pytest.fixture
+def hallucination_notebook() -> Path:
+    return Path("DeepGenomeAgent Evaluation/score_hallucination.ipynb")
+
+
+@pytest.fixture
+def formal_judgment_fixture(
+    tmp_path: Path,
+    hallucination_notebook: Path,
+) -> tuple[Path, list[str], dict[tuple[str, str], str]]:
+    directory = tmp_path / "judgments"
+    directory.mkdir()
+    genes = ["UN1"]
+    responses = {
+        ("UN1", "R1"): "UN1 response one.",
+        ("UN1", "R2"): "UN1 response two.",
+        ("UN1", "R3"): "UN1 response three.",
+    }
+    _write_formal_log(directory, "UN1", responses, hallucination_notebook)
+    return directory, genes, responses
+
+
+def test_compaction_writes_six_pairs_and_one_gene_row(
+    formal_judgment_fixture: tuple[Path, list[str], dict[tuple[str, str], str]],
+    hallucination_notebook: Path,
+) -> None:
+    directory, genes, responses = formal_judgment_fixture
+    pairs, gene_rows = compact_claude_judgments(
+        directory,
+        genes,
+        responses,
+        load_hallucination_core(hallucination_notebook),
+    )
+    assert len(pairs) == 6
+    assert pairs.columns.tolist() == [
+        "Model", "Gene", "SourceResponse", "TargetResponse",
+        "SupportRatio", "ContradictionRatio", "EntailmentEstablished",
+        "JudgmentLogSHA256",
+    ]
+    assert gene_rows.to_dict("records") == [{
+        "Model": "Claude", "Gene": "UN1",
+        "MeanDirectionalContradictionRatio": pytest.approx(0.35),
+        "HighContradiction": False,
+    }]
+
+
+def test_compaction_rejects_any_missing_invalid_or_hash_stale_gene(
+    formal_judgment_fixture: tuple[Path, list[str], dict[tuple[str, str], str]],
+    hallucination_notebook: Path,
+) -> None:
+    directory, genes, responses = formal_judgment_fixture
+    responses[("UN1", "R1")] = "changed response"
+    with pytest.raises(ValueError, match="100 valid Claude judgment logs required"):
+        compact_claude_judgments(
+            directory,
+            genes,
+            responses,
+            load_hallucination_core(hallucination_notebook),
+        )
+
+
+def test_figure_tables_preserve_historical_values_and_fixed_order() -> None:
+    source = _historical_source()
+    bert_rows = pd.DataFrame(
+        [{"Model": "Claude", "Gene": "well_studied-000", "BERTScorePrecision": 0.55}]
+    )
+    hallucination_rows = pd.DataFrame(
+        [{
+            "Model": "Claude",
+            "Gene": "uncharacterized-000",
+            "MeanDirectionalContradictionRatio": 0.35,
+        }]
+    )
+    bert_plot, hallucination_plot = build_figure_tables(
+        source, bert_rows, hallucination_rows
+    )
+    assert bert_plot["Model"].tolist() == ["Phytomni", "Gemini", "Claude", "OpenAI", "Grok"]
+    assert hallucination_plot["Model"].tolist() == ["Phytomni", "Gemini", "Claude", "OpenAI", "Grok"]
+    assert bert_plot.loc[2, "DisplayLabel"] == "Claude deep research"
+    assert hallucination_plot.set_index("Model").loc["Phytomni"].iloc[-1] == pytest.approx(
+        0.12216996785802783
+    )
+
+
+def test_provenance_contains_complete_non_secret_lineage(
+    formal_judgment_fixture: tuple[Path, list[str], dict[tuple[str, str], str]],
+    hallucination_notebook: Path,
+) -> None:
+    directory, genes, responses = formal_judgment_fixture
+    pairs, gene_rows = compact_claude_judgments(
+        directory,
+        genes,
+        responses,
+        load_hallucination_core(hallucination_notebook),
+    )
+    source = _historical_source()
+    bert_rows = pd.DataFrame(
+        [{"Model": "Claude", "Gene": "well_studied-000", "BERTScorePrecision": 0.55}]
+    )
+    provenance = build_provenance(
+        source=source,
+        bertscore=bert_rows,
+        hallucination_pairs=pairs,
+        hallucination=gene_rows,
+        judgment_dir=directory,
+        hallucination_notebook=hallucination_notebook,
+        core=load_hallucination_core(hallucination_notebook),
+    )
+    assert provenance["judge"]["model"] == "deepseek-v3.2-exp"
+    assert provenance["judge"]["temperature"] == 0
+    assert provenance["judge"]["max_tokens"] == 10
+    assert provenance["counts"] == {
+        "well_studied_genes": 100, "uncharacterized_genes": 100,
+        "valid_judgment_logs": 1, "directed_pair_rows": 6,
+    }
+    assert "api_key" not in json.dumps(provenance).lower()
