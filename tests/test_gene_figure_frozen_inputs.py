@@ -673,7 +673,6 @@ def test_supplementary_notebook_encodes_ci_and_agreement_figures() -> None:
     assert '"crossed_expert_gene"' in source
     assert "CI95Lower" in source
     assert "CI95Upper" in source
-    assert "1500" in source
     assert "expert_panel_summary" in source
     assert "assignment_summary" in source
     assert "fleiss_kappa" in source
@@ -689,7 +688,7 @@ def test_supplementary_notebook_encodes_ci_and_agreement_figures() -> None:
     assert "supplementary_fig.9.phytobench-gene" not in source
 
 
-def test_pairwise_diagonal_is_explicitly_rendered_as_neutral_probability(
+def test_pairwise_heatmap_shows_point_and_range_with_blank_diagonal(
     monkeypatch,
 ) -> None:
     pairwise = pd.read_csv(DATA_DIR / "pl_pairwise.tsv", sep="\t")
@@ -716,9 +715,195 @@ def test_pairwise_diagonal_is_explicitly_rendered_as_neutral_probability(
     text = np.asarray(figure.data[0].text, dtype=str)
     off_diagonal = ~np.eye(len(MODEL_ORDER), dtype=bool)
 
-    np.testing.assert_allclose(np.diag(probabilities), 0.5)
+    assert np.isnan(np.diag(probabilities)).all()
     assert np.isfinite(probabilities[off_diagonal]).all()
-    assert (np.diag(text) == "0.50").all()
+    assert (np.diag(text) == "").all()
+    intervals = (
+        pd.read_csv(DATA_DIR / "pl_pairwise_ci.tsv", sep="\t")
+        .loc[lambda frame: frame["Scope"].eq("overall")]
+        .set_index(["RowModel", "ColumnModel"])
+    )
+    for row_index, row_model in enumerate(MODEL_ORDER):
+        for column_index, column_model in enumerate(MODEL_ORDER):
+            if row_model == column_model:
+                continue
+            interval = intervals.loc[(row_model, column_model)]
+            assert text[row_index, column_index] == (
+                f"{probabilities[row_index, column_index]:.2f}<br>"
+                f"[{interval['CI95Lower']:.2f}, {interval['CI95Upper']:.2f}]"
+            )
+
+
+def test_pairwise_heatmap_preserves_the_original_tropic_presentation(
+    monkeypatch,
+) -> None:
+    from plotly.colors import get_colorscale
+
+    notebook = nbformat.read(NOTEBOOK, as_version=4)
+    namespace: dict[str, object] = {}
+    required_cells = {
+        "ranking-setup",
+        "ranking-configuration",
+        "frozen-validation",
+        "main-plot-functions",
+    }
+    monkeypatch.chdir(FIGURE_DIR)
+    for cell in notebook.cells:
+        if cell.cell_type == "code" and cell.id in required_cells:
+            exec(compile(cell.source, f"<{cell.id}>", "exec"), namespace)
+
+    figure = namespace["pairwise_probability_figure"]("overall")
+    heatmap = figure.data[0]
+    expected_scale = get_colorscale("TroPic")
+
+    assert heatmap.type == "heatmap"
+    np.testing.assert_allclose(
+        [stop for stop, _ in heatmap.colorscale],
+        [stop for stop, _ in expected_scale],
+    )
+    assert [color for _, color in heatmap.colorscale] == [
+        color for _, color in expected_scale
+    ]
+    assert heatmap.xgap is None
+    assert heatmap.ygap is None
+    assert figure.layout.yaxis.scaleanchor == "x"
+    assert figure.layout.yaxis.autorange != "reversed"
+    assert heatmap.colorbar.title.text is None
+    assert figure.layout.width == 1080
+    assert figure.layout.height == 1080
+    assert figure.layout.title.text is None
+    visible_text = np.asarray(heatmap.text, dtype=str)
+    assert all(
+        "<br>[" in value and value.endswith("]")
+        for value in visible_text[~np.eye(len(MODEL_ORDER), dtype=bool)]
+    )
+
+
+def test_elo_figure_preserves_bars_and_adds_asymmetric_intervals(
+    monkeypatch,
+) -> None:
+    notebook = nbformat.read(NOTEBOOK, as_version=4)
+    namespace: dict[str, object] = {}
+    required_cells = {
+        "ranking-setup",
+        "ranking-configuration",
+        "frozen-validation",
+        "main-plot-functions",
+    }
+    monkeypatch.chdir(FIGURE_DIR)
+    for cell in notebook.cells:
+        if cell.cell_type == "code" and cell.id in required_cells:
+            exec(compile(cell.source, f"<{cell.id}>", "exec"), namespace)
+
+    assert "elo_score_figure" in namespace
+    supplementary = namespace["elo_score_figure"]("overall")
+    trace = supplementary.data[0]
+    expected_colors = [
+        "rgb(31,113,179)",
+        "rgb(208,210,211)",
+        "rgb(208,210,211)",
+        "rgb(208,210,211)",
+        "rgb(208,210,211)",
+    ]
+
+    assert len(supplementary.data) == 1
+    assert trace.type == "bar"
+    assert trace.orientation is None
+    assert list(trace.x) == [
+        "Phytomni",
+        "Gemini Deep Research",
+        "Claude deep research",
+        "ChatGPT Agent mode",
+        "Grok DeepSearch",
+    ]
+    assert list(trace.marker.color) == expected_colors
+    assert trace.marker.line.color == "rgb(0,0,0)"
+    assert trace.marker.line.width == 2
+    assert trace.textposition == "outside"
+    assert trace.error_y.symmetric is False
+    assert np.asarray(trace.error_y.array, dtype=float).shape == (5,)
+    assert np.asarray(trace.error_y.arrayminus, dtype=float).shape == (5,)
+    assert (np.asarray(trace.error_y.array, dtype=float) > 0).all()
+    assert (np.asarray(trace.error_y.arrayminus, dtype=float) > 0).all()
+    expected = (
+        pd.read_csv(DATA_DIR / "pl_scores_ci.tsv", sep="\t")
+        .loc[
+            lambda frame: frame["Scope"].eq("overall")
+            & frame["IntervalAnalysis"].eq("crossed_expert_gene")
+        ]
+        .set_index("Model")
+        .reindex(MODEL_ORDER)
+    )
+    np.testing.assert_allclose(trace.y, expected["Estimate"])
+    np.testing.assert_allclose(
+        trace.error_y.array,
+        expected["CI95Upper"] - expected["Estimate"],
+    )
+    np.testing.assert_allclose(
+        trace.error_y.arrayminus,
+        expected["Estimate"] - expected["CI95Lower"],
+    )
+    assert tuple(supplementary.layout.yaxis.range) == (1000, 2000)
+    assert supplementary.layout.width == 1080
+    assert supplementary.layout.height == 1080
+    assert supplementary.layout.title.text is None
+    assert not supplementary.layout.shapes
+    assert not supplementary.layout.annotations
+
+    captured: dict[str, object] = {}
+    namespace["render_figure"] = (
+        lambda figure, file_prefix: captured.__setitem__(file_prefix, figure)
+    )
+    render_cell = next(cell for cell in notebook.cells if cell.id == "figure-2-render")
+    exec(compile(render_cell.source, "<figure-2-render>", "exec"), namespace)
+    main = captured["fig.2f.phytobench-gene.score.bar"]
+    assert tuple(main.layout.yaxis.range) == (1200, 1700)
+
+
+def test_supplementary_figure_11_uses_manuscript_species_order(
+    monkeypatch,
+) -> None:
+    notebook = nbformat.read(NOTEBOOK, as_version=4)
+    namespace: dict[str, object] = {}
+    required_cells = {
+        "ranking-setup",
+        "ranking-configuration",
+        "frozen-validation",
+        "main-plot-functions",
+        "agreement-plot-functions",
+    }
+    monkeypatch.chdir(FIGURE_DIR)
+    for cell in notebook.cells:
+        if cell.cell_type == "code" and cell.id in required_cells:
+            exec(compile(cell.source, f"<{cell.id}>", "exec"), namespace)
+
+    figure = namespace["expert_agreement_figure"]()
+    expected = ["Rice", "Wheat", "Maize", "Soybean", "Arabidopsis"]
+    panel_dimensions, panel_categories = figure.data[0].y
+    for dimension in ("Species", "Study species†"):
+        categories = [
+            category
+            for row_dimension, category in zip(
+                panel_dimensions,
+                panel_categories,
+                strict=True,
+            )
+            if row_dimension == dimension
+        ]
+        assert categories[:5] == expected
+
+    kappa_species = [
+        trace.y[0]
+        for trace in figure.data
+        if len(trace.y) == 1 and trace.y[0] in expected
+    ]
+    assert kappa_species == expected
+    assert list(figure.layout.yaxis2.categoryarray)[1:6] == expected
+
+    unanimous = next(
+        trace for trace in figure.data if trace.name == "Top-1: Unanimous"
+    )
+    assert [label.split(" (", maxsplit=1)[0] for label in unanimous.y[1:6]] == expected
 
 
 def test_rendered_figure_contract_preserves_precision_and_readability(
@@ -748,7 +933,7 @@ def test_rendered_figure_contract_preserves_precision_and_readability(
     unanimous = top1_traces["Top-1: Unanimous"]
     majority = top1_traces["Top-1: 2-of-3 majority"]
     assert unanimous.text[0] == "12.5%"
-    assert unanimous.text[3] == "5.0%"
+    assert unanimous.text[2] == "5.0%"
     assert majority.text[0] == "53.5%"
 
     model_labels = {
@@ -771,25 +956,6 @@ def test_rendered_figure_contract_preserves_precision_and_readability(
 
     rank_figure = namespace["rank_distribution_figure"]("overall")
     assert rank_figure.layout.legend.x <= 0.98
-    pairwise_figure = namespace["pairwise_probability_figure"]("overall")
-    assert "expert–gene rankings" in pairwise_figure.layout.title.text
-
-    score_figure = namespace["score_interval_figure"]("overall")
-    near_reference = [
-        trace
-        for trace in score_figure.data
-        if abs(float(trace.x[0]) - 1500) < 40
-    ]
-    assert near_reference
-    assert all(trace.textposition != "top center" for trace in near_reference)
-    reference_labels = [
-        annotation
-        for annotation in score_figure.layout.annotations
-        if annotation.text == "Reference = 1,500"
-    ]
-    assert len(reference_labels) == 1
-    assert reference_labels[0].yref == "paper"
-    assert reference_labels[0].y < 0
 
 
 def test_supplementary_notebook_uses_requested_claude_label_and_order() -> None:
