@@ -209,7 +209,11 @@ CLAUDE.md
 .claude
 
 # Codex
+/AGENTS.md
 .codex
+
+# Local, non-versioned manuscript deliverables
+/local_exports/
 
 # AnalystAgent evaluation: downloaded data + run logs (not committed)
 AnalystAgent Evaluation/PhytoBench-Analysis/
