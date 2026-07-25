@@ -500,7 +500,6 @@ def test_frozen_tables_are_complete_and_traceable() -> None:
     assert top1["ScopeID"].nunique() == 18
     assert top1.groupby("ScopeID").size().eq(3).all()
     np.testing.assert_allclose(top1.groupby("ScopeID")["Fraction"].sum(), 1.0)
-
     overall_assignment = assignment.loc[
         assignment["Scope"] == "overall"
     ].squeeze()
@@ -786,6 +785,7 @@ def test_supplementary_notebook_encodes_ci_and_agreement_figures() -> None:
     assert "fleiss_kappa" in source
     assert "kendall_by_gene" in source
     assert "top1_consensus" in source
+    assert "1.0 / 3.0" in source
     assert "No conflicts of interest were declared" in source
     assert "supplementary_fig.10.phytobench-gene" in source
     assert "supplementary_fig.11.expert-panel-and-agreement" in source
@@ -1003,11 +1003,25 @@ def test_supplementary_figure_11_uses_manuscript_species_order(
     kappa_species = [
         trace.y[0]
         for trace in figure.data
-        if len(trace.y) == 1 and trace.y[0] in expected
+        if (
+            len(trace.y) == 1
+            and trace.y[0] in expected
+            and "κ=" in trace.hovertemplate
+        )
     ]
     assert kappa_species == expected
     assert list(figure.layout.yaxis2.categoryarray)[1:6] == expected
-
+    kendall_w_species = [
+        trace.y[0]
+        for trace in figure.data
+        if (
+            len(trace.y) == 1
+            and trace.y[0] in expected
+            and "Mean W=" in trace.hovertemplate
+        )
+    ]
+    assert kendall_w_species == expected
+    assert list(figure.layout.yaxis3.categoryarray)[1:6] == expected
     unanimous = next(
         trace for trace in figure.data if trace.name == "Top-1: Unanimous"
     )
@@ -1032,7 +1046,44 @@ def test_rendered_figure_contract_preserves_precision_and_readability(
             exec(compile(cell.source, f"<{cell.id}>", "exec"), namespace)
 
     supplementary = namespace["expert_agreement_figure"]()
-    assert supplementary.layout.yaxis3.title.text == "Cumulative genes (%)"
+    assert supplementary.layout.xaxis3.title.text == (
+        "Mean Kendall's W (95% CI)"
+    )
+    assert len(supplementary.layout.shapes) == 2
+    kendall_w_source = pd.read_csv(
+        DATA_DIR / "ordinal_agreement_summary.tsv",
+        sep="\t",
+    ).set_index("ScopeID")
+    agreement_scope_ids = [
+        "overall",
+        "species.rice",
+        "species.wheat",
+        "species.maize",
+        "species.soybean",
+        "species.arabidopsis",
+        "study_status.well_studied",
+        "study_status.uncharacterized",
+    ]
+    kendall_w_traces = [
+        trace
+        for trace in supplementary.data
+        if (
+            len(trace.y) == 1
+            and trace.hovertemplate
+            and "Mean W=" in trace.hovertemplate
+        )
+    ]
+    np.testing.assert_allclose(
+        [trace.x[0] for trace in kendall_w_traces],
+        kendall_w_source.loc[agreement_scope_ids, "KendallWMean"],
+    )
+    kendall_w_baseline = next(
+        shape
+        for shape in supplementary.layout.shapes
+        if shape.xref == "x3"
+    )
+    assert np.isclose(kendall_w_baseline.x0, 1 / 3)
+    assert np.isclose(kendall_w_baseline.x1, 1 / 3)
     top1_traces = {
         trace.name: trace
         for trace in supplementary.data
@@ -1044,23 +1095,23 @@ def test_rendered_figure_contract_preserves_precision_and_readability(
     assert unanimous.text[2] == "5.0%"
     assert majority.text[0] == "53.5%"
 
-    model_labels = {
-        "Phytomni",
-        "Gemini Deep Research",
-        "Claude deep research",
-        "ChatGPT Agent mode",
-        "Grok DeepSearch",
-    }
     model_kappa_traces = [
         trace
         for trace in supplementary.data
-        if len(trace.y) == 1 and trace.y[0] in model_labels
+        if (
+            len(trace.y) == 1
+            and trace.y[0]
+            in {
+                "Phytomni",
+                "Gemini Deep Research",
+                "Claude deep research",
+                "ChatGPT Agent mode",
+                "Grok DeepSearch",
+            }
+            and "κ=" in trace.hovertemplate
+        )
     ]
-    assert len(model_kappa_traces) == 5
-    assert all(
-        not str(trace.marker.symbol).endswith("-open")
-        for trace in model_kappa_traces
-    )
+    assert not model_kappa_traces
 
     rank_figure = namespace["rank_distribution_figure"]("overall")
     assert rank_figure.layout.legend.x <= 0.98
