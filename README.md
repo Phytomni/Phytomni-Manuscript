@@ -96,7 +96,7 @@ Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) 
 
 | Figure | File | Kernel | Input data | Status | Emits (into output/ when PHYTOMNI_SAVE=1) |
 |---|---|---|---|---|---|
-| Fig. 2a-c,g | `Fig. 2/fig. 2.ipynb` | `python3` | `PhytoBench-Gene-BERTScore-for_plot.tsv` ✓ | `run` | `fig.2a.phytobench-knowledge.bar.pdf` / `fig.2b.phytobench-data.bar.pdf` / `fig.2c.phytobench-analysis.violin.pdf` / `fig.2g.phytobench-gene.well_studied.bar.pdf` |
+| Fig. 2a-c,g | `Fig. 2/fig. 2.ipynb` | `python3` | `PhytoBench-Knowledge-for_plot.tsv` ✓, … (5 files) | `run` | `fig.2a.phytobench-knowledge.bar.pdf` / `fig.2b.phytobench-data.bar.pdf` / `fig.2c.phytobench-analysis.violin.pdf` / `fig.2g.phytobench-gene.well_studied.bar.pdf` |
 | Fig. 2h | `Fig. 2/fig. 2.ipynb` | `python3` | `PhytoBench-Gene-BERTScore-for_plot.tsv` ✓, `PhytoBench-Gene-hallucination-for_plot.tsv` ✓ | `run` | `fig.2h.phytobench-gene.uncharacterized.bar.pdf` |
 | Fig. 2d-f | `Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb` | `python3` | `rank_distribution.tsv` ✓, … (13 files) | `run` | `fig.2d.phytobench-gene.percent.bar.pdf` / `fig.2e.phytobench-gene.prob.heatmap.pdf` / `fig.2f.phytobench-gene.score.bar.pdf` |
 | Fig. 3 | `Fig. 3/fig. 3.ipynb` | `python3` | `PhytoBench-Paper-for_plot.xlsx` ✓ | `run` | `fig.3d.phytobench-paper.line.pdf` / `fig.3e.phytobench-paper.heatmap.pdf` |
@@ -220,6 +220,28 @@ PHYTOMNI_SAVE=1 uv run --no-sync jupyter nbconvert \
   --to notebook --execute --output-dir=/tmp/phytomni-figure-runs \
   "Fig. 2/fig. 2.ipynb"
 ```
+
+`Fig. 2a-c` read three tracked, plot-ready TSV files rather than embedded
+arrays. To refresh them from the four private source workbooks, run:
+
+```bash
+uv run --no-sync python -m scripts.freeze_fig2_core_metrics \
+  --knowledge-id /path/to/knowledge-identification.xlsx \
+  --knowledge-trace /path/to/knowledge-trace.xlsx \
+  --data /path/to/data-benchmark.xlsx \
+  --analysis /path/to/analysis-benchmark.xlsx \
+  --output-dir "Fig. 2"
+```
+
+The freezer validates row identifiers, completeness, numeric ranges, and model
+column mappings before writing the TSV files. For Fig. 2c, it retains the 50
+primary benchmark runs (10 scenarios × 5 runs), excludes the 60 cross-species
+extension runs, and verifies that each 0–100 total score equals the sum of the
+planning, tool-selection, parameter-setting, and execution scores (each 0–25).
+It also writes
+`PhytoBench-Core-for_plot-provenance.json`, which records source-file hashes,
+row counts, the Fig. 2c scope, metric definitions, model order, and output
+hashes without exposing private source paths.
 
 `Fig. 2h` is now a runnable target. It reads `Fig. 2/PhytoBench-Gene-hallucination-for_plot.tsv` with the columns `Model`, `DisplayLabel`, and `MeanDirectionalContradictionRatio`, alongside the tracked BERTScore table required by the shared notebook. The notebook fails clearly if either figure-input table is missing or malformed, and renders the fixed five-model panel on the prescribed y-axis range `[0.1, 0.7]`.
 

@@ -1,0 +1,177 @@
+{
+  "analysis_scope": {
+    "excluded_cross_species_rows": 60,
+    "repeats_per_task": 5,
+    "rows": 50,
+    "species": "Oryza_sativa",
+    "tasks": 10
+  },
+  "metric_definitions": {
+    "Accuracy": "mean binary judgment",
+    "IdentificationAccuracy": "mean binary judgment",
+    "ParameterScore": "parameter-setting rationality, 0-25",
+    "PlanScore": "task planning accuracy, 0-25",
+    "RateScore": "overall task execution success, 0-25",
+    "ToolScore": "tool selection precision, 0-25",
+    "TotalScore": "PlanScore + ToolScore + ParameterScore + RateScore, 0-100",
+    "TraceBLEU4": "mean BLEU-4"
+  },
+  "model_order": [
+    "Phyto-Reasoner",
+    "Phyto-Chatbot",
+    "GPT-5",
+    "o3",
+    "Gemini-2.5-Pro",
+    "Claude-Opus-4.1",
+    "Grok-3-Beta",
+    "Deepseek-V3",
+    "Deepseek-R1"
+  ],
+  "outputs": {
+    "PhytoBench-Analysis-for_plot.tsv": "c41579c58703642ba952cef7c26d7d762497eab303b2d63ba038fe9bc306381f",
+    "PhytoBench-Data-for_plot.tsv": "e424793c32ac16d09beef630be901405481b062f0ee511153595e45310f9aa1c",
+    "PhytoBench-Knowledge-for_plot.tsv": "d17235ef97cb3b9094231af706130fe7bf4a6803764b855c35c24bb1683cb3be"
+  },
+  "schema_version": 2,
+  "source_columns": {
+    "Claude-Opus-4.1": {
+      "analysis": [
+        "Claude-Opus-4.1"
+      ],
+      "data": [
+        "Claude-Opus-4.1"
+      ],
+      "knowledge_identification": [
+        "Claude-4.1-Opus"
+      ],
+      "knowledge_trace": [
+        "Claude-4.1-Opus"
+      ]
+    },
+    "Deepseek-R1": {
+      "analysis": [
+        "DeepSeek-R1"
+      ],
+      "data": [
+        "DeepSeek-R1"
+      ],
+      "knowledge_identification": [
+        "DeepSeek-R1"
+      ],
+      "knowledge_trace": [
+        "DeepSeek-R1"
+      ]
+    },
+    "Deepseek-V3": {
+      "analysis": [
+        "DeepSeek-V3"
+      ],
+      "data": [
+        "DeepSeek-V3"
+      ],
+      "knowledge_identification": [
+        "DeepSeek-V3"
+      ],
+      "knowledge_trace": [
+        "DeepSeek-V3"
+      ]
+    },
+    "GPT-5": {
+      "analysis": [
+        "GPT-5"
+      ],
+      "data": [
+        "GPT-5"
+      ],
+      "knowledge_identification": [
+        "GPT-5"
+      ],
+      "knowledge_trace": [
+        "GPT-5"
+      ]
+    },
+    "Gemini-2.5-Pro": {
+      "analysis": [
+        "Gemini-2.5-Pro"
+      ],
+      "data": [
+        "Gemini-2.5-Pro"
+      ],
+      "knowledge_identification": [
+        "Gemini-2.5-Pro"
+      ],
+      "knowledge_trace": [
+        "Gemini-2.5-Pro"
+      ]
+    },
+    "Grok-3-Beta": {
+      "analysis": [
+        "Grok-3-Beta"
+      ],
+      "data": [
+        "Grok-3-Beta"
+      ],
+      "knowledge_identification": [
+        "Grok-3-Beta"
+      ],
+      "knowledge_trace": [
+        "Grok-3-Beta"
+      ]
+    },
+    "Phyto-Chatbot": {
+      "analysis": [
+        "Phyto-ChatBot (Knowledge Agent)",
+        "Phyto-ChatBot (Konwledge Agent)"
+      ],
+      "data": [
+        "Phyto-Chatbot (Knowledge Agent)"
+      ],
+      "knowledge_identification": [
+        "Phyto-Chatbot (hybrid + rerank)"
+      ],
+      "knowledge_trace": [
+        "Phyto-Chatbot (semantic)"
+      ]
+    },
+    "Phyto-Reasoner": {
+      "analysis": [
+        "Phyto-Reasoner (Knowledge Agent)"
+      ],
+      "data": [
+        "Phyto-Reasoner (Knowledge Agent)"
+      ],
+      "knowledge_identification": [
+        "Phyto-Reasoner (hybrid + rerank)"
+      ],
+      "knowledge_trace": [
+        "Phyto-Reasoner (semantic)"
+      ]
+    },
+    "o3": {
+      "analysis": [
+        "o3"
+      ],
+      "data": [
+        "o3"
+      ],
+      "knowledge_identification": [
+        "o3"
+      ],
+      "knowledge_trace": [
+        "o3"
+      ]
+    }
+  },
+  "source_rows": {
+    "analysis": 110,
+    "data": 1020,
+    "knowledge_identification": 700,
+    "knowledge_trace": 300
+  },
+  "source_sha256": {
+    "analysis": "313fccd974c68cdc7c563d402ffef819fb993a8fce148c38deb81743e05c2875",
+    "data": "7591249becea41c8ffdb70566732de6024ea486fa192016ab67d2fcf606b2edd",
+    "knowledge_identification": "16ad4f7c00ecd0b29187842df5e864d21c9966b418cd5731816bd62542c357ee",
+    "knowledge_trace": "7ba4bbfb37c9b7e6c44cc93af2545dd74e024581e37df11a29a662c539c42495"
+  }
+}

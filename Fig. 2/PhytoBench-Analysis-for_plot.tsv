@@ -1,0 +1,451 @@
+Task	Species	Rep	ObservationID	Model	DisplayLabel	PlanScore	ToolScore	ParameterScore	RateScore	TotalScore
+Transcriptomics	Oryza_sativa	rep1	Transcriptomics|Oryza_sativa|rep1	Phyto-Reasoner	Phyto-Reasoner	17	18	24	12.5	71.5
+Transcriptomics	Oryza_sativa	rep2	Transcriptomics|Oryza_sativa|rep2	Phyto-Reasoner	Phyto-Reasoner	18	16	23	6.25	63.25
+Transcriptomics	Oryza_sativa	rep3	Transcriptomics|Oryza_sativa|rep3	Phyto-Reasoner	Phyto-Reasoner	16	15	24	12.5	67.5
+Transcriptomics	Oryza_sativa	rep4	Transcriptomics|Oryza_sativa|rep4	Phyto-Reasoner	Phyto-Reasoner	17	18	24	6.25	65.25
+Transcriptomics	Oryza_sativa	rep5	Transcriptomics|Oryza_sativa|rep5	Phyto-Reasoner	Phyto-Reasoner	17	18	22	12.5	69.5
+Proteomics	Oryza_sativa	rep1	Proteomics|Oryza_sativa|rep1	Phyto-Reasoner	Phyto-Reasoner	20	20	23	6.25	69.25
+Proteomics	Oryza_sativa	rep2	Proteomics|Oryza_sativa|rep2	Phyto-Reasoner	Phyto-Reasoner	20	20	22	12.5	74.5
+Proteomics	Oryza_sativa	rep3	Proteomics|Oryza_sativa|rep3	Phyto-Reasoner	Phyto-Reasoner	20	20	22	12.5	74.5
+Proteomics	Oryza_sativa	rep4	Proteomics|Oryza_sativa|rep4	Phyto-Reasoner	Phyto-Reasoner	18	19	23	12.5	72.5
+Proteomics	Oryza_sativa	rep5	Proteomics|Oryza_sativa|rep5	Phyto-Reasoner	Phyto-Reasoner	20	20	20	6.25	66.25
+Metabolomics	Oryza_sativa	rep1	Metabolomics|Oryza_sativa|rep1	Phyto-Reasoner	Phyto-Reasoner	19	18	22	6.25	65.25
+Metabolomics	Oryza_sativa	rep2	Metabolomics|Oryza_sativa|rep2	Phyto-Reasoner	Phyto-Reasoner	17	19	23	25	84
+Metabolomics	Oryza_sativa	rep3	Metabolomics|Oryza_sativa|rep3	Phyto-Reasoner	Phyto-Reasoner	18	17	20	18.75	73.75
+Metabolomics	Oryza_sativa	rep4	Metabolomics|Oryza_sativa|rep4	Phyto-Reasoner	Phyto-Reasoner	19	18	21	25	83
+Metabolomics	Oryza_sativa	rep5	Metabolomics|Oryza_sativa|rep5	Phyto-Reasoner	Phyto-Reasoner	19	18	22	6.25	65.25
+Evolutionary analysis	Oryza_sativa	rep1	Evolutionary analysis|Oryza_sativa|rep1	Phyto-Reasoner	Phyto-Reasoner	18	19	22	12.5	71.5
+Evolutionary analysis	Oryza_sativa	rep2	Evolutionary analysis|Oryza_sativa|rep2	Phyto-Reasoner	Phyto-Reasoner	18	18	20	10	66
+Evolutionary analysis	Oryza_sativa	rep3	Evolutionary analysis|Oryza_sativa|rep3	Phyto-Reasoner	Phyto-Reasoner	18	19	21	12.5	70.5
+Evolutionary analysis	Oryza_sativa	rep4	Evolutionary analysis|Oryza_sativa|rep4	Phyto-Reasoner	Phyto-Reasoner	18	18	23	12.5	71.5
+Evolutionary analysis	Oryza_sativa	rep5	Evolutionary analysis|Oryza_sativa|rep5	Phyto-Reasoner	Phyto-Reasoner	18	18	22	6.25	64.25
+Epigenomics	Oryza_sativa	rep1	Epigenomics|Oryza_sativa|rep1	Phyto-Reasoner	Phyto-Reasoner	21	22	22	25	90
+Epigenomics	Oryza_sativa	rep2	Epigenomics|Oryza_sativa|rep2	Phyto-Reasoner	Phyto-Reasoner	20	20	20	12.5	72.5
+Epigenomics	Oryza_sativa	rep3	Epigenomics|Oryza_sativa|rep3	Phyto-Reasoner	Phyto-Reasoner	22	21	21	25	89
+Epigenomics	Oryza_sativa	rep4	Epigenomics|Oryza_sativa|rep4	Phyto-Reasoner	Phyto-Reasoner	20	20	20	25	85
+Epigenomics	Oryza_sativa	rep5	Epigenomics|Oryza_sativa|rep5	Phyto-Reasoner	Phyto-Reasoner	20	22	22	18.75	82.75
+Variant calling	Oryza_sativa	rep1	Variant calling|Oryza_sativa|rep1	Phyto-Reasoner	Phyto-Reasoner	18	18	15	10	61
+Variant calling	Oryza_sativa	rep2	Variant calling|Oryza_sativa|rep2	Phyto-Reasoner	Phyto-Reasoner	18	18	18	12.5	66.5
+Variant calling	Oryza_sativa	rep3	Variant calling|Oryza_sativa|rep3	Phyto-Reasoner	Phyto-Reasoner	20	20	20	12.5	72.5
+Variant calling	Oryza_sativa	rep4	Variant calling|Oryza_sativa|rep4	Phyto-Reasoner	Phyto-Reasoner	18	18	19	12.5	67.5
+Variant calling	Oryza_sativa	rep5	Variant calling|Oryza_sativa|rep5	Phyto-Reasoner	Phyto-Reasoner	17	17	19	10	63
+GWAS	Oryza_sativa	rep1	GWAS|Oryza_sativa|rep1	Phyto-Reasoner	Phyto-Reasoner	19	19	22	12.5	72.5
+GWAS	Oryza_sativa	rep2	GWAS|Oryza_sativa|rep2	Phyto-Reasoner	Phyto-Reasoner	19	19	23	12.5	73.5
+GWAS	Oryza_sativa	rep3	GWAS|Oryza_sativa|rep3	Phyto-Reasoner	Phyto-Reasoner	19	19	21	18.75	77.75
+GWAS	Oryza_sativa	rep4	GWAS|Oryza_sativa|rep4	Phyto-Reasoner	Phyto-Reasoner	19	18	22	18.75	77.75
+GWAS	Oryza_sativa	rep5	GWAS|Oryza_sativa|rep5	Phyto-Reasoner	Phyto-Reasoner	19	18	20	12.5	69.5
+Genomic selection	Oryza_sativa	rep1	Genomic selection|Oryza_sativa|rep1	Phyto-Reasoner	Phyto-Reasoner	23	20	19	6.25	68.25
+Genomic selection	Oryza_sativa	rep2	Genomic selection|Oryza_sativa|rep2	Phyto-Reasoner	Phyto-Reasoner	23	22	19	12.5	76.5
+Genomic selection	Oryza_sativa	rep3	Genomic selection|Oryza_sativa|rep3	Phyto-Reasoner	Phyto-Reasoner	22	21	18	6.25	67.25
+Genomic selection	Oryza_sativa	rep4	Genomic selection|Oryza_sativa|rep4	Phyto-Reasoner	Phyto-Reasoner	22	21	18	12.5	73.5
+Genomic selection	Oryza_sativa	rep5	Genomic selection|Oryza_sativa|rep5	Phyto-Reasoner	Phyto-Reasoner	22	21	18	6.25	67.25
+Single-cell analysis	Oryza_sativa	rep1	Single-cell analysis|Oryza_sativa|rep1	Phyto-Reasoner	Phyto-Reasoner	23	23	20	12.5	78.5
+Single-cell analysis	Oryza_sativa	rep2	Single-cell analysis|Oryza_sativa|rep2	Phyto-Reasoner	Phyto-Reasoner	23	23	20	10	76
+Single-cell analysis	Oryza_sativa	rep3	Single-cell analysis|Oryza_sativa|rep3	Phyto-Reasoner	Phyto-Reasoner	21	21	18	5	65
+Single-cell analysis	Oryza_sativa	rep4	Single-cell analysis|Oryza_sativa|rep4	Phyto-Reasoner	Phyto-Reasoner	22	22	19	6.25	69.25
+Single-cell analysis	Oryza_sativa	rep5	Single-cell analysis|Oryza_sativa|rep5	Phyto-Reasoner	Phyto-Reasoner	21	21	18	6.25	66.25
+Spatial transcriptomics	Oryza_sativa	rep1	Spatial transcriptomics|Oryza_sativa|rep1	Phyto-Reasoner	Phyto-Reasoner	21	20	20	6.25	67.25
+Spatial transcriptomics	Oryza_sativa	rep2	Spatial transcriptomics|Oryza_sativa|rep2	Phyto-Reasoner	Phyto-Reasoner	21	20	22	12.5	75.5
+Spatial transcriptomics	Oryza_sativa	rep3	Spatial transcriptomics|Oryza_sativa|rep3	Phyto-Reasoner	Phyto-Reasoner	21	20	21	12.5	74.5
+Spatial transcriptomics	Oryza_sativa	rep4	Spatial transcriptomics|Oryza_sativa|rep4	Phyto-Reasoner	Phyto-Reasoner	20	19	21	6.25	66.25
+Spatial transcriptomics	Oryza_sativa	rep5	Spatial transcriptomics|Oryza_sativa|rep5	Phyto-Reasoner	Phyto-Reasoner	21	20	22	12.5	75.5
+Transcriptomics	Oryza_sativa	rep1	Transcriptomics|Oryza_sativa|rep1	Phyto-Chatbot	Phyto-Chatbot	18	17	21	5	61
+Transcriptomics	Oryza_sativa	rep2	Transcriptomics|Oryza_sativa|rep2	Phyto-Chatbot	Phyto-Chatbot	19	17	22	10	68
+Transcriptomics	Oryza_sativa	rep3	Transcriptomics|Oryza_sativa|rep3	Phyto-Chatbot	Phyto-Chatbot	19	16	21	6.25	62.25
+Transcriptomics	Oryza_sativa	rep4	Transcriptomics|Oryza_sativa|rep4	Phyto-Chatbot	Phyto-Chatbot	17	17	22	10	66
+Transcriptomics	Oryza_sativa	rep5	Transcriptomics|Oryza_sativa|rep5	Phyto-Chatbot	Phyto-Chatbot	16	16	23	6.25	61.25
+Proteomics	Oryza_sativa	rep1	Proteomics|Oryza_sativa|rep1	Phyto-Chatbot	Phyto-Chatbot	20	21	19	12.5	72.5
+Proteomics	Oryza_sativa	rep2	Proteomics|Oryza_sativa|rep2	Phyto-Chatbot	Phyto-Chatbot	21	21	22	6.25	70.25
+Proteomics	Oryza_sativa	rep3	Proteomics|Oryza_sativa|rep3	Phyto-Chatbot	Phyto-Chatbot	20	21	21	6.25	68.25
+Proteomics	Oryza_sativa	rep4	Proteomics|Oryza_sativa|rep4	Phyto-Chatbot	Phyto-Chatbot	21	21	20	6.25	68.25
+Proteomics	Oryza_sativa	rep5	Proteomics|Oryza_sativa|rep5	Phyto-Chatbot	Phyto-Chatbot	20	20	19	12.5	71.5
+Metabolomics	Oryza_sativa	rep1	Metabolomics|Oryza_sativa|rep1	Phyto-Chatbot	Phyto-Chatbot	12	9	20	18.75	59.75
+Metabolomics	Oryza_sativa	rep2	Metabolomics|Oryza_sativa|rep2	Phyto-Chatbot	Phyto-Chatbot	20	19	19	18.75	76.75
+Metabolomics	Oryza_sativa	rep3	Metabolomics|Oryza_sativa|rep3	Phyto-Chatbot	Phyto-Chatbot	22	22	20	18.75	82.75
+Metabolomics	Oryza_sativa	rep4	Metabolomics|Oryza_sativa|rep4	Phyto-Chatbot	Phyto-Chatbot	18	17	21	6.25	62.25
+Metabolomics	Oryza_sativa	rep5	Metabolomics|Oryza_sativa|rep5	Phyto-Chatbot	Phyto-Chatbot	19	18	20	12.5	69.5
+Evolutionary analysis	Oryza_sativa	rep1	Evolutionary analysis|Oryza_sativa|rep1	Phyto-Chatbot	Phyto-Chatbot	22	22	18	6.25	68.25
+Evolutionary analysis	Oryza_sativa	rep2	Evolutionary analysis|Oryza_sativa|rep2	Phyto-Chatbot	Phyto-Chatbot	21	21	17	12.5	71.5
+Evolutionary analysis	Oryza_sativa	rep3	Evolutionary analysis|Oryza_sativa|rep3	Phyto-Chatbot	Phyto-Chatbot	20	20	16	5	61
+Evolutionary analysis	Oryza_sativa	rep4	Evolutionary analysis|Oryza_sativa|rep4	Phyto-Chatbot	Phyto-Chatbot	19	18	15	12.5	64.5
+Evolutionary analysis	Oryza_sativa	rep5	Evolutionary analysis|Oryza_sativa|rep5	Phyto-Chatbot	Phyto-Chatbot	9	8	19	12.5	48.5
+Epigenomics	Oryza_sativa	rep1	Epigenomics|Oryza_sativa|rep1	Phyto-Chatbot	Phyto-Chatbot	18	18	17	12.5	65.5
+Epigenomics	Oryza_sativa	rep2	Epigenomics|Oryza_sativa|rep2	Phyto-Chatbot	Phyto-Chatbot	19	19	20	18.75	76.75
+Epigenomics	Oryza_sativa	rep3	Epigenomics|Oryza_sativa|rep3	Phyto-Chatbot	Phyto-Chatbot	16	16	19	25	76
+Epigenomics	Oryza_sativa	rep4	Epigenomics|Oryza_sativa|rep4	Phyto-Chatbot	Phyto-Chatbot	17	17	18	25	77
+Epigenomics	Oryza_sativa	rep5	Epigenomics|Oryza_sativa|rep5	Phyto-Chatbot	Phyto-Chatbot	13	12	11	18.75	54.75
+Variant calling	Oryza_sativa	rep1	Variant calling|Oryza_sativa|rep1	Phyto-Chatbot	Phyto-Chatbot	18	16	14	5	53
+Variant calling	Oryza_sativa	rep2	Variant calling|Oryza_sativa|rep2	Phyto-Chatbot	Phyto-Chatbot	18	16	15	25	74
+Variant calling	Oryza_sativa	rep3	Variant calling|Oryza_sativa|rep3	Phyto-Chatbot	Phyto-Chatbot	19	15	16	5	55
+Variant calling	Oryza_sativa	rep4	Variant calling|Oryza_sativa|rep4	Phyto-Chatbot	Phyto-Chatbot	17	15	15	5	52
+Variant calling	Oryza_sativa	rep5	Variant calling|Oryza_sativa|rep5	Phyto-Chatbot	Phyto-Chatbot	17	15	13	5	50
+GWAS	Oryza_sativa	rep1	GWAS|Oryza_sativa|rep1	Phyto-Chatbot	Phyto-Chatbot	18	18	14	12.5	62.5
+GWAS	Oryza_sativa	rep2	GWAS|Oryza_sativa|rep2	Phyto-Chatbot	Phyto-Chatbot	16	16	13	6.25	51.25
+GWAS	Oryza_sativa	rep3	GWAS|Oryza_sativa|rep3	Phyto-Chatbot	Phyto-Chatbot	18	18	14	12.5	62.5
+GWAS	Oryza_sativa	rep4	GWAS|Oryza_sativa|rep4	Phyto-Chatbot	Phyto-Chatbot	16	16	13	12.5	57.5
+GWAS	Oryza_sativa	rep5	GWAS|Oryza_sativa|rep5	Phyto-Chatbot	Phyto-Chatbot	16	16	13	12.5	57.5
+Genomic selection	Oryza_sativa	rep1	Genomic selection|Oryza_sativa|rep1	Phyto-Chatbot	Phyto-Chatbot	15	18	15	5	53
+Genomic selection	Oryza_sativa	rep2	Genomic selection|Oryza_sativa|rep2	Phyto-Chatbot	Phyto-Chatbot	16	17	15	5	53
+Genomic selection	Oryza_sativa	rep3	Genomic selection|Oryza_sativa|rep3	Phyto-Chatbot	Phyto-Chatbot	19	19	18	6.25	62.25
+Genomic selection	Oryza_sativa	rep4	Genomic selection|Oryza_sativa|rep4	Phyto-Chatbot	Phyto-Chatbot	19	18	16	5	58
+Genomic selection	Oryza_sativa	rep5	Genomic selection|Oryza_sativa|rep5	Phyto-Chatbot	Phyto-Chatbot	20	18	15	5	58
+Single-cell analysis	Oryza_sativa	rep1	Single-cell analysis|Oryza_sativa|rep1	Phyto-Chatbot	Phyto-Chatbot	21	20	18	6.25	65.25
+Single-cell analysis	Oryza_sativa	rep2	Single-cell analysis|Oryza_sativa|rep2	Phyto-Chatbot	Phyto-Chatbot	20	19	17	6.25	62.25
+Single-cell analysis	Oryza_sativa	rep3	Single-cell analysis|Oryza_sativa|rep3	Phyto-Chatbot	Phyto-Chatbot	19	18	16	6.25	59.25
+Single-cell analysis	Oryza_sativa	rep4	Single-cell analysis|Oryza_sativa|rep4	Phyto-Chatbot	Phyto-Chatbot	20	19	17	6.25	62.25
+Single-cell analysis	Oryza_sativa	rep5	Single-cell analysis|Oryza_sativa|rep5	Phyto-Chatbot	Phyto-Chatbot	20	19	17	12.5	68.5
+Spatial transcriptomics	Oryza_sativa	rep1	Spatial transcriptomics|Oryza_sativa|rep1	Phyto-Chatbot	Phyto-Chatbot	20	19	20	6.25	65.25
+Spatial transcriptomics	Oryza_sativa	rep2	Spatial transcriptomics|Oryza_sativa|rep2	Phyto-Chatbot	Phyto-Chatbot	20	19	18	6.25	63.25
+Spatial transcriptomics	Oryza_sativa	rep3	Spatial transcriptomics|Oryza_sativa|rep3	Phyto-Chatbot	Phyto-Chatbot	20	19	20	6.25	65.25
+Spatial transcriptomics	Oryza_sativa	rep4	Spatial transcriptomics|Oryza_sativa|rep4	Phyto-Chatbot	Phyto-Chatbot	19	18	17	12.5	66.5
+Spatial transcriptomics	Oryza_sativa	rep5	Spatial transcriptomics|Oryza_sativa|rep5	Phyto-Chatbot	Phyto-Chatbot	20	19	18	18.75	75.75
+Transcriptomics	Oryza_sativa	rep1	Transcriptomics|Oryza_sativa|rep1	GPT-5	GPT-5	22	19	10	10	61
+Transcriptomics	Oryza_sativa	rep2	Transcriptomics|Oryza_sativa|rep2	GPT-5	GPT-5	20	21	12	6.25	59.25
+Transcriptomics	Oryza_sativa	rep3	Transcriptomics|Oryza_sativa|rep3	GPT-5	GPT-5	19	17	18	10	64
+Transcriptomics	Oryza_sativa	rep4	Transcriptomics|Oryza_sativa|rep4	GPT-5	GPT-5	17	18	18	6.25	59.25
+Transcriptomics	Oryza_sativa	rep5	Transcriptomics|Oryza_sativa|rep5	GPT-5	GPT-5	19	18	18	5	60
+Proteomics	Oryza_sativa	rep1	Proteomics|Oryza_sativa|rep1	GPT-5	GPT-5	18	17	22	12.5	69.5
+Proteomics	Oryza_sativa	rep2	Proteomics|Oryza_sativa|rep2	GPT-5	GPT-5	19	18	23	12.5	72.5
+Proteomics	Oryza_sativa	rep3	Proteomics|Oryza_sativa|rep3	GPT-5	GPT-5	19	20	24	10	73
+Proteomics	Oryza_sativa	rep4	Proteomics|Oryza_sativa|rep4	GPT-5	GPT-5	18	18	23	10	69
+Proteomics	Oryza_sativa	rep5	Proteomics|Oryza_sativa|rep5	GPT-5	GPT-5	19	19	24	10	72
+Metabolomics	Oryza_sativa	rep1	Metabolomics|Oryza_sativa|rep1	GPT-5	GPT-5	19	18	17	12.5	66.5
+Metabolomics	Oryza_sativa	rep2	Metabolomics|Oryza_sativa|rep2	GPT-5	GPT-5	19	20	18	6.25	63.25
+Metabolomics	Oryza_sativa	rep3	Metabolomics|Oryza_sativa|rep3	GPT-5	GPT-5	20	19	18	5	62
+Metabolomics	Oryza_sativa	rep4	Metabolomics|Oryza_sativa|rep4	GPT-5	GPT-5	17	19	19	12.5	67.5
+Metabolomics	Oryza_sativa	rep5	Metabolomics|Oryza_sativa|rep5	GPT-5	GPT-5	19	20	18	12.5	69.5
+Evolutionary analysis	Oryza_sativa	rep1	Evolutionary analysis|Oryza_sativa|rep1	GPT-5	GPT-5	21	18	18	5	62
+Evolutionary analysis	Oryza_sativa	rep2	Evolutionary analysis|Oryza_sativa|rep2	GPT-5	GPT-5	20	19	20	12.5	71.5
+Evolutionary analysis	Oryza_sativa	rep3	Evolutionary analysis|Oryza_sativa|rep3	GPT-5	GPT-5	19	18	18	12.5	67.5
+Evolutionary analysis	Oryza_sativa	rep4	Evolutionary analysis|Oryza_sativa|rep4	GPT-5	GPT-5	19	18	19	12.5	68.5
+Evolutionary analysis	Oryza_sativa	rep5	Evolutionary analysis|Oryza_sativa|rep5	GPT-5	GPT-5	20	18	17	6.25	61.25
+Epigenomics	Oryza_sativa	rep1	Epigenomics|Oryza_sativa|rep1	GPT-5	GPT-5	21	22	19	10	72
+Epigenomics	Oryza_sativa	rep2	Epigenomics|Oryza_sativa|rep2	GPT-5	GPT-5	20	21	18	25	84
+Epigenomics	Oryza_sativa	rep3	Epigenomics|Oryza_sativa|rep3	GPT-5	GPT-5	21	20	19	18.75	78.75
+Epigenomics	Oryza_sativa	rep4	Epigenomics|Oryza_sativa|rep4	GPT-5	GPT-5	19	20	20	25	84
+Epigenomics	Oryza_sativa	rep5	Epigenomics|Oryza_sativa|rep5	GPT-5	GPT-5	20	20	21	10	71
+Variant calling	Oryza_sativa	rep1	Variant calling|Oryza_sativa|rep1	GPT-5	GPT-5	17	18	21	18.75	74.75
+Variant calling	Oryza_sativa	rep2	Variant calling|Oryza_sativa|rep2	GPT-5	GPT-5	19	20	22	25	86
+Variant calling	Oryza_sativa	rep3	Variant calling|Oryza_sativa|rep3	GPT-5	GPT-5	18	19	20	18.75	75.75
+Variant calling	Oryza_sativa	rep4	Variant calling|Oryza_sativa|rep4	GPT-5	GPT-5	20	17	21	10	68
+Variant calling	Oryza_sativa	rep5	Variant calling|Oryza_sativa|rep5	GPT-5	GPT-5	18	19	21	18.75	76.75
+GWAS	Oryza_sativa	rep1	GWAS|Oryza_sativa|rep1	GPT-5	GPT-5	19	20	19	6.25	64.25
+GWAS	Oryza_sativa	rep2	GWAS|Oryza_sativa|rep2	GPT-5	GPT-5	18	19	18	5	60
+GWAS	Oryza_sativa	rep3	GWAS|Oryza_sativa|rep3	GPT-5	GPT-5	20	20	18	12.5	70.5
+GWAS	Oryza_sativa	rep4	GWAS|Oryza_sativa|rep4	GPT-5	GPT-5	21	19	19	6.25	65.25
+GWAS	Oryza_sativa	rep5	GWAS|Oryza_sativa|rep5	GPT-5	GPT-5	18	18	20	12.5	68.5
+Genomic selection	Oryza_sativa	rep1	Genomic selection|Oryza_sativa|rep1	GPT-5	GPT-5	24	23	20	6.25	73.25
+Genomic selection	Oryza_sativa	rep2	Genomic selection|Oryza_sativa|rep2	GPT-5	GPT-5	14	15	13	6.25	48.25
+Genomic selection	Oryza_sativa	rep3	Genomic selection|Oryza_sativa|rep3	GPT-5	GPT-5	13	14	12	5	44
+Genomic selection	Oryza_sativa	rep4	Genomic selection|Oryza_sativa|rep4	GPT-5	GPT-5	13	12	12	6.25	43.25
+Genomic selection	Oryza_sativa	rep5	Genomic selection|Oryza_sativa|rep5	GPT-5	GPT-5	22	21	18	10	71
+Single-cell analysis	Oryza_sativa	rep1	Single-cell analysis|Oryza_sativa|rep1	GPT-5	GPT-5	19	19	22	10	70
+Single-cell analysis	Oryza_sativa	rep2	Single-cell analysis|Oryza_sativa|rep2	GPT-5	GPT-5	20	20	21	15	76
+Single-cell analysis	Oryza_sativa	rep3	Single-cell analysis|Oryza_sativa|rep3	GPT-5	GPT-5	22	21	23	12.5	78.5
+Single-cell analysis	Oryza_sativa	rep4	Single-cell analysis|Oryza_sativa|rep4	GPT-5	GPT-5	21	20	21	10	72
+Single-cell analysis	Oryza_sativa	rep5	Single-cell analysis|Oryza_sativa|rep5	GPT-5	GPT-5	20	20	22	10	72
+Spatial transcriptomics	Oryza_sativa	rep1	Spatial transcriptomics|Oryza_sativa|rep1	GPT-5	GPT-5	21	21	19	5	66
+Spatial transcriptomics	Oryza_sativa	rep2	Spatial transcriptomics|Oryza_sativa|rep2	GPT-5	GPT-5	20	20	19	6.25	65.25
+Spatial transcriptomics	Oryza_sativa	rep3	Spatial transcriptomics|Oryza_sativa|rep3	GPT-5	GPT-5	21	20	18	6.25	65.25
+Spatial transcriptomics	Oryza_sativa	rep4	Spatial transcriptomics|Oryza_sativa|rep4	GPT-5	GPT-5	21	22	19	12.5	74.5
+Spatial transcriptomics	Oryza_sativa	rep5	Spatial transcriptomics|Oryza_sativa|rep5	GPT-5	GPT-5	20	21	20	12.5	73.5
+Transcriptomics	Oryza_sativa	rep1	Transcriptomics|Oryza_sativa|rep1	o3	o3	19	17	16	25	77
+Transcriptomics	Oryza_sativa	rep2	Transcriptomics|Oryza_sativa|rep2	o3	o3	20	18	17	6.25	61.25
+Transcriptomics	Oryza_sativa	rep3	Transcriptomics|Oryza_sativa|rep3	o3	o3	20	18	16	6.25	60.25
+Transcriptomics	Oryza_sativa	rep4	Transcriptomics|Oryza_sativa|rep4	o3	o3	20	18	16	6.25	60.25
+Transcriptomics	Oryza_sativa	rep5	Transcriptomics|Oryza_sativa|rep5	o3	o3	19	18	17	5	59
+Proteomics	Oryza_sativa	rep1	Proteomics|Oryza_sativa|rep1	o3	o3	17	15	12	5	49
+Proteomics	Oryza_sativa	rep2	Proteomics|Oryza_sativa|rep2	o3	o3	20	20	17	6.25	63.25
+Proteomics	Oryza_sativa	rep3	Proteomics|Oryza_sativa|rep3	o3	o3	19	19	16	12.5	66.5
+Proteomics	Oryza_sativa	rep4	Proteomics|Oryza_sativa|rep4	o3	o3	20	20	17	12.5	69.5
+Proteomics	Oryza_sativa	rep5	Proteomics|Oryza_sativa|rep5	o3	o3	17	15	12	6.25	50.25
+Metabolomics	Oryza_sativa	rep1	Metabolomics|Oryza_sativa|rep1	o3	o3	18	17	15	6.25	56.25
+Metabolomics	Oryza_sativa	rep2	Metabolomics|Oryza_sativa|rep2	o3	o3	17	15	15	6.25	53.25
+Metabolomics	Oryza_sativa	rep3	Metabolomics|Oryza_sativa|rep3	o3	o3	18	17	15	6.25	56.25
+Metabolomics	Oryza_sativa	rep4	Metabolomics|Oryza_sativa|rep4	o3	o3	17	16	14	12.5	59.5
+Metabolomics	Oryza_sativa	rep5	Metabolomics|Oryza_sativa|rep5	o3	o3	17	16	14	6.25	53.25
+Evolutionary analysis	Oryza_sativa	rep1	Evolutionary analysis|Oryza_sativa|rep1	o3	o3	19	19	16	5	59
+Evolutionary analysis	Oryza_sativa	rep2	Evolutionary analysis|Oryza_sativa|rep2	o3	o3	19	20	17	6.25	62.25
+Evolutionary analysis	Oryza_sativa	rep3	Evolutionary analysis|Oryza_sativa|rep3	o3	o3	20	20	17	5	62
+Evolutionary analysis	Oryza_sativa	rep4	Evolutionary analysis|Oryza_sativa|rep4	o3	o3	20	19	16	5	60
+Evolutionary analysis	Oryza_sativa	rep5	Evolutionary analysis|Oryza_sativa|rep5	o3	o3	21	20	17	5	63
+Epigenomics	Oryza_sativa	rep1	Epigenomics|Oryza_sativa|rep1	o3	o3	19	18	15	10	62
+Epigenomics	Oryza_sativa	rep2	Epigenomics|Oryza_sativa|rep2	o3	o3	18	17	14	25	74
+Epigenomics	Oryza_sativa	rep3	Epigenomics|Oryza_sativa|rep3	o3	o3	19	18	15	25	77
+Epigenomics	Oryza_sativa	rep4	Epigenomics|Oryza_sativa|rep4	o3	o3	18	18	14	6.25	56.25
+Epigenomics	Oryza_sativa	rep5	Epigenomics|Oryza_sativa|rep5	o3	o3	19	18	15	10	62
+Variant calling	Oryza_sativa	rep1	Variant calling|Oryza_sativa|rep1	o3	o3	18	18	15	6.25	57.25
+Variant calling	Oryza_sativa	rep2	Variant calling|Oryza_sativa|rep2	o3	o3	20	20	17	5	62
+Variant calling	Oryza_sativa	rep3	Variant calling|Oryza_sativa|rep3	o3	o3	19	17	17	6.25	59.25
+Variant calling	Oryza_sativa	rep4	Variant calling|Oryza_sativa|rep4	o3	o3	19	19	16	6.25	60.25
+Variant calling	Oryza_sativa	rep5	Variant calling|Oryza_sativa|rep5	o3	o3	20	20	17	5	62
+GWAS	Oryza_sativa	rep1	GWAS|Oryza_sativa|rep1	o3	o3	19	18	15	6.25	58.25
+GWAS	Oryza_sativa	rep2	GWAS|Oryza_sativa|rep2	o3	o3	19	18	15	25	77
+GWAS	Oryza_sativa	rep3	GWAS|Oryza_sativa|rep3	o3	o3	20	19	16	5	60
+GWAS	Oryza_sativa	rep4	GWAS|Oryza_sativa|rep4	o3	o3	20	19	16	6.25	61.25
+GWAS	Oryza_sativa	rep5	GWAS|Oryza_sativa|rep5	o3	o3	19	18	15	6.25	58.25
+Genomic selection	Oryza_sativa	rep1	Genomic selection|Oryza_sativa|rep1	o3	o3	15	12	11	6.25	44.25
+Genomic selection	Oryza_sativa	rep2	Genomic selection|Oryza_sativa|rep2	o3	o3	15	13	15	6.25	49.25
+Genomic selection	Oryza_sativa	rep3	Genomic selection|Oryza_sativa|rep3	o3	o3	14	14	13	6.25	47.25
+Genomic selection	Oryza_sativa	rep4	Genomic selection|Oryza_sativa|rep4	o3	o3	16	13	14	5	48
+Genomic selection	Oryza_sativa	rep5	Genomic selection|Oryza_sativa|rep5	o3	o3	15	15	14	5	49
+Single-cell analysis	Oryza_sativa	rep1	Single-cell analysis|Oryza_sativa|rep1	o3	o3	22	21	18	5	66
+Single-cell analysis	Oryza_sativa	rep2	Single-cell analysis|Oryza_sativa|rep2	o3	o3	22	21	19	6.25	68.25
+Single-cell analysis	Oryza_sativa	rep3	Single-cell analysis|Oryza_sativa|rep3	o3	o3	22	21	19	6.25	68.25
+Single-cell analysis	Oryza_sativa	rep4	Single-cell analysis|Oryza_sativa|rep4	o3	o3	22	21	19	6.25	68.25
+Single-cell analysis	Oryza_sativa	rep5	Single-cell analysis|Oryza_sativa|rep5	o3	o3	22	21	19	5	67
+Spatial transcriptomics	Oryza_sativa	rep1	Spatial transcriptomics|Oryza_sativa|rep1	o3	o3	19	18	18	6.25	61.25
+Spatial transcriptomics	Oryza_sativa	rep2	Spatial transcriptomics|Oryza_sativa|rep2	o3	o3	19	18	18	6.25	61.25
+Spatial transcriptomics	Oryza_sativa	rep3	Spatial transcriptomics|Oryza_sativa|rep3	o3	o3	19	18	18	6.25	61.25
+Spatial transcriptomics	Oryza_sativa	rep4	Spatial transcriptomics|Oryza_sativa|rep4	o3	o3	19	18	18	6.25	61.25
+Spatial transcriptomics	Oryza_sativa	rep5	Spatial transcriptomics|Oryza_sativa|rep5	o3	o3	19	18	18	6.25	61.25
+Transcriptomics	Oryza_sativa	rep1	Transcriptomics|Oryza_sativa|rep1	Gemini-2.5-Pro	Gemini-2.5-Pro	19	15	16	6.25	56.25
+Transcriptomics	Oryza_sativa	rep2	Transcriptomics|Oryza_sativa|rep2	Gemini-2.5-Pro	Gemini-2.5-Pro	20	16	17	6.25	59.25
+Transcriptomics	Oryza_sativa	rep3	Transcriptomics|Oryza_sativa|rep3	Gemini-2.5-Pro	Gemini-2.5-Pro	19	16	16	6.25	57.25
+Transcriptomics	Oryza_sativa	rep4	Transcriptomics|Oryza_sativa|rep4	Gemini-2.5-Pro	Gemini-2.5-Pro	20	17	18	6.25	61.25
+Transcriptomics	Oryza_sativa	rep5	Transcriptomics|Oryza_sativa|rep5	Gemini-2.5-Pro	Gemini-2.5-Pro	19	15	16	10	60
+Proteomics	Oryza_sativa	rep1	Proteomics|Oryza_sativa|rep1	Gemini-2.5-Pro	Gemini-2.5-Pro	18	18	14	12.5	62.5
+Proteomics	Oryza_sativa	rep2	Proteomics|Oryza_sativa|rep2	Gemini-2.5-Pro	Gemini-2.5-Pro	18	19	13	6.25	56.25
+Proteomics	Oryza_sativa	rep3	Proteomics|Oryza_sativa|rep3	Gemini-2.5-Pro	Gemini-2.5-Pro	17	18	12	12.5	59.5
+Proteomics	Oryza_sativa	rep4	Proteomics|Oryza_sativa|rep4	Gemini-2.5-Pro	Gemini-2.5-Pro	19	18	15	6.25	58.25
+Proteomics	Oryza_sativa	rep5	Proteomics|Oryza_sativa|rep5	Gemini-2.5-Pro	Gemini-2.5-Pro	19	18	15	6.25	58.25
+Metabolomics	Oryza_sativa	rep1	Metabolomics|Oryza_sativa|rep1	Gemini-2.5-Pro	Gemini-2.5-Pro	17	16	14	6.25	53.25
+Metabolomics	Oryza_sativa	rep2	Metabolomics|Oryza_sativa|rep2	Gemini-2.5-Pro	Gemini-2.5-Pro	17	17	15	6.25	55.25
+Metabolomics	Oryza_sativa	rep3	Metabolomics|Oryza_sativa|rep3	Gemini-2.5-Pro	Gemini-2.5-Pro	16	16	13	6.25	51.25
+Metabolomics	Oryza_sativa	rep4	Metabolomics|Oryza_sativa|rep4	Gemini-2.5-Pro	Gemini-2.5-Pro	17	17	14	25	73
+Metabolomics	Oryza_sativa	rep5	Metabolomics|Oryza_sativa|rep5	Gemini-2.5-Pro	Gemini-2.5-Pro	17	17	14	6.25	54.25
+Evolutionary analysis	Oryza_sativa	rep1	Evolutionary analysis|Oryza_sativa|rep1	Gemini-2.5-Pro	Gemini-2.5-Pro	18	19	16	6.25	59.25
+Evolutionary analysis	Oryza_sativa	rep2	Evolutionary analysis|Oryza_sativa|rep2	Gemini-2.5-Pro	Gemini-2.5-Pro	18	19	17	6.25	60.25
+Evolutionary analysis	Oryza_sativa	rep3	Evolutionary analysis|Oryza_sativa|rep3	Gemini-2.5-Pro	Gemini-2.5-Pro	18	19	16	6.25	59.25
+Evolutionary analysis	Oryza_sativa	rep4	Evolutionary analysis|Oryza_sativa|rep4	Gemini-2.5-Pro	Gemini-2.5-Pro	17	18	15	15	65
+Evolutionary analysis	Oryza_sativa	rep5	Evolutionary analysis|Oryza_sativa|rep5	Gemini-2.5-Pro	Gemini-2.5-Pro	18	19	16	6.25	59.25
+Epigenomics	Oryza_sativa	rep1	Epigenomics|Oryza_sativa|rep1	Gemini-2.5-Pro	Gemini-2.5-Pro	20	20	17	6.25	63.25
+Epigenomics	Oryza_sativa	rep2	Epigenomics|Oryza_sativa|rep2	Gemini-2.5-Pro	Gemini-2.5-Pro	19	19	16	6.25	60.25
+Epigenomics	Oryza_sativa	rep3	Epigenomics|Oryza_sativa|rep3	Gemini-2.5-Pro	Gemini-2.5-Pro	16	16	14	18.75	64.75
+Epigenomics	Oryza_sativa	rep4	Epigenomics|Oryza_sativa|rep4	Gemini-2.5-Pro	Gemini-2.5-Pro	20	20	18	6.25	64.25
+Epigenomics	Oryza_sativa	rep5	Epigenomics|Oryza_sativa|rep5	Gemini-2.5-Pro	Gemini-2.5-Pro	20	20	17	18.75	75.75
+Variant calling	Oryza_sativa	rep1	Variant calling|Oryza_sativa|rep1	Gemini-2.5-Pro	Gemini-2.5-Pro	18	18	15	12.5	63.5
+Variant calling	Oryza_sativa	rep2	Variant calling|Oryza_sativa|rep2	Gemini-2.5-Pro	Gemini-2.5-Pro	17	17	14	6.25	54.25
+Variant calling	Oryza_sativa	rep3	Variant calling|Oryza_sativa|rep3	Gemini-2.5-Pro	Gemini-2.5-Pro	18	18	16	6.25	58.25
+Variant calling	Oryza_sativa	rep4	Variant calling|Oryza_sativa|rep4	Gemini-2.5-Pro	Gemini-2.5-Pro	18	18	16	12.5	64.5
+Variant calling	Oryza_sativa	rep5	Variant calling|Oryza_sativa|rep5	Gemini-2.5-Pro	Gemini-2.5-Pro	18	18	16	18.75	70.75
+GWAS	Oryza_sativa	rep1	GWAS|Oryza_sativa|rep1	Gemini-2.5-Pro	Gemini-2.5-Pro	20	19	18	25	82
+GWAS	Oryza_sativa	rep2	GWAS|Oryza_sativa|rep2	Gemini-2.5-Pro	Gemini-2.5-Pro	19	18	19	6.25	62.25
+GWAS	Oryza_sativa	rep3	GWAS|Oryza_sativa|rep3	Gemini-2.5-Pro	Gemini-2.5-Pro	20	19	17	12.5	68.5
+GWAS	Oryza_sativa	rep4	GWAS|Oryza_sativa|rep4	Gemini-2.5-Pro	Gemini-2.5-Pro	19	18	17	10	64
+GWAS	Oryza_sativa	rep5	GWAS|Oryza_sativa|rep5	Gemini-2.5-Pro	Gemini-2.5-Pro	19	18	18	6.25	61.25
+Genomic selection	Oryza_sativa	rep1	Genomic selection|Oryza_sativa|rep1	Gemini-2.5-Pro	Gemini-2.5-Pro	13	11	15	6.25	45.25
+Genomic selection	Oryza_sativa	rep2	Genomic selection|Oryza_sativa|rep2	Gemini-2.5-Pro	Gemini-2.5-Pro	12	13	14	6.25	45.25
+Genomic selection	Oryza_sativa	rep3	Genomic selection|Oryza_sativa|rep3	Gemini-2.5-Pro	Gemini-2.5-Pro	13	13	15	12.5	53.5
+Genomic selection	Oryza_sativa	rep4	Genomic selection|Oryza_sativa|rep4	Gemini-2.5-Pro	Gemini-2.5-Pro	11	14	15	6.25	46.25
+Genomic selection	Oryza_sativa	rep5	Genomic selection|Oryza_sativa|rep5	Gemini-2.5-Pro	Gemini-2.5-Pro	12	13	16	6.25	47.25
+Single-cell analysis	Oryza_sativa	rep1	Single-cell analysis|Oryza_sativa|rep1	Gemini-2.5-Pro	Gemini-2.5-Pro	21	20	18	6.25	65.25
+Single-cell analysis	Oryza_sativa	rep2	Single-cell analysis|Oryza_sativa|rep2	Gemini-2.5-Pro	Gemini-2.5-Pro	21	20	18	6.25	65.25
+Single-cell analysis	Oryza_sativa	rep3	Single-cell analysis|Oryza_sativa|rep3	Gemini-2.5-Pro	Gemini-2.5-Pro	21	20	18	6.25	65.25
+Single-cell analysis	Oryza_sativa	rep4	Single-cell analysis|Oryza_sativa|rep4	Gemini-2.5-Pro	Gemini-2.5-Pro	21	20	18	5	64
+Single-cell analysis	Oryza_sativa	rep5	Single-cell analysis|Oryza_sativa|rep5	Gemini-2.5-Pro	Gemini-2.5-Pro	21	20	18	6.25	65.25
+Spatial transcriptomics	Oryza_sativa	rep1	Spatial transcriptomics|Oryza_sativa|rep1	Gemini-2.5-Pro	Gemini-2.5-Pro	22	21	19	5	67
+Spatial transcriptomics	Oryza_sativa	rep2	Spatial transcriptomics|Oryza_sativa|rep2	Gemini-2.5-Pro	Gemini-2.5-Pro	22	21	19	6.25	68.25
+Spatial transcriptomics	Oryza_sativa	rep3	Spatial transcriptomics|Oryza_sativa|rep3	Gemini-2.5-Pro	Gemini-2.5-Pro	21	20	19	8.33333333333333	68.3333333333333
+Spatial transcriptomics	Oryza_sativa	rep4	Spatial transcriptomics|Oryza_sativa|rep4	Gemini-2.5-Pro	Gemini-2.5-Pro	21	20	19	18.75	78.75
+Spatial transcriptomics	Oryza_sativa	rep5	Spatial transcriptomics|Oryza_sativa|rep5	Gemini-2.5-Pro	Gemini-2.5-Pro	22	21	19	6.25	68.25
+Transcriptomics	Oryza_sativa	rep1	Transcriptomics|Oryza_sativa|rep1	Claude-Opus-4.1	Claude-Opus-4.1	21	22	18	6.25	67.25
+Transcriptomics	Oryza_sativa	rep2	Transcriptomics|Oryza_sativa|rep2	Claude-Opus-4.1	Claude-Opus-4.1	21	22	18	12.5	73.5
+Transcriptomics	Oryza_sativa	rep3	Transcriptomics|Oryza_sativa|rep3	Claude-Opus-4.1	Claude-Opus-4.1	21	22	18	6.25	67.25
+Transcriptomics	Oryza_sativa	rep4	Transcriptomics|Oryza_sativa|rep4	Claude-Opus-4.1	Claude-Opus-4.1	20	20	17	6.25	63.25
+Transcriptomics	Oryza_sativa	rep5	Transcriptomics|Oryza_sativa|rep5	Claude-Opus-4.1	Claude-Opus-4.1	20	20	17	6.25	63.25
+Proteomics	Oryza_sativa	rep1	Proteomics|Oryza_sativa|rep1	Claude-Opus-4.1	Claude-Opus-4.1	21	22	19	12.5	74.5
+Proteomics	Oryza_sativa	rep2	Proteomics|Oryza_sativa|rep2	Claude-Opus-4.1	Claude-Opus-4.1	18	21	19	6.25	64.25
+Proteomics	Oryza_sativa	rep3	Proteomics|Oryza_sativa|rep3	Claude-Opus-4.1	Claude-Opus-4.1	19	18	16	12.5	65.5
+Proteomics	Oryza_sativa	rep4	Proteomics|Oryza_sativa|rep4	Claude-Opus-4.1	Claude-Opus-4.1	22	19	19	6.25	66.25
+Proteomics	Oryza_sativa	rep5	Proteomics|Oryza_sativa|rep5	Claude-Opus-4.1	Claude-Opus-4.1	20	20	17	6.25	63.25
+Metabolomics	Oryza_sativa	rep1	Metabolomics|Oryza_sativa|rep1	Claude-Opus-4.1	Claude-Opus-4.1	23	19	20	12.5	74.5
+Metabolomics	Oryza_sativa	rep2	Metabolomics|Oryza_sativa|rep2	Claude-Opus-4.1	Claude-Opus-4.1	19	20	17	12.5	68.5
+Metabolomics	Oryza_sativa	rep3	Metabolomics|Oryza_sativa|rep3	Claude-Opus-4.1	Claude-Opus-4.1	21	17	17	6.25	61.25
+Metabolomics	Oryza_sativa	rep4	Metabolomics|Oryza_sativa|rep4	Claude-Opus-4.1	Claude-Opus-4.1	18	20	20	12.5	70.5
+Metabolomics	Oryza_sativa	rep5	Metabolomics|Oryza_sativa|rep5	Claude-Opus-4.1	Claude-Opus-4.1	21	18	18	6.25	63.25
+Evolutionary analysis	Oryza_sativa	rep1	Evolutionary analysis|Oryza_sativa|rep1	Claude-Opus-4.1	Claude-Opus-4.1	20	20	17	6.25	63.25
+Evolutionary analysis	Oryza_sativa	rep2	Evolutionary analysis|Oryza_sativa|rep2	Claude-Opus-4.1	Claude-Opus-4.1	17	20	17	12.5	66.5
+Evolutionary analysis	Oryza_sativa	rep3	Evolutionary analysis|Oryza_sativa|rep3	Claude-Opus-4.1	Claude-Opus-4.1	18	18	18	6.25	60.25
+Evolutionary analysis	Oryza_sativa	rep4	Evolutionary analysis|Oryza_sativa|rep4	Claude-Opus-4.1	Claude-Opus-4.1	17	17	18	5	57
+Evolutionary analysis	Oryza_sativa	rep5	Evolutionary analysis|Oryza_sativa|rep5	Claude-Opus-4.1	Claude-Opus-4.1	15	21	18	12.5	66.5
+Epigenomics	Oryza_sativa	rep1	Epigenomics|Oryza_sativa|rep1	Claude-Opus-4.1	Claude-Opus-4.1	20	19	18	20	77
+Epigenomics	Oryza_sativa	rep2	Epigenomics|Oryza_sativa|rep2	Claude-Opus-4.1	Claude-Opus-4.1	20	20	19	18.75	77.75
+Epigenomics	Oryza_sativa	rep3	Epigenomics|Oryza_sativa|rep3	Claude-Opus-4.1	Claude-Opus-4.1	21	20	19	25	85
+Epigenomics	Oryza_sativa	rep4	Epigenomics|Oryza_sativa|rep4	Claude-Opus-4.1	Claude-Opus-4.1	20	21	18	18.75	77.75
+Epigenomics	Oryza_sativa	rep5	Epigenomics|Oryza_sativa|rep5	Claude-Opus-4.1	Claude-Opus-4.1	23	22	19	18.75	82.75
+Variant calling	Oryza_sativa	rep1	Variant calling|Oryza_sativa|rep1	Claude-Opus-4.1	Claude-Opus-4.1	20	21	18	10	69
+Variant calling	Oryza_sativa	rep2	Variant calling|Oryza_sativa|rep2	Claude-Opus-4.1	Claude-Opus-4.1	19	20	20	18.75	77.75
+Variant calling	Oryza_sativa	rep3	Variant calling|Oryza_sativa|rep3	Claude-Opus-4.1	Claude-Opus-4.1	18	19	19	18.75	74.75
+Variant calling	Oryza_sativa	rep4	Variant calling|Oryza_sativa|rep4	Claude-Opus-4.1	Claude-Opus-4.1	19	20	18	18.75	75.75
+Variant calling	Oryza_sativa	rep5	Variant calling|Oryza_sativa|rep5	Claude-Opus-4.1	Claude-Opus-4.1	22	22	19	18.75	81.75
+GWAS	Oryza_sativa	rep1	GWAS|Oryza_sativa|rep1	Claude-Opus-4.1	Claude-Opus-4.1	20	19	20	12.5	71.5
+GWAS	Oryza_sativa	rep2	GWAS|Oryza_sativa|rep2	Claude-Opus-4.1	Claude-Opus-4.1	20	20	18	12.5	70.5
+GWAS	Oryza_sativa	rep3	GWAS|Oryza_sativa|rep3	Claude-Opus-4.1	Claude-Opus-4.1	19	19	19	6.25	63.25
+GWAS	Oryza_sativa	rep4	GWAS|Oryza_sativa|rep4	Claude-Opus-4.1	Claude-Opus-4.1	19	19	19	12.5	69.5
+GWAS	Oryza_sativa	rep5	GWAS|Oryza_sativa|rep5	Claude-Opus-4.1	Claude-Opus-4.1	18	20	18	12.5	68.5
+Genomic selection	Oryza_sativa	rep1	Genomic selection|Oryza_sativa|rep1	Claude-Opus-4.1	Claude-Opus-4.1	22	21	19	6.25	68.25
+Genomic selection	Oryza_sativa	rep2	Genomic selection|Oryza_sativa|rep2	Claude-Opus-4.1	Claude-Opus-4.1	22	21	19	6.25	68.25
+Genomic selection	Oryza_sativa	rep3	Genomic selection|Oryza_sativa|rep3	Claude-Opus-4.1	Claude-Opus-4.1	22	21	19	6.25	68.25
+Genomic selection	Oryza_sativa	rep4	Genomic selection|Oryza_sativa|rep4	Claude-Opus-4.1	Claude-Opus-4.1	22	21	18	6.25	67.25
+Genomic selection	Oryza_sativa	rep5	Genomic selection|Oryza_sativa|rep5	Claude-Opus-4.1	Claude-Opus-4.1	12	15	13	6.25	46.25
+Single-cell analysis	Oryza_sativa	rep1	Single-cell analysis|Oryza_sativa|rep1	Claude-Opus-4.1	Claude-Opus-4.1	24	24	21	6.25	75.25
+Single-cell analysis	Oryza_sativa	rep2	Single-cell analysis|Oryza_sativa|rep2	Claude-Opus-4.1	Claude-Opus-4.1	24	24	21	6.25	75.25
+Single-cell analysis	Oryza_sativa	rep3	Single-cell analysis|Oryza_sativa|rep3	Claude-Opus-4.1	Claude-Opus-4.1	23	23	20	6.25	72.25
+Single-cell analysis	Oryza_sativa	rep4	Single-cell analysis|Oryza_sativa|rep4	Claude-Opus-4.1	Claude-Opus-4.1	23	23	20	12.5	78.5
+Single-cell analysis	Oryza_sativa	rep5	Single-cell analysis|Oryza_sativa|rep5	Claude-Opus-4.1	Claude-Opus-4.1	23	22	19	6.25	70.25
+Spatial transcriptomics	Oryza_sativa	rep1	Spatial transcriptomics|Oryza_sativa|rep1	Claude-Opus-4.1	Claude-Opus-4.1	22	22	20	12.5	76.5
+Spatial transcriptomics	Oryza_sativa	rep2	Spatial transcriptomics|Oryza_sativa|rep2	Claude-Opus-4.1	Claude-Opus-4.1	21	21	19	6.25	67.25
+Spatial transcriptomics	Oryza_sativa	rep3	Spatial transcriptomics|Oryza_sativa|rep3	Claude-Opus-4.1	Claude-Opus-4.1	23	23	21	6.25	73.25
+Spatial transcriptomics	Oryza_sativa	rep4	Spatial transcriptomics|Oryza_sativa|rep4	Claude-Opus-4.1	Claude-Opus-4.1	22	22	20	6.25	70.25
+Spatial transcriptomics	Oryza_sativa	rep5	Spatial transcriptomics|Oryza_sativa|rep5	Claude-Opus-4.1	Claude-Opus-4.1	22	22	20	6.25	70.25
+Transcriptomics	Oryza_sativa	rep1	Transcriptomics|Oryza_sativa|rep1	Grok-3-Beta	Grok-3-Beta	18	18	15	12.5	63.5
+Transcriptomics	Oryza_sativa	rep2	Transcriptomics|Oryza_sativa|rep2	Grok-3-Beta	Grok-3-Beta	19	19	17	6.25	61.25
+Transcriptomics	Oryza_sativa	rep3	Transcriptomics|Oryza_sativa|rep3	Grok-3-Beta	Grok-3-Beta	18	18	15	6.25	57.25
+Transcriptomics	Oryza_sativa	rep4	Transcriptomics|Oryza_sativa|rep4	Grok-3-Beta	Grok-3-Beta	16	15	11	12.5	54.5
+Transcriptomics	Oryza_sativa	rep5	Transcriptomics|Oryza_sativa|rep5	Grok-3-Beta	Grok-3-Beta	18	18	14	10	60
+Proteomics	Oryza_sativa	rep1	Proteomics|Oryza_sativa|rep1	Grok-3-Beta	Grok-3-Beta	20	20	17	6.25	63.25
+Proteomics	Oryza_sativa	rep2	Proteomics|Oryza_sativa|rep2	Grok-3-Beta	Grok-3-Beta	21	21	18	6.25	66.25
+Proteomics	Oryza_sativa	rep3	Proteomics|Oryza_sativa|rep3	Grok-3-Beta	Grok-3-Beta	18	18	15	6.25	57.25
+Proteomics	Oryza_sativa	rep4	Proteomics|Oryza_sativa|rep4	Grok-3-Beta	Grok-3-Beta	17	17	12	18.75	64.75
+Proteomics	Oryza_sativa	rep5	Proteomics|Oryza_sativa|rep5	Grok-3-Beta	Grok-3-Beta	18	18	14	12.5	62.5
+Metabolomics	Oryza_sativa	rep1	Metabolomics|Oryza_sativa|rep1	Grok-3-Beta	Grok-3-Beta	18	19	14	6.25	57.25
+Metabolomics	Oryza_sativa	rep2	Metabolomics|Oryza_sativa|rep2	Grok-3-Beta	Grok-3-Beta	20	20	17	6.25	63.25
+Metabolomics	Oryza_sativa	rep3	Metabolomics|Oryza_sativa|rep3	Grok-3-Beta	Grok-3-Beta	18	19	15	6.25	58.25
+Metabolomics	Oryza_sativa	rep4	Metabolomics|Oryza_sativa|rep4	Grok-3-Beta	Grok-3-Beta	18	19	14	6.25	57.25
+Metabolomics	Oryza_sativa	rep5	Metabolomics|Oryza_sativa|rep5	Grok-3-Beta	Grok-3-Beta	18	19	14	6.25	57.25
+Evolutionary analysis	Oryza_sativa	rep1	Evolutionary analysis|Oryza_sativa|rep1	Grok-3-Beta	Grok-3-Beta	15	14	12	6.25	47.25
+Evolutionary analysis	Oryza_sativa	rep2	Evolutionary analysis|Oryza_sativa|rep2	Grok-3-Beta	Grok-3-Beta	16	15	13	12.5	56.5
+Evolutionary analysis	Oryza_sativa	rep3	Evolutionary analysis|Oryza_sativa|rep3	Grok-3-Beta	Grok-3-Beta	14	13	12	5	44
+Evolutionary analysis	Oryza_sativa	rep4	Evolutionary analysis|Oryza_sativa|rep4	Grok-3-Beta	Grok-3-Beta	16	15	13	5	49
+Evolutionary analysis	Oryza_sativa	rep5	Evolutionary analysis|Oryza_sativa|rep5	Grok-3-Beta	Grok-3-Beta	14	13	11	15	53
+Epigenomics	Oryza_sativa	rep1	Epigenomics|Oryza_sativa|rep1	Grok-3-Beta	Grok-3-Beta	17	17	22	25	81
+Epigenomics	Oryza_sativa	rep2	Epigenomics|Oryza_sativa|rep2	Grok-3-Beta	Grok-3-Beta	17	17	23	25	82
+Epigenomics	Oryza_sativa	rep3	Epigenomics|Oryza_sativa|rep3	Grok-3-Beta	Grok-3-Beta	15	15	22	25	77
+Epigenomics	Oryza_sativa	rep4	Epigenomics|Oryza_sativa|rep4	Grok-3-Beta	Grok-3-Beta	16	16	22	25	79
+Epigenomics	Oryza_sativa	rep5	Epigenomics|Oryza_sativa|rep5	Grok-3-Beta	Grok-3-Beta	15	15	23	18.75	71.75
+Variant calling	Oryza_sativa	rep1	Variant calling|Oryza_sativa|rep1	Grok-3-Beta	Grok-3-Beta	14	14	12	12.5	52.5
+Variant calling	Oryza_sativa	rep2	Variant calling|Oryza_sativa|rep2	Grok-3-Beta	Grok-3-Beta	17	17	15	18.75	67.75
+Variant calling	Oryza_sativa	rep3	Variant calling|Oryza_sativa|rep3	Grok-3-Beta	Grok-3-Beta	14	14	12	12.5	52.5
+Variant calling	Oryza_sativa	rep4	Variant calling|Oryza_sativa|rep4	Grok-3-Beta	Grok-3-Beta	14	14	12	18.75	58.75
+Variant calling	Oryza_sativa	rep5	Variant calling|Oryza_sativa|rep5	Grok-3-Beta	Grok-3-Beta	15	15	14	12.5	56.5
+GWAS	Oryza_sativa	rep1	GWAS|Oryza_sativa|rep1	Grok-3-Beta	Grok-3-Beta	17	16	13	12.5	58.5
+GWAS	Oryza_sativa	rep2	GWAS|Oryza_sativa|rep2	Grok-3-Beta	Grok-3-Beta	17	16	14	6.25	53.25
+GWAS	Oryza_sativa	rep3	GWAS|Oryza_sativa|rep3	Grok-3-Beta	Grok-3-Beta	16	15	13	12.5	56.5
+GWAS	Oryza_sativa	rep4	GWAS|Oryza_sativa|rep4	Grok-3-Beta	Grok-3-Beta	16	15	13	6.25	50.25
+GWAS	Oryza_sativa	rep5	GWAS|Oryza_sativa|rep5	Grok-3-Beta	Grok-3-Beta	17	16	14	6.25	53.25
+Genomic selection	Oryza_sativa	rep1	Genomic selection|Oryza_sativa|rep1	Grok-3-Beta	Grok-3-Beta	15	14	12	6.25	47.25
+Genomic selection	Oryza_sativa	rep2	Genomic selection|Oryza_sativa|rep2	Grok-3-Beta	Grok-3-Beta	14	13	11	6.25	44.25
+Genomic selection	Oryza_sativa	rep3	Genomic selection|Oryza_sativa|rep3	Grok-3-Beta	Grok-3-Beta	15	13	11	6.25	45.25
+Genomic selection	Oryza_sativa	rep4	Genomic selection|Oryza_sativa|rep4	Grok-3-Beta	Grok-3-Beta	16	14	12	6.25	48.25
+Genomic selection	Oryza_sativa	rep5	Genomic selection|Oryza_sativa|rep5	Grok-3-Beta	Grok-3-Beta	15	13	13	6.25	47.25
+Single-cell analysis	Oryza_sativa	rep1	Single-cell analysis|Oryza_sativa|rep1	Grok-3-Beta	Grok-3-Beta	19	19	16	5	59
+Single-cell analysis	Oryza_sativa	rep2	Single-cell analysis|Oryza_sativa|rep2	Grok-3-Beta	Grok-3-Beta	18	18	15	6.25	57.25
+Single-cell analysis	Oryza_sativa	rep3	Single-cell analysis|Oryza_sativa|rep3	Grok-3-Beta	Grok-3-Beta	18	18	15	6.25	57.25
+Single-cell analysis	Oryza_sativa	rep4	Single-cell analysis|Oryza_sativa|rep4	Grok-3-Beta	Grok-3-Beta	18	18	15	6.25	57.25
+Single-cell analysis	Oryza_sativa	rep5	Single-cell analysis|Oryza_sativa|rep5	Grok-3-Beta	Grok-3-Beta	17	17	14	25	73
+Spatial transcriptomics	Oryza_sativa	rep1	Spatial transcriptomics|Oryza_sativa|rep1	Grok-3-Beta	Grok-3-Beta	17	16	14	6.25	53.25
+Spatial transcriptomics	Oryza_sativa	rep2	Spatial transcriptomics|Oryza_sativa|rep2	Grok-3-Beta	Grok-3-Beta	18	17	15	6.25	56.25
+Spatial transcriptomics	Oryza_sativa	rep3	Spatial transcriptomics|Oryza_sativa|rep3	Grok-3-Beta	Grok-3-Beta	17	16	14	6.25	53.25
+Spatial transcriptomics	Oryza_sativa	rep4	Spatial transcriptomics|Oryza_sativa|rep4	Grok-3-Beta	Grok-3-Beta	19	18	16	5	58
+Spatial transcriptomics	Oryza_sativa	rep5	Spatial transcriptomics|Oryza_sativa|rep5	Grok-3-Beta	Grok-3-Beta	19	18	16	6.25	59.25
+Transcriptomics	Oryza_sativa	rep1	Transcriptomics|Oryza_sativa|rep1	Deepseek-V3	Deepseek-V3	18	18	14	5	55
+Transcriptomics	Oryza_sativa	rep2	Transcriptomics|Oryza_sativa|rep2	Deepseek-V3	Deepseek-V3	18	18	13	6.25	55.25
+Transcriptomics	Oryza_sativa	rep3	Transcriptomics|Oryza_sativa|rep3	Deepseek-V3	Deepseek-V3	19	19	15	6.25	59.25
+Transcriptomics	Oryza_sativa	rep4	Transcriptomics|Oryza_sativa|rep4	Deepseek-V3	Deepseek-V3	18	18	13	6.25	55.25
+Transcriptomics	Oryza_sativa	rep5	Transcriptomics|Oryza_sativa|rep5	Deepseek-V3	Deepseek-V3	17	16	11	6.25	50.25
+Proteomics	Oryza_sativa	rep1	Proteomics|Oryza_sativa|rep1	Deepseek-V3	Deepseek-V3	20	20	17	6.25	63.25
+Proteomics	Oryza_sativa	rep2	Proteomics|Oryza_sativa|rep2	Deepseek-V3	Deepseek-V3	21	20	17	6.25	64.25
+Proteomics	Oryza_sativa	rep3	Proteomics|Oryza_sativa|rep3	Deepseek-V3	Deepseek-V3	20	20	17	6.25	63.25
+Proteomics	Oryza_sativa	rep4	Proteomics|Oryza_sativa|rep4	Deepseek-V3	Deepseek-V3	17	19	12	6.25	54.25
+Proteomics	Oryza_sativa	rep5	Proteomics|Oryza_sativa|rep5	Deepseek-V3	Deepseek-V3	19	19	15	6.25	59.25
+Metabolomics	Oryza_sativa	rep1	Metabolomics|Oryza_sativa|rep1	Deepseek-V3	Deepseek-V3	20	20	16	6.25	62.25
+Metabolomics	Oryza_sativa	rep2	Metabolomics|Oryza_sativa|rep2	Deepseek-V3	Deepseek-V3	20	17	16	6.25	59.25
+Metabolomics	Oryza_sativa	rep3	Metabolomics|Oryza_sativa|rep3	Deepseek-V3	Deepseek-V3	19	20	17	12.5	68.5
+Metabolomics	Oryza_sativa	rep4	Metabolomics|Oryza_sativa|rep4	Deepseek-V3	Deepseek-V3	19	19	15	6.25	59.25
+Metabolomics	Oryza_sativa	rep5	Metabolomics|Oryza_sativa|rep5	Deepseek-V3	Deepseek-V3	18	18	14	6.25	56.25
+Evolutionary analysis	Oryza_sativa	rep1	Evolutionary analysis|Oryza_sativa|rep1	Deepseek-V3	Deepseek-V3	18	17	13	6.25	54.25
+Evolutionary analysis	Oryza_sativa	rep2	Evolutionary analysis|Oryza_sativa|rep2	Deepseek-V3	Deepseek-V3	17	16	12	10	55
+Evolutionary analysis	Oryza_sativa	rep3	Evolutionary analysis|Oryza_sativa|rep3	Deepseek-V3	Deepseek-V3	19	18	14	12.5	63.5
+Evolutionary analysis	Oryza_sativa	rep4	Evolutionary analysis|Oryza_sativa|rep4	Deepseek-V3	Deepseek-V3	15	14	12	6.25	47.25
+Evolutionary analysis	Oryza_sativa	rep5	Evolutionary analysis|Oryza_sativa|rep5	Deepseek-V3	Deepseek-V3	18	17	14	6.25	55.25
+Epigenomics	Oryza_sativa	rep1	Epigenomics|Oryza_sativa|rep1	Deepseek-V3	Deepseek-V3	16	16	14	18.75	64.75
+Epigenomics	Oryza_sativa	rep2	Epigenomics|Oryza_sativa|rep2	Deepseek-V3	Deepseek-V3	17	17	14	12.5	60.5
+Epigenomics	Oryza_sativa	rep3	Epigenomics|Oryza_sativa|rep3	Deepseek-V3	Deepseek-V3	15	15	12	18.75	60.75
+Epigenomics	Oryza_sativa	rep4	Epigenomics|Oryza_sativa|rep4	Deepseek-V3	Deepseek-V3	16	16	14	18.75	64.75
+Epigenomics	Oryza_sativa	rep5	Epigenomics|Oryza_sativa|rep5	Deepseek-V3	Deepseek-V3	17	17	14	25	73
+Variant calling	Oryza_sativa	rep1	Variant calling|Oryza_sativa|rep1	Deepseek-V3	Deepseek-V3	17	17	14	18.75	66.75
+Variant calling	Oryza_sativa	rep2	Variant calling|Oryza_sativa|rep2	Deepseek-V3	Deepseek-V3	16	16	13	12.5	57.5
+Variant calling	Oryza_sativa	rep3	Variant calling|Oryza_sativa|rep3	Deepseek-V3	Deepseek-V3	17	17	14	12.5	60.5
+Variant calling	Oryza_sativa	rep4	Variant calling|Oryza_sativa|rep4	Deepseek-V3	Deepseek-V3	17	17	14	18.75	66.75
+Variant calling	Oryza_sativa	rep5	Variant calling|Oryza_sativa|rep5	Deepseek-V3	Deepseek-V3	17	17	14	16.6666666666667	64.6666666666667
+GWAS	Oryza_sativa	rep1	GWAS|Oryza_sativa|rep1	Deepseek-V3	Deepseek-V3	17	16	13	6.25	52.25
+GWAS	Oryza_sativa	rep2	GWAS|Oryza_sativa|rep2	Deepseek-V3	Deepseek-V3	17	16	13	12.5	58.5
+GWAS	Oryza_sativa	rep3	GWAS|Oryza_sativa|rep3	Deepseek-V3	Deepseek-V3	17	16	13	6.25	52.25
+GWAS	Oryza_sativa	rep4	GWAS|Oryza_sativa|rep4	Deepseek-V3	Deepseek-V3	16	15	13	6.25	50.25
+GWAS	Oryza_sativa	rep5	GWAS|Oryza_sativa|rep5	Deepseek-V3	Deepseek-V3	16	15	12	6.25	49.25
+Genomic selection	Oryza_sativa	rep1	Genomic selection|Oryza_sativa|rep1	Deepseek-V3	Deepseek-V3	15	14	13	6.25	48.25
+Genomic selection	Oryza_sativa	rep2	Genomic selection|Oryza_sativa|rep2	Deepseek-V3	Deepseek-V3	14	14	13	6.25	47.25
+Genomic selection	Oryza_sativa	rep3	Genomic selection|Oryza_sativa|rep3	Deepseek-V3	Deepseek-V3	15	15	14	6.25	50.25
+Genomic selection	Oryza_sativa	rep4	Genomic selection|Oryza_sativa|rep4	Deepseek-V3	Deepseek-V3	14	14	15	6.25	49.25
+Genomic selection	Oryza_sativa	rep5	Genomic selection|Oryza_sativa|rep5	Deepseek-V3	Deepseek-V3	13	13	13	12.5	51.5
+Single-cell analysis	Oryza_sativa	rep1	Single-cell analysis|Oryza_sativa|rep1	Deepseek-V3	Deepseek-V3	22	22	19	6.25	69.25
+Single-cell analysis	Oryza_sativa	rep2	Single-cell analysis|Oryza_sativa|rep2	Deepseek-V3	Deepseek-V3	23	23	20	5	71
+Single-cell analysis	Oryza_sativa	rep3	Single-cell analysis|Oryza_sativa|rep3	Deepseek-V3	Deepseek-V3	21	21	18	5	65
+Single-cell analysis	Oryza_sativa	rep4	Single-cell analysis|Oryza_sativa|rep4	Deepseek-V3	Deepseek-V3	22	22	19	5	68
+Single-cell analysis	Oryza_sativa	rep5	Single-cell analysis|Oryza_sativa|rep5	Deepseek-V3	Deepseek-V3	22	22	19	5	68
+Spatial transcriptomics	Oryza_sativa	rep1	Spatial transcriptomics|Oryza_sativa|rep1	Deepseek-V3	Deepseek-V3	21	20	19	6.25	66.25
+Spatial transcriptomics	Oryza_sativa	rep2	Spatial transcriptomics|Oryza_sativa|rep2	Deepseek-V3	Deepseek-V3	21	20	19	6.25	66.25
+Spatial transcriptomics	Oryza_sativa	rep3	Spatial transcriptomics|Oryza_sativa|rep3	Deepseek-V3	Deepseek-V3	21	20	19	6.25	66.25
+Spatial transcriptomics	Oryza_sativa	rep4	Spatial transcriptomics|Oryza_sativa|rep4	Deepseek-V3	Deepseek-V3	20	19	18	5	62
+Spatial transcriptomics	Oryza_sativa	rep5	Spatial transcriptomics|Oryza_sativa|rep5	Deepseek-V3	Deepseek-V3	21	20	19	6.25	66.25
+Transcriptomics	Oryza_sativa	rep1	Transcriptomics|Oryza_sativa|rep1	Deepseek-R1	Deepseek-R1	18	19	10	6.25	53.25
+Transcriptomics	Oryza_sativa	rep2	Transcriptomics|Oryza_sativa|rep2	Deepseek-R1	Deepseek-R1	18	19	11	5	53
+Transcriptomics	Oryza_sativa	rep3	Transcriptomics|Oryza_sativa|rep3	Deepseek-R1	Deepseek-R1	16	17	10	5	48
+Transcriptomics	Oryza_sativa	rep4	Transcriptomics|Oryza_sativa|rep4	Deepseek-R1	Deepseek-R1	17	18	10	6.25	51.25
+Transcriptomics	Oryza_sativa	rep5	Transcriptomics|Oryza_sativa|rep5	Deepseek-R1	Deepseek-R1	18	19	12	5	54
+Proteomics	Oryza_sativa	rep1	Proteomics|Oryza_sativa|rep1	Deepseek-R1	Deepseek-R1	18	18	13	6.25	55.25
+Proteomics	Oryza_sativa	rep2	Proteomics|Oryza_sativa|rep2	Deepseek-R1	Deepseek-R1	18	18	13	6.25	55.25
+Proteomics	Oryza_sativa	rep3	Proteomics|Oryza_sativa|rep3	Deepseek-R1	Deepseek-R1	18	19	14	6.25	57.25
+Proteomics	Oryza_sativa	rep4	Proteomics|Oryza_sativa|rep4	Deepseek-R1	Deepseek-R1	19	19	15	12.5	65.5
+Proteomics	Oryza_sativa	rep5	Proteomics|Oryza_sativa|rep5	Deepseek-R1	Deepseek-R1	18	18	13	18.75	67.75
+Metabolomics	Oryza_sativa	rep1	Metabolomics|Oryza_sativa|rep1	Deepseek-R1	Deepseek-R1	15	11	11	12.5	49.5
+Metabolomics	Oryza_sativa	rep2	Metabolomics|Oryza_sativa|rep2	Deepseek-R1	Deepseek-R1	16	12	12	6.25	46.25
+Metabolomics	Oryza_sativa	rep3	Metabolomics|Oryza_sativa|rep3	Deepseek-R1	Deepseek-R1	15	11	11	6.25	43.25
+Metabolomics	Oryza_sativa	rep4	Metabolomics|Oryza_sativa|rep4	Deepseek-R1	Deepseek-R1	17	14	13	12.5	56.5
+Metabolomics	Oryza_sativa	rep5	Metabolomics|Oryza_sativa|rep5	Deepseek-R1	Deepseek-R1	16	13	12	6.25	47.25
+Evolutionary analysis	Oryza_sativa	rep1	Evolutionary analysis|Oryza_sativa|rep1	Deepseek-R1	Deepseek-R1	19	19	16	6.25	60.25
+Evolutionary analysis	Oryza_sativa	rep2	Evolutionary analysis|Oryza_sativa|rep2	Deepseek-R1	Deepseek-R1	19	19	16	12.5	66.5
+Evolutionary analysis	Oryza_sativa	rep3	Evolutionary analysis|Oryza_sativa|rep3	Deepseek-R1	Deepseek-R1	18	18	14	6.25	56.25
+Evolutionary analysis	Oryza_sativa	rep4	Evolutionary analysis|Oryza_sativa|rep4	Deepseek-R1	Deepseek-R1	17	16	13	6.25	52.25
+Evolutionary analysis	Oryza_sativa	rep5	Evolutionary analysis|Oryza_sativa|rep5	Deepseek-R1	Deepseek-R1	18	18	14	12.5	62.5
+Epigenomics	Oryza_sativa	rep1	Epigenomics|Oryza_sativa|rep1	Deepseek-R1	Deepseek-R1	20	19	15	18.75	72.75
+Epigenomics	Oryza_sativa	rep2	Epigenomics|Oryza_sativa|rep2	Deepseek-R1	Deepseek-R1	18	18	14	18.75	68.75
+Epigenomics	Oryza_sativa	rep3	Epigenomics|Oryza_sativa|rep3	Deepseek-R1	Deepseek-R1	19	19	15	6.25	59.25
+Epigenomics	Oryza_sativa	rep4	Epigenomics|Oryza_sativa|rep4	Deepseek-R1	Deepseek-R1	17	17	13	15	62
+Epigenomics	Oryza_sativa	rep5	Epigenomics|Oryza_sativa|rep5	Deepseek-R1	Deepseek-R1	18	18	14	25	75
+Variant calling	Oryza_sativa	rep1	Variant calling|Oryza_sativa|rep1	Deepseek-R1	Deepseek-R1	19	21	17	15	72
+Variant calling	Oryza_sativa	rep2	Variant calling|Oryza_sativa|rep2	Deepseek-R1	Deepseek-R1	20	21	18	15	74
+Variant calling	Oryza_sativa	rep3	Variant calling|Oryza_sativa|rep3	Deepseek-R1	Deepseek-R1	18	17	17	10	62
+Variant calling	Oryza_sativa	rep4	Variant calling|Oryza_sativa|rep4	Deepseek-R1	Deepseek-R1	17	17	15	6.25	55.25
+Variant calling	Oryza_sativa	rep5	Variant calling|Oryza_sativa|rep5	Deepseek-R1	Deepseek-R1	21	21	18	15	75
+GWAS	Oryza_sativa	rep1	GWAS|Oryza_sativa|rep1	Deepseek-R1	Deepseek-R1	18	17	14	12.5	61.5
+GWAS	Oryza_sativa	rep2	GWAS|Oryza_sativa|rep2	Deepseek-R1	Deepseek-R1	18	17	14	10	59
+GWAS	Oryza_sativa	rep3	GWAS|Oryza_sativa|rep3	Deepseek-R1	Deepseek-R1	18	17	14	6.25	55.25
+GWAS	Oryza_sativa	rep4	GWAS|Oryza_sativa|rep4	Deepseek-R1	Deepseek-R1	17	16	13	12.5	58.5
+GWAS	Oryza_sativa	rep5	GWAS|Oryza_sativa|rep5	Deepseek-R1	Deepseek-R1	17	16	13	6.25	52.25
+Genomic selection	Oryza_sativa	rep1	Genomic selection|Oryza_sativa|rep1	Deepseek-R1	Deepseek-R1	16	12	12	12.5	52.5
+Genomic selection	Oryza_sativa	rep2	Genomic selection|Oryza_sativa|rep2	Deepseek-R1	Deepseek-R1	14	13	11	6.25	44.25
+Genomic selection	Oryza_sativa	rep3	Genomic selection|Oryza_sativa|rep3	Deepseek-R1	Deepseek-R1	13	14	11	12.5	50.5
+Genomic selection	Oryza_sativa	rep4	Genomic selection|Oryza_sativa|rep4	Deepseek-R1	Deepseek-R1	12	15	12	6.25	45.25
+Genomic selection	Oryza_sativa	rep5	Genomic selection|Oryza_sativa|rep5	Deepseek-R1	Deepseek-R1	12	11	13	6.25	42.25
+Single-cell analysis	Oryza_sativa	rep1	Single-cell analysis|Oryza_sativa|rep1	Deepseek-R1	Deepseek-R1	21	20	18	10	69
+Single-cell analysis	Oryza_sativa	rep2	Single-cell analysis|Oryza_sativa|rep2	Deepseek-R1	Deepseek-R1	21	20	18	5	64
+Single-cell analysis	Oryza_sativa	rep3	Single-cell analysis|Oryza_sativa|rep3	Deepseek-R1	Deepseek-R1	21	20	18	10	69
+Single-cell analysis	Oryza_sativa	rep4	Single-cell analysis|Oryza_sativa|rep4	Deepseek-R1	Deepseek-R1	21	20	18	25	84
+Single-cell analysis	Oryza_sativa	rep5	Single-cell analysis|Oryza_sativa|rep5	Deepseek-R1	Deepseek-R1	21	20	18	5	64
+Spatial transcriptomics	Oryza_sativa	rep1	Spatial transcriptomics|Oryza_sativa|rep1	Deepseek-R1	Deepseek-R1	20	19	19	6.25	64.25
+Spatial transcriptomics	Oryza_sativa	rep2	Spatial transcriptomics|Oryza_sativa|rep2	Deepseek-R1	Deepseek-R1	20	19	19	6.25	64.25
+Spatial transcriptomics	Oryza_sativa	rep3	Spatial transcriptomics|Oryza_sativa|rep3	Deepseek-R1	Deepseek-R1	20	19	19	12.5	70.5
+Spatial transcriptomics	Oryza_sativa	rep4	Spatial transcriptomics|Oryza_sativa|rep4	Deepseek-R1	Deepseek-R1	20	19	19	6.25	64.25
+Spatial transcriptomics	Oryza_sativa	rep5	Spatial transcriptomics|Oryza_sativa|rep5	Deepseek-R1	Deepseek-R1	20	19	19	6.25	64.25

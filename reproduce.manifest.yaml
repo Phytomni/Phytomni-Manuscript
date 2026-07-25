@@ -8,6 +8,10 @@ targets:
     kernel: py
     status: run
     requires_data:
+      - "Fig. 2/PhytoBench-Knowledge-for_plot.tsv"
+      - "Fig. 2/PhytoBench-Data-for_plot.tsv"
+      - "Fig. 2/PhytoBench-Analysis-for_plot.tsv"
+      - "Fig. 2/PhytoBench-Core-for_plot-provenance.json"
       - "Fig. 2/PhytoBench-Gene-BERTScore-for_plot.tsv"
     expected_artifacts:
       - "Fig. 2/output/fig.2a.phytobench-knowledge.bar.pdf"
