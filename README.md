@@ -105,7 +105,7 @@ Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) 
 |---|---|---|---|---|---|
 | Fig. 2a-c,g | `Fig. 2/fig. 2.ipynb` | `python3` | `PhytoBench-Knowledge-for_plot.tsv` ✓, … (5 files) | `run` | `fig.2a.phytobench-knowledge.bar.pdf` / `fig.2b.phytobench-data.bar.pdf` / `fig.2c.phytobench-analysis.violin.pdf` / `fig.2g.phytobench-gene.well_studied.bar.pdf` |
 | Fig. 2h | `Fig. 2/fig. 2.ipynb` | `python3` | `PhytoBench-Gene-BERTScore-for_plot.tsv` ✓, `PhytoBench-Gene-hallucination-for_plot.tsv` ✓ | `run` | `fig.2h.phytobench-gene.uncharacterized.bar.pdf` |
-| Fig. 2d-f | `Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb` | `python3` | `rank_distribution.tsv` ✓, … (13 files) | `run` | `fig.2d.phytobench-gene.percent.bar.pdf` / `fig.2e.phytobench-gene.prob.heatmap.pdf` / `fig.2f.phytobench-gene.score.bar.pdf` |
+| Fig. 2d-f | `Supplementary Fig. 12-15/supplementary_fig. 12-15.ipynb` | `python3` | `rank_distribution.tsv` ✓, … (13 files) | `run` | `fig.2d.phytobench-gene.percent.bar.pdf` / `fig.2e.phytobench-gene.prob.heatmap.pdf` / `fig.2f.phytobench-gene.score.bar.pdf` |
 | Fig. 3 | `Fig. 3/fig. 3.ipynb` | `python3` | `PhytoBench-Paper-for_plot.xlsx` ✓ | `run` | `fig.3d.phytobench-paper.line.pdf` / `fig.3e.phytobench-paper.heatmap.pdf` |
 | Ext. Data 5a | `Extended Data Fig. 5/extended_data_fig. 5ab.ipynb` | `ir` (R) | `Phytomni-PaperYear-for_plot.csv` ✓ | `run` | `extended_data_fig.5a.pdf` |
 | Ext. Data 5b | `Extended Data Fig. 5/extended_data_fig. 5ab.ipynb` | `ir` (R) | `Phytomni-DocType-for_plot.csv` ⚠ | `skip_until_data` | `extended_data_fig.5b.pdf` |
@@ -116,23 +116,21 @@ Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) 
 | Ext. Data 6d,e | `Extended Data Fig. 6/extended_data_fig. 6de.ipynb` | `python3` | *inline* | `run` | `extended_data_fig.6d.pdf` / `extended_data_fig.6e.pdf` |
 | Ext. Data 6f,g | `Extended Data Fig. 6/extended_data_fig. 6fg.ipynb` | `python3` | *inline* | `run` | `model_compare_agent_total.pdf` / `model_compare_agent_total_across_speciesv1.pdf` |
 | Ext. Data 7 | `Extended Data Fig. 7/extended_data_fig. 7.ipynb` | `ir` (R) | *inline* | `run` | `extended_data_fig.7.pdf` |
+| Ext. Data 6ab (deprecated notebook) | `Extended Data Fig. 6/extended_data_fig.6ab.ipynb` | none | *inline* | `deprecated` | — |
 | Supp. 1 | `Supplementary Fig. 1/supplementary_fig. 1.ipynb` | `python3` | `Phyto-Chatbot-Pretrain.loss.json` ✓, … (4 files) | `run` | `supplementary_fig.1a.chatbot_pretrain_loss.line.pdf` / `supplementary_fig.1b.reasoner_pretrain_loss.line.pdf` / `supplementary_fig.1c.chatbot_sft_loss.line.pdf` / `supplementary_fig.1d.reasoner_sft_loss.line.pdf` |
 | Supp. 6 | `Supplementary Fig. 6/supplementary_fig. 6.ipynb` | `ir` (R) | *inline* | `run` | `supplementary_fig.6a.pdf` / `supplementary_fig.6b.pdf` |
-| Supp. 17 | `Supplementary Fig. 17/supplementary_fig. 17.ipynb` | `ir` (R) | *inline* | `run` | `supplementary_fig.17.pdf` |
-| Ext. Data 6ab (deprecated notebook) | `Extended Data Fig. 6/extended_data_fig.6ab.ipynb` | none | *inline* | `deprecated` | — |
 | Supp. 7 | `Supplementary Fig. 7/supplementary_fig. 7.py` | `python3` (script) | `PhytoBench-Data-for_plot.xlsx` ✓ | `run` | `model_accuracy_by_species.pdf` |
-| Supp. 8 | `Supplementary Fig. 8/supplementary_fig. 8.ipynb` | `python3` | *inline* | `run` | `model_compare_agent_split.pdf` |
-| Supp. 9 | `Supplementary Fig. 9/supplementary_fig. 9.ipynb` | `python3` | *inline* | `run` | `model_compare_agent_split_across_speciesv1.pdf` |
-| Supp. 10-13 | `Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb` | `python3` | `rank_distribution.tsv` ✓, … (13 files) | `run` | `supplementary_fig.10.phytobench-gene.well_studied.percent.bar.pdf` / `supplementary_fig.10.phytobench-gene.well_studied.rice.percent.bar.pdf` / `supplementary_fig.10.phytobench-gene.well_studied.maize.percent.bar.pdf` / … (52 files) |
-| Supp. 14 | `Supplementary Fig. 14/supplementary_fig. 14.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.6a.model.paperbench-mp.line.pdf` / `supplementary_fig.6b.model.paperbench-as.line.pdf` / `supplementary_fig.6c.model.paperbench-cr.line.pdf` / … (5 files) |
-| Supp. 19 | `Supplementary Fig. 19/supplementary_fig. 19.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.19.pdf` |
-| Supp. 24 | `Supplementary Fig. 24/supplementary_fig. 24.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.13.phytobench-review.polar.pdf` |
+| Supp. 12-15 | `Supplementary Fig. 12-15/supplementary_fig. 12-15.ipynb` | `python3` | `rank_distribution.tsv` ✓, … (13 files) | `run` | `supplementary_fig.12.phytobench-gene.well_studied.percent.bar.pdf` / `supplementary_fig.12.phytobench-gene.well_studied.rice.percent.bar.pdf` / `supplementary_fig.12.phytobench-gene.well_studied.maize.percent.bar.pdf` / … (52 files) |
+| Supp. 16 | `Supplementary Fig. 16/supplementary_fig. 16.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.16a.model.paperbench-mp.line.pdf` / `supplementary_fig.16b.model.paperbench-as.line.pdf` / `supplementary_fig.16c.model.paperbench-cr.line.pdf` / … (5 files) |
+| Supp. 19 | `Supplementary Fig. 19/supplementary_fig. 19.ipynb` | `ir` (R) | *inline* | `run` | `supplementary_fig.19.pdf` |
+| Supp. 21 | `Supplementary Fig. 21/supplementary_fig. 21.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.21.pdf` |
+| Supp. 26 | `Supplementary Fig. 26/supplementary_fig. 26.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.26.phytobench-review.polar.pdf` |
 <!-- END:REPRODUCE_MATRIX -->
 
 ### How to run
 
 - **Python notebooks** need only the Python environment from [Environment setup](#environment-setup). Run headlessly with `$NBX "<file>"`, or open the file in `jupyter lab` and run all cells.
-- **R notebooks** (`5ab`, `6abc`, `7`, Supp. 6, Supp. 17; plus the `6abc.Rmd` R Markdown) need the `ir` kernel / an R install — install the kernel once with `R -e "IRkernel::installspec()"`. Without it, `nbconvert` reports `No such kernel`.
+- **R notebooks** (`5ab`, `6abc`, `7`, Supp. 6, Supp. 19; plus the `6abc.Rmd` R Markdown) need the `ir` kernel / an R install — install the kernel once with `R -e "IRkernel::installspec()"`. Without it, `nbconvert` reports `No such kernel`.
 - **The R script** (`5c.R`) runs standalone with `Rscript`; its save (`ggsave`) is gated behind `PHYTOMNI_SAVE` like every other file.
 - **The Python script** (`Supplementary Fig. 7/supplementary_fig. 7.py`) also runs standalone with `python3` (not via `$NBX` — it is a script, not a notebook). It reads `PhytoBench-Data-for_plot.xlsx` by a bare relative path, so run it from inside its directory: `cd "Supplementary Fig. 7" && python3 "supplementary_fig. 7.py"`.
 - **Figure-saving is gated behind `PHYTOMNI_SAVE`.** A default run renders each figure inline and writes nothing. Set `PHYTOMNI_SAVE=1` to emit every figure into that directory's `output/` (gitignored; filenames follow `<figure>.<panel>.pdf`/`.png`). `reproduce.sh` does this for you — see [One command](#one-command) above.
@@ -185,7 +183,7 @@ The `output/` and `result/` directories it creates are gitignored.
 
 The full anonymized scoring attachment is tracked at `DeepGenomeAgent Evaluation/supplementary/Supplementary_Data_Expert_Rankings.tsv`, with its field definitions in `Supplementary_Data_Expert_Rankings_Codebook.tsv`. It contains 600 expert–gene assignments from 120 anonymized experts and 200 genes: each row is one complete, no-tie R1–R5 ranking of the five models. The public `expert_panel_category_map.tsv` records the privacy-reviewed category aggregation used for the panel-composition summary. Row-level expert demographics are not released; only the aggregate panel summary is used by the figure notebook.
 
-The private query workbook, response corpus, hallucination-judgment logs, expert metadata workbook, and private lineage `score.tsv` are not shipped. Exact numeric reproduction of the inconsistency results requires the frozen judgment logs used for the reported run; rerunning a drifting external judge alias can change entailment labels and therefore does not guarantee the same numbers. The checked-in schema-2 ranking aggregates reproduce the reported ranking figures without those private inputs. The compact Claude BERTScore and hallucination tables, together with their non-secret provenance record, are tracked under `Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/frozen/` and are the reproducibility inputs for the Claude bars in Fig. 2g-h.
+The private query workbook, response corpus, hallucination-judgment logs, expert metadata workbook, and private lineage `score.tsv` are not shipped. Exact numeric reproduction of the inconsistency results requires the frozen judgment logs used for the reported run; rerunning a drifting external judge alias can change entailment labels and therefore does not guarantee the same numbers. The checked-in schema-2 ranking aggregates reproduce the reported ranking figures without those private inputs. The compact Claude BERTScore and hallucination tables, together with their non-secret provenance record, are tracked under `Supplementary Fig. 12-15/PhytoBench-Gene-for_plot/frozen/` and are the reproducibility inputs for the Claude bars in Fig. 2g-h.
 
 For an offline repository check, install only the locked base environment and run the scoring contract tests. The Plackett–Luce notebook can also execute without private data:
 
@@ -210,7 +208,7 @@ uv run --no-sync python -m scripts.freeze_deepgenome_rankings \
   "DeepGenomeAgent Evaluation/supplementary/Supplementary_Data_Expert_Rankings.tsv" \
   --expert-column AnonymousExpertID \
   --gene-categories \
-  "Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/gene_categories.tsv" \
+  "Supplementary Fig. 12-15/PhytoBench-Gene-for_plot/gene_categories.tsv" \
   --expert-metadata /absolute/path/to/expert_metadata.xlsx \
   --private-lineage-score /absolute/path/to/private/score.tsv \
   --panel-category-map \
@@ -219,22 +217,22 @@ uv run --no-sync python -m scripts.freeze_deepgenome_rankings \
   --seed 20260714 \
   --max-failed-fits 10 \
   --output-dir \
-  "Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/frozen"
+  "Supplementary Fig. 12-15/PhytoBench-Gene-for_plot/frozen"
 ```
 
 The freezer rejects incomplete rankings and writes exactly 13 tracked inputs: 12 aggregate TSV tables plus `provenance.json`. The snapshot contains rank-distribution, Plackett–Luce score, and pairwise-probability point estimates and 95% confidence intervals; Fleiss-κ, per-gene Kendall W, ordinal-agreement, and top-1-consensus results; expert-panel and assignment summaries; and checksummed provenance. Both the Plackett–Luce and agreement analyses use 10,000 successful bootstrap replicates. Plackett–Luce intervals use the crossed expert–gene percentile analysis, while agreement intervals use a gene-block percentile bootstrap stratified by species and study status.
 
-For Fleiss-κ, an item is one gene×model pair, R1–R5 are the rating categories, and each item has three expert ratings. `fleiss_kappa.tsv` retains all 58 locked scopes: 1 primary overall scope, 12 locked secondary scopes (five species, two study-status groups, and five models), and 45 locked exploratory interaction scopes. Supplementary Fig. 11 displays the overall, five-species, and two-study-status κ estimates; the model-specific and exploratory estimates remain in the complete 58-scope audit table. Kendall W summarizes each gene's three complete rankings across the five models, and the top-1 table classifies each gene as unanimous, two-of-three majority, or all different. The four Supplementary Fig. 11 panels report panel composition and assignment balance, Fleiss-κ, mean Kendall W, and top-1 consensus, respectively.
+For Fleiss-κ, an item is one gene×model pair, R1–R5 are the rating categories, and each item has three expert ratings. `fleiss_kappa.tsv` retains all 58 locked scopes: 1 primary overall scope, 12 locked secondary scopes (five species, two study-status groups, and five models), and 45 locked exploratory interaction scopes. Supplementary Fig. 13 displays the overall, five-species, and two-study-status κ estimates; the model-specific and exploratory estimates remain in the complete 58-scope audit table. Kendall W summarizes each gene's three complete rankings across the five models, and the top-1 table classifies each gene as unanimous, two-of-three majority, or all different. The four Supplementary Fig. 13 panels report panel composition and assignment balance, Fleiss-κ, mean Kendall W, and top-1 consensus, respectively.
 
 Panel-composition percentages are explicit about their denominator. The multi-select `Research_domains` and `Study_species` dimensions use all 120 experts, so their category percentages need not sum to 100%; single-select dimensions use nonmissing respondents and report the missing count. Conflict of interest is reported as a self-declaration: all 120 experts selected `No`, so the supported statement is that no conflicts were declared, not that conflicts were independently excluded.
 
-The older four-model `legacy/score*.tsv` files remain only as legacy provenance and are not read by the current plotting path. `Fig. 2d-f` and all stratified Supplementary Fig. 10-13 panels read the frozen aggregate tables; `Fig. 2g-h` read the tracked five-model figure tables. Generate them directly with:
+The older four-model `legacy/score*.tsv` files remain only as legacy provenance and are not read by the current plotting path. `Fig. 2d-f` and all stratified Supplementary Fig. 12-15 panels read the frozen aggregate tables; `Fig. 2g-h` read the tracked five-model figure tables. Generate them directly with:
 
 ```bash
 mkdir -p /tmp/phytomni-figure-runs
 PHYTOMNI_SAVE=1 uv run --no-sync jupyter nbconvert \
   --to notebook --execute --output-dir=/tmp/phytomni-figure-runs \
-  "Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb"
+  "Supplementary Fig. 12-15/supplementary_fig. 12-15.ipynb"
 PHYTOMNI_SAVE=1 uv run --no-sync jupyter nbconvert \
   --to notebook --execute --output-dir=/tmp/phytomni-figure-runs \
   "Fig. 2/fig. 2.ipynb"
@@ -257,6 +255,12 @@ column mappings before writing the TSV files. For Fig. 2c, it retains the 50
 primary benchmark runs (10 scenarios × 5 runs), excludes the 60 cross-species
 extension runs, and verifies that each 0–100 total score equals the sum of the
 planning, tool-selection, parameter-setting, and execution scores (each 0–25).
+The current Fig. 2a contract aligns the Phyto-Chatbot values to the
+20260727 manuscript (`IdentificationAccuracy = 0.720` and
+`TraceBLEU4 = 0.084`) because the private Supplementary Data 3-new and 4-new
+workbooks have not yet been corrected to those reported values. The freezer
+records both the workbook-computed values and the manuscript-aligned values;
+Fig. 2b and Fig. 2c remain derived directly from their private workbooks.
 It also writes
 `PhytoBench-Core-for_plot-provenance.json`, which records source-file hashes,
 row counts, the Fig. 2c scope, metric definitions, model order, and output
