@@ -32,7 +32,7 @@ MODEL_ORDER = [
 
 EXPECTED_IDENTIFICATION_ACCURACY = {
     "Phyto-Reasoner": 0.7757142857142857,
-    "Phyto-Chatbot": 0.6328571428571429,
+    "Phyto-Chatbot": 0.72,
     "GPT-5": 0.4514285714285714,
     "o3": 0.4114285714285714,
     "Gemini-2.5-Pro": 0.42714285714285716,
@@ -43,7 +43,7 @@ EXPECTED_IDENTIFICATION_ACCURACY = {
 }
 EXPECTED_TRACE_BLEU4 = {
     "Phyto-Reasoner": 0.09010893858062388,
-    "Phyto-Chatbot": 0.06023096459723756,
+    "Phyto-Chatbot": 0.084,
     "GPT-5": 0.011369437572386475,
     "o3": 0.008644131287009985,
     "Gemini-2.5-Pro": 0.013907710816595295,
@@ -95,7 +95,7 @@ def test_fig2_core_metric_freezer_is_importable_and_declares_outputs() -> None:
     }
 
 
-def test_fig2_core_frozen_inputs_match_latest_source_results() -> None:
+def test_fig2_core_frozen_inputs_match_locked_publication_values() -> None:
     required = [KNOWLEDGE_INPUT, DATA_INPUT, ANALYSIS_INPUT, PROVENANCE]
     missing = [path.name for path in required if not path.is_file()]
     assert not missing, f"Missing Fig. 2a-c frozen inputs: {missing}"
@@ -157,6 +157,24 @@ def test_fig2_core_frozen_inputs_match_latest_source_results() -> None:
         "repeats_per_task": 5,
         "rows": 50,
         "excluded_cross_species_rows": 60,
+    }
+    alignment = provenance["manuscript_alignment"]
+    assert alignment["panel"] == "Fig. 2a"
+    assert alignment["source_document"] == (
+        "2025-11-31329A-Z_Article_File-20260727.working.md"
+    )
+    assert alignment["source_sha256"] == (
+        "2e25c9e62d396c22ef764f8f70cccfdb143617de0f73361de80f95e4613ec964"
+    )
+    assert alignment["overrides"]["Phyto-Chatbot"] == {
+        "IdentificationAccuracy": {
+            "source_workbook_value": pytest.approx(0.6328571428571429),
+            "manuscript_value": 0.72,
+        },
+        "TraceBLEU4": {
+            "source_workbook_value": pytest.approx(0.06023096459723756),
+            "manuscript_value": 0.084,
+        },
     }
     assert provenance["outputs"] == {
         KNOWLEDGE_INPUT.name: _sha256(KNOWLEDGE_INPUT),

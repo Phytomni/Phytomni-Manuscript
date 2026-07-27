@@ -30,6 +30,19 @@ MODEL_ORDER = (
 )
 
 PRIMARY_ANALYSIS_SPECIES = "Oryza_sativa"
+FIG2A_MANUSCRIPT_SOURCE = {
+    "panel": "Fig. 2a",
+    "source_document": "2025-11-31329A-Z_Article_File-20260727.working.md",
+    "source_sha256": (
+        "2e25c9e62d396c22ef764f8f70cccfdb143617de0f73361de80f95e4613ec964"
+    ),
+}
+FIG2A_MANUSCRIPT_VALUES = {
+    "Phyto-Chatbot": {
+        "IdentificationAccuracy": 0.72,
+        "TraceBLEU4": 0.084,
+    }
+}
 ANALYSIS_SCORE_COLUMNS = {
     "PlanScore": "Plan_Score",
     "ToolScore": "Tool_Score",
@@ -286,6 +299,23 @@ def freeze_core_metrics(
             }
         )
 
+    knowledge_output = pd.DataFrame(knowledge_rows)
+    alignment_overrides: dict[str, dict[str, dict[str, float]]] = {}
+    for model, metrics in FIG2A_MANUSCRIPT_VALUES.items():
+        model_rows = knowledge_output["Model"].eq(model)
+        if int(model_rows.sum()) != 1:
+            raise ValueError(
+                f"Expected one Fig. 2a row for manuscript-aligned model {model}."
+            )
+        alignment_overrides[model] = {}
+        for metric, manuscript_value in metrics.items():
+            source_value = float(knowledge_output.loc[model_rows, metric].iloc[0])
+            alignment_overrides[model][metric] = {
+                "source_workbook_value": source_value,
+                "manuscript_value": manuscript_value,
+            }
+            knowledge_output.loc[model_rows, metric] = manuscript_value
+
     task = _base_series(analysis, "Task").ffill()
     query = _base_series(analysis, "Query").ffill()
     species = _base_series(analysis, "Species")
@@ -374,7 +404,7 @@ def freeze_core_metrics(
         )
 
     outputs = {
-        "knowledge": pd.DataFrame(knowledge_rows),
+        "knowledge": knowledge_output,
         "data": pd.DataFrame(data_rows),
         "analysis": pd.concat(analysis_frames, ignore_index=True),
     }
@@ -415,6 +445,14 @@ def freeze_core_metrics(
             "analysis": _sha256(analysis_path),
         },
         "source_columns": SOURCE_COLUMNS,
+        "manuscript_alignment": {
+            **FIG2A_MANUSCRIPT_SOURCE,
+            "reason": (
+                "The private Supplementary Data 3-new and 4-new workbooks have "
+                "not yet been corrected to the manuscript values."
+            ),
+            "overrides": alignment_overrides,
+        },
     }
     return outputs, provenance
 

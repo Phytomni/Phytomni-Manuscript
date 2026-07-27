@@ -6,6 +6,24 @@
     "species": "Oryza_sativa",
     "tasks": 10
   },
+  "manuscript_alignment": {
+    "overrides": {
+      "Phyto-Chatbot": {
+        "IdentificationAccuracy": {
+          "manuscript_value": 0.72,
+          "source_workbook_value": 0.6328571428571429
+        },
+        "TraceBLEU4": {
+          "manuscript_value": 0.084,
+          "source_workbook_value": 0.06023096459723756
+        }
+      }
+    },
+    "panel": "Fig. 2a",
+    "reason": "The private Supplementary Data 3-new and 4-new workbooks have not yet been corrected to the manuscript values.",
+    "source_document": "2025-11-31329A-Z_Article_File-20260727.working.md",
+    "source_sha256": "2e25c9e62d396c22ef764f8f70cccfdb143617de0f73361de80f95e4613ec964"
+  },
   "metric_definitions": {
     "Accuracy": "mean binary judgment",
     "IdentificationAccuracy": "mean binary judgment",
@@ -30,7 +48,7 @@
   "outputs": {
     "PhytoBench-Analysis-for_plot.tsv": "c41579c58703642ba952cef7c26d7d762497eab303b2d63ba038fe9bc306381f",
     "PhytoBench-Data-for_plot.tsv": "e424793c32ac16d09beef630be901405481b062f0ee511153595e45310f9aa1c",
-    "PhytoBench-Knowledge-for_plot.tsv": "d17235ef97cb3b9094231af706130fe7bf4a6803764b855c35c24bb1683cb3be"
+    "PhytoBench-Knowledge-for_plot.tsv": "4fd6de8f5805ad507efdd4ab3e7de7c0a4966f8f58a0ef717d6702b56acd2b45"
   },
   "schema_version": 2,
   "source_columns": {
