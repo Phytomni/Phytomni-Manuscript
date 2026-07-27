@@ -30,7 +30,7 @@ FIG2_BERTSCORE_Y_RANGE = (0.47, 0.58)
 DISPLAY_LABELS = {
     "Phytomni": "Phytomni",
     "Gemini": "Gemini Deep Research",
-    "Claude": "Claude deep research",
+    "Claude": "Claude Research",
     "OpenAI": "ChatGPT Agent mode",
     "Grok": "Grok DeepSearch",
 }

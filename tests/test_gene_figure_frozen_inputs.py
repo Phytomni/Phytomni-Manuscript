@@ -16,9 +16,9 @@ from scripts.freeze_deepgenome_rankings import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
-FIGURE_DIR = ROOT / "Supplementary Fig. 10-13"
+FIGURE_DIR = ROOT / "Supplementary Fig. 12-15"
 DATA_DIR = FIGURE_DIR / "PhytoBench-Gene-for_plot" / "frozen"
-NOTEBOOK = FIGURE_DIR / "supplementary_fig. 10-13.ipynb"
+NOTEBOOK = FIGURE_DIR / "supplementary_fig. 12-15.ipynb"
 FIG2_DIR = ROOT / "Fig. 2"
 FIG2_NOTEBOOK = FIG2_DIR / "fig. 2.ipynb"
 FIG2_BERTSCORE = FIG2_DIR / "PhytoBench-Gene-BERTScore-for_plot.tsv"
@@ -787,10 +787,10 @@ def test_supplementary_notebook_encodes_ci_and_agreement_figures() -> None:
     assert "top1_consensus" in source
     assert "1.0 / 3.0" in source
     assert "No conflicts of interest were declared" in source
-    assert "supplementary_fig.10.phytobench-gene" in source
-    assert "supplementary_fig.11.expert-panel-and-agreement" in source
     assert "supplementary_fig.12.phytobench-gene" in source
-    assert "supplementary_fig.13.phytobench-gene" in source
+    assert "supplementary_fig.13.expert-panel-and-agreement" in source
+    assert "supplementary_fig.14.phytobench-gene" in source
+    assert "supplementary_fig.15.phytobench-gene" in source
     assert "supplementary_fig.7.phytobench-gene" not in source
     assert "supplementary_fig.8.phytobench-gene" not in source
     assert "supplementary_fig.9.phytobench-gene" not in source
@@ -920,7 +920,7 @@ def test_elo_figure_preserves_bars_and_adds_asymmetric_intervals(
     assert list(trace.x) == [
         "Phytomni",
         "Gemini Deep Research",
-        "Claude deep research",
+        "Claude Research",
         "ChatGPT Agent mode",
         "Grok DeepSearch",
     ]
@@ -968,7 +968,7 @@ def test_elo_figure_preserves_bars_and_adds_asymmetric_intervals(
     assert tuple(main.layout.yaxis.range) == (1200, 1700)
 
 
-def test_supplementary_figure_11_uses_manuscript_species_order(
+def test_supplementary_figure_13_uses_manuscript_species_order(
     monkeypatch,
 ) -> None:
     notebook = nbformat.read(NOTEBOOK, as_version=4)
@@ -1104,7 +1104,7 @@ def test_rendered_figure_contract_preserves_precision_and_readability(
             in {
                 "Phytomni",
                 "Gemini Deep Research",
-                "Claude deep research",
+                "Claude Research",
                 "ChatGPT Agent mode",
                 "Grok DeepSearch",
             }
@@ -1121,7 +1121,7 @@ def test_supplementary_notebook_uses_requested_claude_label_and_order() -> None:
     source = notebook_source()
 
     assert 'MODEL_ORDER = ["Phytomni", "Gemini", "Claude", "OpenAI", "Grok"]' in source
-    assert '"Claude": "Claude deep research"' in source
+    assert '"Claude": "Claude Research"' in source
 
 
 def test_fig2g_and_fig2h_read_frozen_five_model_metrics() -> None:
@@ -1141,7 +1141,7 @@ def test_fig2g_and_fig2h_read_frozen_five_model_metrics() -> None:
     assert bertscore["DisplayLabel"].tolist() == [
         "Phytomni",
         "Gemini Deep Research",
-        "Claude deep research",
+        "Claude Research",
         "ChatGPT Agent mode",
         "Grok DeepSearch",
     ]
@@ -1188,42 +1188,42 @@ def test_manifest_connects_fig2def_and_marks_fig2h_runnable() -> None:
 
     fig2def = targets["fig-2def"]
     assert fig2def["path"] == (
-        "Supplementary Fig. 10-13/supplementary_fig. 10-13.ipynb"
+        "Supplementary Fig. 12-15/supplementary_fig. 12-15.ipynb"
     )
     expected_frozen_inputs = {
-        "Supplementary Fig. 10-13/PhytoBench-Gene-for_plot/frozen/"
+        "Supplementary Fig. 12-15/PhytoBench-Gene-for_plot/frozen/"
         f"{filename}"
         for filename in EXPECTED_RANKING_FROZEN_FILES
     }
     assert set(fig2def["requires_data"]) == expected_frozen_inputs
     assert set(fig2def["expected_artifacts"]) == {
-        "Supplementary Fig. 10-13/output/"
+        "Supplementary Fig. 12-15/output/"
         "fig.2d.phytobench-gene.percent.bar.pdf",
-        "Supplementary Fig. 10-13/output/"
+        "Supplementary Fig. 12-15/output/"
         "fig.2e.phytobench-gene.prob.heatmap.pdf",
-        "Supplementary Fig. 10-13/output/"
+        "Supplementary Fig. 12-15/output/"
         "fig.2f.phytobench-gene.score.bar.pdf",
     }
 
-    supplementary = targets["supp-10-13"]
+    supplementary = targets["supp-12-15"]
     assert set(supplementary["requires_data"]) == expected_frozen_inputs
     expected_supplementary_artifacts = {
-        "Supplementary Fig. 10-13/output/"
-        f"supplementary_fig.10.phytobench-gene.{scope}.percent.bar.pdf"
+        "Supplementary Fig. 12-15/output/"
+        f"supplementary_fig.12.phytobench-gene.{scope}.percent.bar.pdf"
         for scope in STRATIFIED_SCOPES
     }
     expected_supplementary_artifacts.add(
-        "Supplementary Fig. 10-13/output/"
-        "supplementary_fig.11.expert-panel-and-agreement.pdf"
+        "Supplementary Fig. 12-15/output/"
+        "supplementary_fig.13.expert-panel-and-agreement.pdf"
     )
     expected_supplementary_artifacts.update(
-        "Supplementary Fig. 10-13/output/"
-        f"supplementary_fig.12.phytobench-gene.{scope}.prob.heatmap.pdf"
+        "Supplementary Fig. 12-15/output/"
+        f"supplementary_fig.14.phytobench-gene.{scope}.prob.heatmap.pdf"
         for scope in STRATIFIED_SCOPES
     )
     expected_supplementary_artifacts.update(
-        "Supplementary Fig. 10-13/output/"
-        f"supplementary_fig.13.phytobench-gene.{scope}.score.bar.pdf"
+        "Supplementary Fig. 12-15/output/"
+        f"supplementary_fig.15.phytobench-gene.{scope}.score.bar.pdf"
         for scope in STRATIFIED_SCOPES
     )
     assert set(supplementary["expected_artifacts"]) == (

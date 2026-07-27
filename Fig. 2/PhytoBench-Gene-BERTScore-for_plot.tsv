@@ -1,6 +1,6 @@
 Model	DisplayLabel	BERTScorePrecision
 Phytomni	Phytomni	0.561641240715981
 Gemini	Gemini Deep Research	0.519520597755909
-Claude	Claude deep research	0.475895301401615
+Claude	Claude Research	0.475895301401615
 OpenAI	ChatGPT Agent mode	0.508276079893112
 Grok	Grok DeepSearch	0.557148934900761

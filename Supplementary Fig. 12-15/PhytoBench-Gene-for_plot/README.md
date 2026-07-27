@@ -1,7 +1,7 @@
 # PhytoBench-Gene figure inputs
 
 `frozen/` is the authoritative schema-2 figure-input snapshot for Fig. 2d-f and
-Supplementary Fig. 10-13. The plotting notebook reads exactly these 13 files:
+Supplementary Fig. 12-15. The plotting notebook reads exactly these 13 files:
 
 - Point estimates: `rank_distribution.tsv`, `pl_scores.tsv`, and
   `pl_pairwise.tsv`.
@@ -21,7 +21,7 @@ In `fleiss_kappa.tsv`, each item is a gene×model pair, R1–R5 are the rating
 categories, and three experts rate every item. The table preserves 58 locked
 scopes: 1 primary overall scope, 12 locked secondary scopes (five species, two
 study-status groups, and five models), and 45 locked exploratory interaction
-scopes. Supplementary Fig. 11 plots the overall, five-species, and two-study-
+scopes. Supplementary Fig. 13 plots the overall, five-species, and two-study-
 status scopes; model-specific and exploratory estimates remain in the full
 auditable table. Per-gene Kendall W and top-1 consensus provide complementary
 ordinal summaries.

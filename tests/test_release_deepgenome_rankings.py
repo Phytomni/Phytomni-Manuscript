@@ -854,7 +854,7 @@ def test_private_production_lineage_matches_committed_attachment() -> None:
         )
         categories = pd.read_csv(
             ROOT
-            / "Supplementary Fig. 10-13"
+            / "Supplementary Fig. 12-15"
             / "PhytoBench-Gene-for_plot"
             / "gene_categories.tsv",
             sep="\t",

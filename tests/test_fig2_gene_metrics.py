@@ -665,7 +665,7 @@ def test_figure_tables_preserve_historical_values_and_fixed_order() -> None:
     )
     assert bert_plot["Model"].tolist() == ["Phytomni", "Gemini", "Claude", "OpenAI", "Grok"]
     assert hallucination_plot["Model"].tolist() == ["Phytomni", "Gemini", "Claude", "OpenAI", "Grok"]
-    assert bert_plot.loc[2, "DisplayLabel"] == "Claude deep research"
+    assert bert_plot.loc[2, "DisplayLabel"] == "Claude Research"
     assert hallucination_plot.set_index("Model").loc["Phytomni"].iloc[-1] == pytest.approx(
         0.12216996785802783
     )

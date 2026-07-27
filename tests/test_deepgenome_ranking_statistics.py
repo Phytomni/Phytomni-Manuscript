@@ -1306,7 +1306,7 @@ def _production_gene_cluster_abnormal_case(
     ).rename(columns={"AnonymousExpertID": "Expert"})
     categories = pd.read_csv(
         root
-        / "Supplementary Fig. 10-13"
+        / "Supplementary Fig. 12-15"
         / "PhytoBench-Gene-for_plot"
         / "gene_categories.tsv",
         sep="\t",
