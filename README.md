@@ -6,6 +6,13 @@ Phytomni: Reproducibility code and notebooks for "An agentic AI for scientific d
 
 This repository provides the code, scripts, and notebooks to reproduce figures, tables, and quantitative results reported in the manuscript "Phytomni: An agentic AI for scientific discovery and design in plant research." Phytomni is a domain-specific, LLM-powered multi-agent system built on the Model Context Protocol (MCP) that integrates a plant-focused full-text knowledge base (~4.0M publications plus abstracts and patents), multi-omics data spanning 65 species, and 125 bioinformatics tools. The platform orchestrates hierarchically coordinated agents—Knowledge, Data, Analyst—and composite agents (e.g., In Silico Research Agent, Deep Genome Agent, Gene Network Agent, Digital Design Agent) to automate literature-grounded reasoning, data retrieval, and end-to-end bioinformatic analyses.
 
+The open-source Phytomni-Bot implementation is publicly available at
+[`Phytomni/Phytomni-Bot`](https://github.com/Phytomni/Phytomni-Bot). It
+provides the MCP server, agent workflows, structured prompts, environment
+templates, installation and run instructions, and demonstration payloads.
+This repository contains the manuscript-specific figure, scoring, and
+evaluation materials.
+
 Code in this repository is organized by figure directory and has been tested with Python 3.12+ and R 4.0+. Each top-level directory corresponds to one figure or panel set in the paper and is self-contained.
 
 ## Environment setup
@@ -132,15 +139,27 @@ Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) 
 
 ## Agent evaluation (not a figure)
 
-Four agent-evaluation harnesses live in this repo. They are **not** manuscript figure reproduction — `./reproduce.sh` runs lightweight **probes only** for them (see the eval summary block at the end of a normal run). On a bare clone all four probes are expected to show **⊘** with reasons; eval ⊘ never fails `--check`. None of these harnesses runs from the figure environment alone.
+The open-source Phytomni-Bot runtime used by these evaluations is available
+from the public
+[`Phytomni/Phytomni-Bot`](https://github.com/Phytomni/Phytomni-Bot)
+repository. Four agent-evaluation harnesses live in this repository. They are
+**not** manuscript figure reproduction, and `./reproduce.sh` runs lightweight
+**probes only** for them (see the evaluation summary at the end of a normal
+run). A bare clone without the separately installed Phytomni-Bot package or
+configured external services will show **⊘** with reasons; evaluation **⊘**
+never fails `--check`.
 
 ### AnalystAgent Evaluation
 
 `AnalystAgent Evaluation/evaluation_scripts.ipynb` benchmarks the Phytomni analyst agent over 10 bioinformatics tasks and writes JSON run-logs to `submit_log/` (no PDF/PNG). Beyond the figure environment it requires:
 
-- **`mcp_server_phytomni`** — install manually from <https://github.com/Phytomni/Phytomni-Bot> (not on PyPI; not in this repo's manifests).
+- **`mcp_server_phytomni`** — install from the public
+  [Phytomni-Bot repository](https://github.com/Phytomni/Phytomni-Bot) by
+  following its Quick Start instructions. The package is separate from this
+  figure repository and its manifests.
 - **`huggingface_hub`** — `pip install huggingface_hub`. On first run the notebook auto-downloads benchmark data from <https://huggingface.co/datasets/Phytomni/PhytoBench-Analysis> into `AnalystAgent Evaluation/PhytoBench-Analysis/`.
-- **A live Phytomni agent backend** the notebook submits tasks to (`retrieve_plan_submit`).
+- **A configured Phytomni-Bot backend** to which the notebook submits tasks
+  through `retrieve_plan_submit`.
 
 Downloaded data and `submit_log/` are gitignored.
 
