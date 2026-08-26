@@ -82,3 +82,10 @@ def test_model_transform_fails_loudly_for_schema_drift() -> None:
 
     assert "missing_columns <- setdiff" in source
     assert "Missing expected model columns" in source
+
+
+def test_notebook_saves_current_edf6a_and_edf7a_filenames() -> None:
+    source = notebook_source()
+    assert 'ggsave("output/extended_data_fig.6a.pdf"' in source
+    assert 'ggsave("output/extended_data_fig.7a.pdf"' in source
+    assert 'ggsave("output/extended_data_fig.6b.pdf"' not in source

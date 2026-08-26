@@ -111,11 +111,11 @@ Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) 
 | Ext. Data 5b | `Extended Data Fig. 5/extended_data_fig. 5ab.ipynb` | `ir` (R) | `Phytomni-DocType-for_plot.csv` ⚠ | `skip_until_data` | `extended_data_fig.5b.pdf` |
 | Ext. Data 5c | `Extended Data Fig. 5/extended_data_fig. 5c.R` | Rscript | `Phytomni-Multiomics-for_plot.txt` ✓ | `run` | `extended_data_fig.5c.png` |
 | Ext. Data 5d | `Extended Data Fig. 5/extended_data_fig. 5d.ipynb` | `python3` | *inline* | `run` | `extended_data_fig.5d.pdf` |
-| Ext. Data 6a-c | `Extended Data Fig. 6/extended_data_fig. 6abc.ipynb` | `ir` (R) | `PhytoBench-Knowledge-for_plot.xlsx` ✓ | `run` | `extended_data_fig.6a.pdf` / `extended_data_fig.6b.pdf` |
+| Ext. Data 6a, 7a | `Extended Data Fig. 6/extended_data_fig. 6abc.ipynb` | `ir` (R) | `PhytoBench-Knowledge-for_plot.xlsx` ✓ | `run` | `extended_data_fig.6a.pdf` / `extended_data_fig.7a.pdf` |
 | Ext. Data 6 radar | `Extended Data Fig. 6/extended_data_fig. 6abc.Rmd` | R / `rmarkdown::render` | `PhytoBench-RAG-for_plot.csv` ⚠ | `skip_until_data` | `extended_data_fig.6-radar-figure1.pdf` / `extended_data_fig.6-radar-figure2.pdf` / `extended_data_fig.6-radar-figure3.pdf` / `extended_data_fig.6-radar-figure4.pdf` |
 | Ext. Data 6d,e | `Extended Data Fig. 6/extended_data_fig. 6de.ipynb` | `python3` | *inline* | `run` | `extended_data_fig.6d.pdf` / `extended_data_fig.6e.pdf` |
-| Ext. Data 6f,g | `Extended Data Fig. 6/extended_data_fig. 6fg.ipynb` | `python3` | *inline* | `run` | `model_compare_agent_total.pdf` / `model_compare_agent_total_across_speciesv1.pdf` |
 | Ext. Data 7 | `Extended Data Fig. 7/extended_data_fig. 7.ipynb` | `ir` (R) | *inline* | `run` | `extended_data_fig.7.pdf` |
+| Ext. Data 7c | `Extended Data Fig. 7/extended_data_fig. 7c.ipynb` | `python3` | *inline* | `run` | `extended_data_fig.7c.pdf` |
 | Ext. Data 6ab (deprecated notebook) | `Extended Data Fig. 6/extended_data_fig.6ab.ipynb` | none | *inline* | `deprecated` | — |
 | Supp. 1 | `Supplementary Fig. 1/supplementary_fig. 1.ipynb` | `python3` | `Phyto-Chatbot-Pretrain.loss.json` ✓, … (4 files) | `run` | `supplementary_fig.1a.chatbot_pretrain_loss.line.pdf` / `supplementary_fig.1b.reasoner_pretrain_loss.line.pdf` / `supplementary_fig.1c.chatbot_sft_loss.line.pdf` / `supplementary_fig.1d.reasoner_sft_loss.line.pdf` |
 | Supp. 6 | `Supplementary Fig. 6/supplementary_fig. 6.ipynb` | `ir` (R) | *inline* | `run` | `supplementary_fig.6a.pdf` / `supplementary_fig.6b.pdf` |
@@ -123,6 +123,7 @@ Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) 
 | Supp. 12-15 | `Supplementary Fig. 12-15/supplementary_fig. 12-15.ipynb` | `python3` | `rank_distribution.tsv` ✓, … (13 files) | `run` | `supplementary_fig.12.phytobench-gene.well_studied.percent.bar.pdf` / `supplementary_fig.12.phytobench-gene.well_studied.rice.percent.bar.pdf` / `supplementary_fig.12.phytobench-gene.well_studied.maize.percent.bar.pdf` / … (52 files) |
 | Supp. 16 | `Supplementary Fig. 16/supplementary_fig. 16.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.16a.model.paperbench-mp.line.pdf` / `supplementary_fig.16b.model.paperbench-as.line.pdf` / `supplementary_fig.16c.model.paperbench-cr.line.pdf` / … (5 files) |
 | Supp. 19 | `Supplementary Fig. 19/supplementary_fig. 19.ipynb` | `ir` (R) | *inline* | `run` | `supplementary_fig.19.pdf` |
+| Supp. 20 | `Supplementary Fig. 20/supplementary_fig. 20.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.20.pdf` |
 | Supp. 21 | `Supplementary Fig. 21/supplementary_fig. 21.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.21.pdf` |
 | Supp. 26 | `Supplementary Fig. 26/supplementary_fig. 26.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.26.phytobench-review.polar.pdf` |
 <!-- END:REPRODUCE_MATRIX -->
@@ -130,7 +131,7 @@ Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) 
 ### How to run
 
 - **Python notebooks** need only the Python environment from [Environment setup](#environment-setup). Run headlessly with `$NBX "<file>"`, or open the file in `jupyter lab` and run all cells.
-- **R notebooks** (`5ab`, `6abc`, `7`, Supp. 6, Supp. 19; plus the `6abc.Rmd` R Markdown) need the `ir` kernel / an R install — install the kernel once with `R -e "IRkernel::installspec()"`. Without it, `nbconvert` reports `No such kernel`.
+- **R notebooks** (`5ab`, `6abc`, `7`, Supp. 6, Supp. 19; plus the `6abc.Rmd` R Markdown) need the `ir` kernel / an R install — install the kernel once with `R -e "IRkernel::installspec()"`. Without it, `nbconvert` reports `No such kernel`. `extended_data_fig. 7c.ipynb` and `Supplementary Fig. 20` are Python.
 - **The R script** (`5c.R`) runs standalone with `Rscript`; its save (`ggsave`) is gated behind `PHYTOMNI_SAVE` like every other file.
 - **The Python script** (`Supplementary Fig. 7/supplementary_fig. 7.py`) also runs standalone with `python3` (not via `$NBX` — it is a script, not a notebook). It reads `PhytoBench-Data-for_plot.xlsx` by a bare relative path, so run it from inside its directory: `cd "Supplementary Fig. 7" && python3 "supplementary_fig. 7.py"`.
 - **Figure-saving is gated behind `PHYTOMNI_SAVE`.** A default run renders each figure inline and writes nothing. Set `PHYTOMNI_SAVE=1` to emit every figure into that directory's `output/` (gitignored; filenames follow `<figure>.<panel>.pdf`/`.png`). `reproduce.sh` does this for you — see [One command](#one-command) above.

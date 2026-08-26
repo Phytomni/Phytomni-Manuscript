@@ -125,7 +125,7 @@ targets:
       - "Extended Data Fig. 5/output/extended_data_fig.5d.pdf"
 
   - id: ext-data-6abc
-    label: Ext. Data 6a-c
+    label: Ext. Data 6a, 7a
     phase: figure
     kind: notebook
     path: "Extended Data Fig. 6/extended_data_fig. 6abc.ipynb"
@@ -137,7 +137,7 @@ targets:
       - ir
     expected_artifacts:
       - "Extended Data Fig. 6/output/extended_data_fig.6a.pdf"
-      - "Extended Data Fig. 6/output/extended_data_fig.6b.pdf"
+      - "Extended Data Fig. 6/output/extended_data_fig.7a.pdf"
 
   - id: ext-data-6-radar
     label: Ext. Data 6 radar
@@ -168,17 +168,6 @@ targets:
       - "Extended Data Fig. 6/output/extended_data_fig.6d.pdf"
       - "Extended Data Fig. 6/output/extended_data_fig.6e.pdf"
 
-  - id: ext-data-6fg
-    label: Ext. Data 6f,g
-    phase: figure
-    kind: notebook
-    path: "Extended Data Fig. 6/extended_data_fig. 6fg.ipynb"
-    kernel: py
-    status: run
-    expected_artifacts:
-      - "Extended Data Fig. 6/output/model_compare_agent_total.pdf"
-      - "Extended Data Fig. 6/output/model_compare_agent_total_across_speciesv1.pdf"
-
   - id: ext-data-7
     label: Ext. Data 7
     phase: figure
@@ -190,6 +179,16 @@ targets:
       - ir
     expected_artifacts:
       - "Extended Data Fig. 7/output/extended_data_fig.7.pdf"
+
+  - id: ext-data-7c
+    label: Ext. Data 7c
+    phase: figure
+    kind: notebook
+    path: "Extended Data Fig. 7/extended_data_fig. 7c.ipynb"
+    kernel: py
+    status: run
+    expected_artifacts:
+      - "Extended Data Fig. 7/output/extended_data_fig.7c.pdf"
 
   - id: ext-data-6ab-deprecated
     label: Ext. Data 6ab (deprecated notebook)
@@ -341,6 +340,16 @@ targets:
     status: run
     expected_artifacts:
       - "Supplementary Fig. 19/output/supplementary_fig.19.pdf"
+
+  - id: supp-20
+    label: Supp. 20
+    phase: figure
+    kind: notebook
+    path: "Supplementary Fig. 20/supplementary_fig. 20.ipynb"
+    kernel: py
+    status: run
+    expected_artifacts:
+      - "Supplementary Fig. 20/output/supplementary_fig.20.pdf"
 
   - id: supp-21
     label: Supp. 21
