@@ -53,7 +53,7 @@ def source_workbook(tmp_path: Path) -> Path:
     path = tmp_path / "source.xlsx"
     workbook = openpyxl.Workbook()
     sheet = workbook.active
-    sheet.title = "Supplementary Data 7"
+    sheet.title = "Supplementary Data 8"
     sheet.append(["Evaluation scores for the gene benchmark."] + [None] * 23)
     sheet.append(
         [

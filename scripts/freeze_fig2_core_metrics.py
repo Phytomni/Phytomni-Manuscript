@@ -448,7 +448,7 @@ def freeze_core_metrics(
         "manuscript_alignment": {
             **FIG2A_MANUSCRIPT_SOURCE,
             "reason": (
-                "The private Supplementary Data 3-new and 4-new workbooks have "
+                "The private Supplementary Data 4 and 5 workbooks have "
                 "not yet been corrected to the manuscript values."
             ),
             "overrides": alignment_overrides,

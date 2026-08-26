@@ -257,7 +257,7 @@ extension runs, and verifies that each 0–100 total score equals the sum of the
 planning, tool-selection, parameter-setting, and execution scores (each 0–25).
 The current Fig. 2a contract aligns the Phyto-Chatbot values to the
 20260727 manuscript (`IdentificationAccuracy = 0.720` and
-`TraceBLEU4 = 0.084`) because the private Supplementary Data 3-new and 4-new
+`TraceBLEU4 = 0.084`) because the private Supplementary Data 4 and 5
 workbooks have not yet been corrected to those reported values. The freezer
 records both the workbook-computed values and the manuscript-aligned values;
 Fig. 2b and Fig. 2c remain derived directly from their private workbooks.
