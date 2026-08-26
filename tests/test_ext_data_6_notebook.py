@@ -6,7 +6,7 @@ from openpyxl import load_workbook
 
 
 ROOT = Path(__file__).resolve().parents[1]
-FIGURE_DIR = ROOT / "Extended Data Fig. 6"
+FIGURE_DIR = ROOT / "Extended Data Fig. 6-7"
 NOTEBOOK = FIGURE_DIR / "extended_data_fig. 6abc.ipynb"
 WORKBOOK = FIGURE_DIR / "PhytoBench-Knowledge-for_plot.xlsx"
 

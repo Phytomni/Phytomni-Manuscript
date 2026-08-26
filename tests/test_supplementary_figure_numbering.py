@@ -56,14 +56,14 @@ def test_manifest_uses_0717_supplementary_figure_numbering() -> None:
     assert targets["fig-2def"]["path"] == expected_paths["supp-12-15"][1]
     assert targets["ext-data-6abc"]["label"] == "Ext. Data 6a, 7a"
     assert targets["ext-data-6abc"]["expected_artifacts"] == [
-        "Extended Data Fig. 6/output/extended_data_fig.6a.pdf",
-        "Extended Data Fig. 6/output/extended_data_fig.7a.pdf",
+        "Extended Data Fig. 6-7/output/extended_data_fig.6a.pdf",
+        "Extended Data Fig. 6-7/output/extended_data_fig.7a.pdf",
     ]
     assert targets["ext-data-6de"]["path"] == (
-        "Extended Data Fig. 6/extended_data_fig. 6de.ipynb"
+        "Extended Data Fig. 6-7/extended_data_fig. 6de.ipynb"
     )
     assert targets["ext-data-7c"]["path"] == (
-        "Extended Data Fig. 7/extended_data_fig. 7c.ipynb"
+        "Extended Data Fig. 6-7/extended_data_fig. 7c.ipynb"
     )
 
 
@@ -99,24 +99,26 @@ def test_notebook_sources_and_outputs_use_0717_numbers() -> None:
 
     assert not (ROOT / "Supplementary Fig. 8").exists()
     assert not (ROOT / "Supplementary Fig. 9").exists()
-    assert not (ROOT / "Extended Data Fig. 6" / "extended_data_fig. 6fg.ipynb").exists()
+    assert not (ROOT / "Extended Data Fig. 6").exists()
+    assert not (ROOT / "Extended Data Fig. 7").exists()
+    assert not (ROOT / "Extended Data Fig. 6-7" / "extended_data_fig. 6fg.ipynb").exists()
 
     abc = (
-        ROOT / "Extended Data Fig. 6" / "extended_data_fig. 6abc.ipynb"
+        ROOT / "Extended Data Fig. 6-7" / "extended_data_fig. 6abc.ipynb"
     ).read_text(encoding="utf-8")
     assert "extended_data_fig.6a.pdf" in abc
     assert "extended_data_fig.7a.pdf" in abc
     assert "extended_data_fig.6b.pdf" not in abc
 
     de = (
-        ROOT / "Extended Data Fig. 6" / "extended_data_fig. 6de.ipynb"
+        ROOT / "Extended Data Fig. 6-7" / "extended_data_fig. 6de.ipynb"
     ).read_text(encoding="utf-8")
     assert "extended_data_fig.6d.pdf" in de
     assert "extended_data_fig.6e.pdf" in de
     assert "model_compare_agent_total.pdf" not in de
 
     seven_c = (
-        ROOT / "Extended Data Fig. 7" / "extended_data_fig. 7c.ipynb"
+        ROOT / "Extended Data Fig. 6-7" / "extended_data_fig. 7c.ipynb"
     ).read_text(encoding="utf-8")
     assert "extended_data_fig.7c.pdf" in seven_c
     assert "GeneTuring" not in seven_c
