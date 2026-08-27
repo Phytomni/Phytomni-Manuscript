@@ -44,6 +44,7 @@ def test_manifest_uses_0717_supplementary_figure_numbering() -> None:
         "supp-17",
         "supp-24",
         "ext-data-6fg",
+        "ext-data-6ab-deprecated",
     }
 
     assert expected_paths.keys() <= targets.keys()
@@ -102,6 +103,7 @@ def test_notebook_sources_and_outputs_use_0717_numbers() -> None:
     assert not (ROOT / "Extended Data Fig. 6").exists()
     assert not (ROOT / "Extended Data Fig. 7").exists()
     assert not (ROOT / "Extended Data Fig. 6-7" / "extended_data_fig. 6fg.ipynb").exists()
+    assert not (ROOT / "Extended Data Fig. 6-7" / "extended_data_fig.6ab.ipynb").exists()
 
     abc = (
         ROOT / "Extended Data Fig. 6-7" / "extended_data_fig. 6abc.ipynb"

@@ -190,14 +190,6 @@ targets:
     expected_artifacts:
       - "Extended Data Fig. 6-7/output/extended_data_fig.7c.pdf"
 
-  - id: ext-data-6ab-deprecated
-    label: Ext. Data 6ab (deprecated notebook)
-    phase: figure
-    kind: notebook
-    path: "Extended Data Fig. 6-7/extended_data_fig.6ab.ipynb"
-    status: deprecated
-    expected_artifacts: []
-
   - id: supp-1
     label: Supp. 1
     phase: figure

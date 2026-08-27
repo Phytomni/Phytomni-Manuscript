@@ -116,7 +116,6 @@ Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) 
 | Ext. Data 6d,e | `Extended Data Fig. 6-7/extended_data_fig. 6de.ipynb` | `python3` | *inline* | `run` | `extended_data_fig.6d.pdf` / `extended_data_fig.6e.pdf` |
 | Ext. Data 7 | `Extended Data Fig. 6-7/extended_data_fig. 7.ipynb` | `ir` (R) | *inline* | `run` | `extended_data_fig.7.pdf` |
 | Ext. Data 7c | `Extended Data Fig. 6-7/extended_data_fig. 7c.ipynb` | `python3` | *inline* | `run` | `extended_data_fig.7c.pdf` |
-| Ext. Data 6ab (deprecated notebook) | `Extended Data Fig. 6-7/extended_data_fig.6ab.ipynb` | none | *inline* | `deprecated` | — |
 | Supp. 1 | `Supplementary Fig. 1/supplementary_fig. 1.ipynb` | `python3` | `Phyto-Chatbot-Pretrain.loss.json` ✓, … (4 files) | `run` | `supplementary_fig.1a.chatbot_pretrain_loss.line.pdf` / `supplementary_fig.1b.reasoner_pretrain_loss.line.pdf` / `supplementary_fig.1c.chatbot_sft_loss.line.pdf` / `supplementary_fig.1d.reasoner_sft_loss.line.pdf` |
 | Supp. 6 | `Supplementary Fig. 6/supplementary_fig. 6.ipynb` | `ir` (R) | *inline* | `run` | `supplementary_fig.6a.pdf` / `supplementary_fig.6b.pdf` |
 | Supp. 7 | `Supplementary Fig. 7/supplementary_fig. 7.py` | `python3` (script) | `PhytoBench-Data-for_plot.xlsx` ✓ | `run` | `model_accuracy_by_species.pdf` |
