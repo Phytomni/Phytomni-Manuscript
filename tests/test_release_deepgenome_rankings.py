@@ -35,18 +35,21 @@ CANONICAL_SPECIES = ("Rice", "Maize", "Wheat", "Soybean", "Arabidopsis")
 CANONICAL_STATUSES = ("well_studied", "uncharacterized")
 
 
-def assert_ignored(relative_path: str) -> None:
+def assert_ignored(relative_path: str, root: Path) -> None:
     result = subprocess.run(
         ["git", "check-ignore", "--quiet", relative_path],
-        cwd=ROOT,
+        cwd=root,
         check=False,
     )
     assert result.returncode == 0, relative_path
 
 
-def test_private_expert_inputs_are_ignored() -> None:
-    assert_ignored("DeepGenomeAgent Evaluation/evaluation_expert_metadata-0714.xlsx")
-    assert_ignored("DeepGenomeAgent Evaluation/private/expert_release_crosswalk.tsv")
+def test_private_expert_inputs_are_ignored(tmp_path: Path) -> None:
+    # Test the public ignore policy without depending on checkout metadata.
+    subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=True)
+    (tmp_path / ".gitignore").write_bytes((ROOT / ".gitignore").read_bytes())
+    assert_ignored("DeepGenomeAgent Evaluation/evaluation_expert_metadata-0714.xlsx", tmp_path)
+    assert_ignored("DeepGenomeAgent Evaluation/private/expert_release_crosswalk.tsv", tmp_path)
 
 
 @pytest.fixture
