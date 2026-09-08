@@ -1,7 +1,7 @@
 version: 1
 targets:
   - id: fig-2
-    label: Fig. 2a-c,g
+    label: Fig. 2a-c,g-h (right)
     phase: figure
     kind: notebook
     path: "Fig. 2/fig. 2.ipynb"
@@ -13,27 +13,16 @@ targets:
       - "Fig. 2/PhytoBench-Analysis-for_plot.tsv"
       - "Fig. 2/PhytoBench-Core-for_plot-provenance.json"
       - "Fig. 2/PhytoBench-Gene-BERTScore-for_plot.tsv"
+      - "Fig. 2/PhytoBench-Gene-hallucination-for_plot.tsv"
     expected_artifacts:
       - "Fig. 2/output/fig.2a.phytobench-knowledge.bar.pdf"
       - "Fig. 2/output/fig.2b.phytobench-data.bar.pdf"
       - "Fig. 2/output/fig.2c.phytobench-analysis.violin.pdf"
       - "Fig. 2/output/fig.2g.phytobench-gene.well_studied.bar.pdf"
-
-  - id: fig-2h
-    label: Fig. 2h
-    phase: figure
-    kind: notebook
-    path: "Fig. 2/fig. 2.ipynb"
-    kernel: py
-    status: run
-    requires_data:
-      - "Fig. 2/PhytoBench-Gene-BERTScore-for_plot.tsv"
-      - "Fig. 2/PhytoBench-Gene-hallucination-for_plot.tsv"
-    expected_artifacts:
       - "Fig. 2/output/fig.2h.phytobench-gene.uncharacterized.bar.pdf"
 
   - id: fig-2def
-    label: Fig. 2d-f
+    label: Fig. 2d-f,g-h (left)
     phase: figure
     kind: notebook
     path: "Supplementary Fig. 12-15/supplementary_fig. 12-15.ipynb"
@@ -57,6 +46,8 @@ targets:
       - "Supplementary Fig. 12-15/output/fig.2d.phytobench-gene.percent.bar.pdf"
       - "Supplementary Fig. 12-15/output/fig.2e.phytobench-gene.prob.heatmap.pdf"
       - "Supplementary Fig. 12-15/output/fig.2f.phytobench-gene.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/fig.2g.phytobench-gene.well_studied.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/fig.2h.phytobench-gene.uncharacterized.score.bar.pdf"
 
   - id: fig-3
     label: Fig. 3

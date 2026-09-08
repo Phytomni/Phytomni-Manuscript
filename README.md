@@ -103,9 +103,8 @@ Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) 
 
 | Figure | File | Kernel | Input data | Status | Emits (into output/ when PHYTOMNI_SAVE=1) |
 |---|---|---|---|---|---|
-| Fig. 2a-c,g | `Fig. 2/fig. 2.ipynb` | `python3` | `PhytoBench-Knowledge-for_plot.tsv` ✓, … (5 files) | `run` | `fig.2a.phytobench-knowledge.bar.pdf` / `fig.2b.phytobench-data.bar.pdf` / `fig.2c.phytobench-analysis.violin.pdf` / `fig.2g.phytobench-gene.well_studied.bar.pdf` |
-| Fig. 2h | `Fig. 2/fig. 2.ipynb` | `python3` | `PhytoBench-Gene-BERTScore-for_plot.tsv` ✓, `PhytoBench-Gene-hallucination-for_plot.tsv` ✓ | `run` | `fig.2h.phytobench-gene.uncharacterized.bar.pdf` |
-| Fig. 2d-f | `Supplementary Fig. 12-15/supplementary_fig. 12-15.ipynb` | `python3` | `rank_distribution.tsv` ✓, … (13 files) | `run` | `fig.2d.phytobench-gene.percent.bar.pdf` / `fig.2e.phytobench-gene.prob.heatmap.pdf` / `fig.2f.phytobench-gene.score.bar.pdf` |
+| Fig. 2a-c,g-h (right) | `Fig. 2/fig. 2.ipynb` | `python3` | `PhytoBench-Knowledge-for_plot.tsv` ✓, … (6 files) | `run` | `fig.2a.phytobench-knowledge.bar.pdf` / `fig.2b.phytobench-data.bar.pdf` / `fig.2c.phytobench-analysis.violin.pdf` / … (5 files) |
+| Fig. 2d-f,g-h (left) | `Supplementary Fig. 12-15/supplementary_fig. 12-15.ipynb` | `python3` | `rank_distribution.tsv` ✓, … (13 files) | `run` | `fig.2d.phytobench-gene.percent.bar.pdf` / `fig.2e.phytobench-gene.prob.heatmap.pdf` / `fig.2f.phytobench-gene.score.bar.pdf` / … (5 files) |
 | Fig. 3 | `Fig. 3/fig. 3.ipynb` | `python3` | `PhytoBench-Paper-for_plot.xlsx` ✓ | `run` | `fig.3d.phytobench-paper.line.pdf` / `fig.3e.phytobench-paper.heatmap.pdf` |
 | Ext. Data 5a | `Extended Data Fig. 5/extended_data_fig. 5ab.ipynb` | `ir` (R) | `Phytomni-PaperYear-for_plot.csv` ✓ | `run` | `extended_data_fig.5a.pdf` |
 | Ext. Data 5b | `Extended Data Fig. 5/extended_data_fig. 5ab.ipynb` | `ir` (R) | `Phytomni-DocType-for_plot.csv` ⚠ | `skip_until_data` | `extended_data_fig.5b.pdf` |
@@ -183,7 +182,7 @@ The `output/` and `result/` directories it creates are gitignored.
 
 The full anonymized scoring attachment is tracked at `DeepGenomeAgent Evaluation/supplementary/Supplementary_Data_Expert_Rankings.tsv`, with its field definitions in `Supplementary_Data_Expert_Rankings_Codebook.tsv`. It contains 600 expert–gene assignments from 120 anonymized experts and 200 genes: each row is one complete, no-tie R1–R5 ranking of the five models. The public `expert_panel_category_map.tsv` records the privacy-reviewed category aggregation used for the panel-composition summary. Row-level expert demographics are not released; only the aggregate panel summary is used by the figure notebook.
 
-The private query workbook, response corpus, hallucination-judgment logs, expert metadata workbook, and private lineage `score.tsv` are not shipped. Exact numeric reproduction of the inconsistency results requires the frozen judgment logs used for the reported run; rerunning a drifting external judge alias can change entailment labels and therefore does not guarantee the same numbers. The checked-in schema-2 ranking aggregates reproduce the reported ranking figures without those private inputs. The compact Claude BERTScore and hallucination tables, together with their non-secret provenance record, are tracked under `Supplementary Fig. 12-15/PhytoBench-Gene-for_plot/frozen/` and are the reproducibility inputs for the Claude bars in Fig. 2g-h.
+The private query workbook, response corpus, hallucination-judgment logs, expert metadata workbook, and private lineage `score.tsv` are not shipped. Exact numeric reproduction of the inconsistency results requires the frozen judgment logs used for the reported run; rerunning a drifting external judge alias can change entailment labels and therefore does not guarantee the same numbers. The checked-in schema-2 ranking aggregates reproduce the reported ranking figures without those private inputs. The compact Claude BERTScore and hallucination tables, together with their non-secret provenance record, are tracked under `Supplementary Fig. 12-15/PhytoBench-Gene-for_plot/frozen/` and remain the source for the five-model BERTScore and hallucination figure tables in `Fig. 2/`.
 
 For an offline repository check, install only the locked base environment and run the scoring contract tests. The Plackett–Luce notebook can also execute without private data:
 
@@ -226,7 +225,7 @@ For Fleiss-κ, an item is one gene×model pair, R1–R5 are the rating categorie
 
 Panel-composition percentages are explicit about their denominator. The multi-select `Research_domains` and `Study_species` dimensions use all 120 experts, so their category percentages need not sum to 100%; single-select dimensions use nonmissing respondents and report the missing count. Conflict of interest is reported as a self-declaration: all 120 experts selected `No`, so the supported statement is that no conflicts were declared, not that conflicts were independently excluded.
 
-The older four-model `legacy/score*.tsv` files remain only as legacy provenance and are not read by the current plotting path. `Fig. 2d-f` and all stratified Supplementary Fig. 12-15 panels read the frozen aggregate tables; `Fig. 2g-h` read the tracked five-model figure tables. Generate them directly with:
+The older four-model `legacy/score*.tsv` files remain only as legacy provenance and are not read by the current plotting path. Fig. 2d-f, the left-hand Fig. 2g-h panels, and all stratified Supplementary Fig. 12-15 panels read the frozen aggregate tables. The left-hand Fig. 2g and Fig. 2h panels reuse the Supplementary Fig. 15 well-studied and uncharacterized Elo score bars on the Fig. 2f y-axis range `[1200, 1700]`. The right-hand Fig. 2g-h panels retain BERTScore precision and internal hallucination rate, respectively, from the tracked five-model metric tables in `Fig. 2/`; their y-axis ranges remain `[0.47, 0.58]` and `[0.1, 0.7]`. The ranking notebook writes the left-hand panels to `Supplementary Fig. 12-15/output/` with `.score.bar` filenames; the Fig. 2 notebook writes the right-hand panels to `Fig. 2/output/`. Generate both notebooks with:
 
 ```bash
 mkdir -p /tmp/phytomni-figure-runs
@@ -265,8 +264,6 @@ It also writes
 `PhytoBench-Core-for_plot-provenance.json`, which records source-file hashes,
 row counts, the Fig. 2c scope, metric definitions, model order, and output
 hashes without exposing private source paths.
-
-`Fig. 2h` is now a runnable target. It reads `Fig. 2/PhytoBench-Gene-hallucination-for_plot.tsv` with the columns `Model`, `DisplayLabel`, and `MeanDirectionalContradictionRatio`, alongside the tracked BERTScore table required by the shared notebook. The notebook fails clearly if either figure-input table is missing or malformed, and renders the fixed five-model panel on the prescribed y-axis range `[0.1, 0.7]`.
 
 The hallucination notebook's default execution is offline, but its optional analysis dependencies are installed with the live-evaluation extra. To aggregate already frozen logs without contacting a service, leave live judging disabled and provide only the log directory:
 

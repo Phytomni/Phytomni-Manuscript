@@ -927,14 +927,14 @@ def _validated_metric_mean(frame: pd.DataFrame, column: str, label: str) -> floa
 
 
 def _validate_fig2_bertscore_range(values: dict[str, float]) -> None:
-    """Reject Fig. 2g values that cannot be shown on its fixed y-axis."""
+    """Reject BERTScore figure-input values outside the locked display range."""
 
     lower, upper = FIG2_BERTSCORE_Y_RANGE
     for model, value in values.items():
         if not math.isfinite(value) or value < lower or value > upper:
             raise ValueError(
-                f"Fig. 2g BERTScore value for {model} ({value:.6f}) is outside "
-                f"the fixed panel y-axis range [{lower:.2f}, {upper:.2f}]; "
+                f"BERTScore figure-input value for {model} ({value:.6f}) is outside "
+                f"the locked display range [{lower:.2f}, {upper:.2f}]; "
                 "refusing to publish figure inputs. Recompute or inspect the "
                 "metric before changing the figure specification."
             )
@@ -945,7 +945,7 @@ def build_figure_tables(
     bertscore: pd.DataFrame,
     hallucination: pd.DataFrame,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Assemble fixed-order five-model Fig. 2g and Fig. 2h inputs."""
+    """Assemble fixed-order five-model BERTScore and hallucination figure tables."""
 
     historical = historical_model_means(source)
     if len(bertscore) != _EXPECTED_CLAUDE_LOG_COUNT:

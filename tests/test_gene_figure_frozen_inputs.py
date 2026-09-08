@@ -967,6 +967,27 @@ def test_elo_figure_preserves_bars_and_adds_asymmetric_intervals(
     main = captured["fig.2f.phytobench-gene.score.bar"]
     assert tuple(main.layout.yaxis.range) == (1200, 1700)
 
+    fig_2g = captured["fig.2g.phytobench-gene.well_studied.score.bar"]
+    fig_2h = captured["fig.2h.phytobench-gene.uncharacterized.score.bar"]
+    assert tuple(fig_2g.layout.yaxis.range) == (1200, 1700)
+    assert tuple(fig_2h.layout.yaxis.range) == (1200, 1700)
+    well_studied = (
+        pd.read_csv(DATA_DIR / "pl_scores.tsv", sep="\t")
+        .loc[lambda frame: frame["Scope"].eq("well_studied")]
+        .set_index("Model")
+        .reindex(MODEL_ORDER)
+    )
+    uncharacterized = (
+        pd.read_csv(DATA_DIR / "pl_scores.tsv", sep="\t")
+        .loc[lambda frame: frame["Scope"].eq("uncharacterized")]
+        .set_index("Model")
+        .reindex(MODEL_ORDER)
+    )
+    np.testing.assert_allclose(fig_2g.data[0].y, well_studied["Elo"])
+    np.testing.assert_allclose(fig_2h.data[0].y, uncharacterized["Elo"])
+    assert list(fig_2g.data[0].marker.color) == expected_colors
+    assert list(fig_2h.data[0].marker.color) == expected_colors
+
 
 def test_supplementary_figure_13_uses_manuscript_species_order(
     monkeypatch,
@@ -1124,7 +1145,38 @@ def test_supplementary_notebook_uses_requested_claude_label_and_order() -> None:
     assert '"Claude": "Claude Research"' in source
 
 
-def test_fig2g_and_fig2h_read_frozen_five_model_metrics() -> None:
+def test_fig2g_and_fig2h_keep_left_elo_and_right_metric_panels() -> None:
+    notebook = nbformat.read(NOTEBOOK, as_version=4)
+    source = "\n".join(
+        cell.source for cell in notebook.cells if cell.cell_type == "code"
+    )
+    assert 'elo_score_figure("well_studied", y_range=(1200, 1700))' in source
+    assert 'elo_score_figure("uncharacterized", y_range=(1200, 1700))' in source
+    assert "fig.2g.phytobench-gene.well_studied.score.bar" in source
+    assert "fig.2h.phytobench-gene.uncharacterized.score.bar" in source
+    assert 'elo_score_figure(scope)' in source
+
+    fig2 = nbformat.read(FIG2_NOTEBOOK, as_version=4)
+    nbformat.validate(fig2)
+    assert all(
+        cell.source.strip()
+        for cell in fig2.cells
+        if cell.cell_type == "code"
+    )
+    fig2_source = "\n".join(
+        cell.source for cell in fig2.cells if cell.cell_type == "code"
+    )
+    assert "PhytoBench-Gene-BERTScore-for_plot.tsv" in fig2_source
+    assert "PhytoBench-Gene-hallucination-for_plot.tsv" in fig2_source
+    assert "fig.2g.phytobench-gene.well_studied.bar" in fig2_source
+    assert "fig.2h.phytobench-gene.uncharacterized.bar" in fig2_source
+    assert "range': [0.47, 0.58]" in fig2_source
+    assert '"range": [0.1, 0.7]' in fig2_source
+    assert "if HALLUCINATION_DATA.is_file():" not in fig2_source
+    assert "SKIPPED: Fig. 2h" not in fig2_source
+
+
+def test_tracked_gene_metric_tables_keep_five_model_schema() -> None:
     bertscore = pd.read_csv(FIG2_BERTSCORE, sep="\t")
     assert bertscore.columns.tolist() == [
         "Model",
@@ -1160,27 +1212,8 @@ def test_fig2g_and_fig2h_read_frozen_five_model_metrics() -> None:
         bertscore["DisplayLabel"].tolist()
     )
 
-    notebook = nbformat.read(FIG2_NOTEBOOK, as_version=4)
-    nbformat.validate(notebook)
-    assert all(
-        cell.source.strip()
-        for cell in notebook.cells
-        if cell.cell_type == "code"
-    )
-    source = "\n".join(
-        cell.source for cell in notebook.cells if cell.cell_type == "code"
-    )
-    assert "PhytoBench-Gene-BERTScore-for_plot.tsv" in source
-    assert "PhytoBench-Gene-hallucination-for_plot.tsv" in source
-    assert "if HALLUCINATION_DATA.is_file():" not in source
-    assert "SKIPPED: Fig. 2h" not in source
-    assert "range': [0.47, 0.58]" in source
-    assert '"range": [0.1, 0.7]' in source
-    assert "0.561641241" not in source
-    assert "0.12216996785802783" not in source
 
-
-def test_manifest_connects_fig2def_and_marks_fig2h_runnable() -> None:
+def test_manifest_connects_fig2def_including_fig2g_and_fig2h() -> None:
     import yaml
 
     manifest = yaml.safe_load((ROOT / "reproduce.manifest.yaml").read_text())
@@ -1196,6 +1229,7 @@ def test_manifest_connects_fig2def_and_marks_fig2h_runnable() -> None:
         for filename in EXPECTED_RANKING_FROZEN_FILES
     }
     assert set(fig2def["requires_data"]) == expected_frozen_inputs
+    assert fig2def["label"] == "Fig. 2d-f,g-h (left)"
     assert set(fig2def["expected_artifacts"]) == {
         "Supplementary Fig. 12-15/output/"
         "fig.2d.phytobench-gene.percent.bar.pdf",
@@ -1203,6 +1237,10 @@ def test_manifest_connects_fig2def_and_marks_fig2h_runnable() -> None:
         "fig.2e.phytobench-gene.prob.heatmap.pdf",
         "Supplementary Fig. 12-15/output/"
         "fig.2f.phytobench-gene.score.bar.pdf",
+        "Supplementary Fig. 12-15/output/"
+        "fig.2g.phytobench-gene.well_studied.score.bar.pdf",
+        "Supplementary Fig. 12-15/output/"
+        "fig.2h.phytobench-gene.uncharacterized.score.bar.pdf",
     }
 
     supplementary = targets["supp-12-15"]
@@ -1230,14 +1268,21 @@ def test_manifest_connects_fig2def_and_marks_fig2h_runnable() -> None:
         expected_supplementary_artifacts
     )
 
-    fig2h = targets["fig-2h"]
-    assert fig2h["status"] == "run"
-    assert fig2h["requires_data"] == [
-        "Fig. 2/PhytoBench-Gene-BERTScore-for_plot.tsv",
-        "Fig. 2/PhytoBench-Gene-hallucination-for_plot.tsv"
-    ]
-    assert fig2h["expected_artifacts"] == [
-        "Fig. 2/output/fig.2h.phytobench-gene.uncharacterized.bar.pdf"
-    ]
+    assert "fig-2h" not in targets
     fig2 = targets["fig-2"]
-    assert all("fig.2h" not in path for path in fig2["expected_artifacts"])
+    assert fig2["label"] == "Fig. 2a-c,g-h (right)"
+    assert set(fig2["requires_data"]) == {
+        "Fig. 2/PhytoBench-Knowledge-for_plot.tsv",
+        "Fig. 2/PhytoBench-Data-for_plot.tsv",
+        "Fig. 2/PhytoBench-Analysis-for_plot.tsv",
+        "Fig. 2/PhytoBench-Core-for_plot-provenance.json",
+        "Fig. 2/PhytoBench-Gene-BERTScore-for_plot.tsv",
+        "Fig. 2/PhytoBench-Gene-hallucination-for_plot.tsv",
+    }
+    assert fig2["expected_artifacts"] == [
+        "Fig. 2/output/fig.2a.phytobench-knowledge.bar.pdf",
+        "Fig. 2/output/fig.2b.phytobench-data.bar.pdf",
+        "Fig. 2/output/fig.2c.phytobench-analysis.violin.pdf",
+        "Fig. 2/output/fig.2g.phytobench-gene.well_studied.bar.pdf",
+        "Fig. 2/output/fig.2h.phytobench-gene.uncharacterized.bar.pdf",
+    ]

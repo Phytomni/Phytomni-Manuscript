@@ -1,7 +1,8 @@
 # PhytoBench-Gene figure inputs
 
-`frozen/` is the authoritative schema-2 figure-input snapshot for Fig. 2d-f and
-Supplementary Fig. 12-15. The plotting notebook reads exactly these 13 files:
+`frozen/` is the authoritative schema-2 figure-input snapshot for Fig. 2d-f,
+Fig. 2g-h (left), and Supplementary Fig. 12-15. The plotting notebook reads
+exactly these 13 files:
 
 - Point estimates: `rank_distribution.tsv`, `pl_scores.tsv`, and
   `pl_pairwise.tsv`.

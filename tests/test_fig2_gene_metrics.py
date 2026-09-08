@@ -671,7 +671,7 @@ def test_figure_tables_preserve_historical_values_and_fixed_order() -> None:
     )
 
 
-def test_figure_tables_reject_bertscore_outside_fixed_fig2g_range() -> None:
+def test_figure_tables_reject_bertscore_outside_locked_display_range() -> None:
     source = _historical_source()
     bert_rows = pd.DataFrame(
         [
@@ -696,7 +696,7 @@ def test_figure_tables_reject_bertscore_outside_fixed_fig2g_range() -> None:
     )
     with pytest.raises(
         ValueError,
-        match=r"Fig\. 2g BERTScore value for Claude .*\[0\.47, 0\.58\].*refusing to publish",
+        match=r"BERTScore figure-input value for Claude .*\[0\.47, 0\.58\].*refusing to publish",
     ):
         build_figure_tables(source, bert_rows, hallucination_rows)
 
