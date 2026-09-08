@@ -1,302 +1,238 @@
 # Phytomni Manuscript Code
 
-Phytomni: Reproducibility code and notebooks for "An agentic AI for scientific discovery and design in plant research"
+Figure-reproduction, scoring, and evaluation materials for "An agentic AI for scientific discovery and design in plant research".
 
-## Overview
+The application and agent runtime live in the separate [Phytomni-Bot repository](https://github.com/Phytomni/Phytomni-Bot). This repository is not an application or a deployable package. Figure directories are self-contained; [reproduce.manifest.yaml](reproduce.manifest.yaml) is the authoritative target, input, and artifact registry.
 
-This repository provides the code, scripts, and notebooks to reproduce figures, tables, and quantitative results reported in the manuscript "Phytomni: An agentic AI for scientific discovery and design in plant research." Phytomni is a domain-specific, LLM-powered multi-agent system built on the Model Context Protocol (MCP) that integrates a plant-focused full-text knowledge base (~4.0M publications plus abstracts and patents), multi-omics data spanning 65 species, and 125 bioinformatics tools. The platform orchestrates hierarchically coordinated agents—Knowledge, Data, Analyst—and composite agents (e.g., In Silico Research Agent, Deep Genome Agent, Gene Network Agent, Digital Design Agent) to automate literature-grounded reasoning, data retrieval, and end-to-end bioinformatic analyses.
+## Choose your workflow
 
-The open-source Phytomni-Bot implementation is publicly available at
-[`Phytomni/Phytomni-Bot`](https://github.com/Phytomni/Phytomni-Bot). It
-provides the MCP server, agent workflows, structured prompts, environment
-templates, installation and run instructions, and demonstration payloads.
-This repository contains the manuscript-specific figure, scoring, and
-evaluation materials.
+### 1. Reproduce figures from public frozen inputs
 
-Code in this repository is organized by figure directory and has been tested with Python 3.12+ and R 4.0+. Each top-level directory corresponds to one figure or panel set in the paper and is self-contained.
+No private workbook, model download, API key, or live model call is needed. Prepare the [reference environment](#reference-environment), activate it, then run from the repository root:
 
-## Environment setup
-
-### Recommended setup
-
-The repo ships a [`pyproject.toml`](pyproject.toml) (for [`uv`](https://docs.astral.sh/uv/)) and an [`environment.yml`](environment.yml) (for `conda`). Pick one — each installs all top-level dependencies in a single command.
-
-**Option A — `uv` (Python only, fastest):**
 ```bash
-uv sync          # creates .venv and installs every Python dep from pyproject.toml
+./reproduce.sh list
+./reproduce.sh validate
+./reproduce.sh run --target fig-2 --timeout 600
+./reproduce.sh run --timeout 600
+```
+
+`list` reports declarations and input availability without checking runtimes.
+`validate` checks public source/input contracts and README synchronization without
+executing notebooks. `run` generates fresh figures in isolated copies, validates
+every selected PDF/PNG, then publishes only declared outputs into the owning
+figure's `output/`. Shared notebooks execute once for the selected targets.
+Use repeated `--target ID` options to select several targets.
+
+No arguments show help. Invalid commands/targets return 2. Missing required data,
+runtime failures, invalid artifacts, or zero executed sources return nonzero.
+Declared pending data is reported separately; explicitly selecting an unavailable
+target fails. Evaluation availability does not mask figure failures.
+
+[Fig. 2's guide](<Fig. 2/README.md>) explains the left and right halves of panels
+g-h. [The ranking-data guide](<Supplementary Fig. 12-15/PhytoBench-Gene-for_plot/README.md>)
+covers Fig. 2d-f,g-h (left) and Supplementary Figs. 12-15.
+
+### 2. Recompute public ranking statistics independently
+
+The public anonymous ranking table and gene-category mapping suffice for the
+11 numerical tables. This does not reconstruct private expert demographics or
+repeat the original model evaluations. Start with the independently saved
+100-replicate preview in the [ranking recomputation guide](<Supplementary Fig. 12-15/PhytoBench-Gene-for_plot/README.md>):
+
+```bash
+python -m scripts.recompute_deepgenome_rankings --help
+```
+
+The guide provides the complete command, fixed seed, input paths, comparison
+rules, and independent `local_exports/ranking-recomputation/<run-id>/` destination.
+Preview intervals are provisional. A 10,000-replicate run is an explicit,
+potentially lengthy calculation, never part of normal figure reproduction.
+Even a full comparison cannot overwrite the publication automatically.
+
+### 3. Repeat original evaluations or update a publication
+
+These workflows require their own inputs, optional dependencies and, for live
+evaluations, configured services and potentially billable calls. Follow the
+[separate evaluator guides](#agent-evaluation-not-a-figure). First inspect
+prerequisites without executing an evaluator:
+
+```bash
+./reproduce.sh probe --target eval-expert
+```
+
+A probe reports discoverability only, not service health or successful evaluation.
+Unavailable prerequisites return nonzero. Neither `run` nor `validate` invokes
+an evaluator. A controlled publication update requires the complete private
+metadata/lineage checks described in the DeepGenomeAgent guide.
+
+## Reference environment
+
+The formal runner targets Linux. The reference environment uses Ubuntu 24.04,
+Python 3.12.13, R 4.3.3, [uv.lock](uv.lock), and [renv.lock](renv.lock).
+Package locks do not lock the operating system, fonts, or every rendered byte.
+The mandatory `plotly==6.0.1` and `kaleido==0.2.1` pins preserve the static-export
+API used by these notebooks; do not upgrade one independently.
+The static exporters disable unused MathJax loading so asynchronous external
+assets cannot add browser-status text to the PDFs. These charts use plain-text
+labels, not MathJax expressions.
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and Python
+3.12.13, then explicitly prepare and activate the Python environment:
+
+```bash
+uv lock --check
+uv sync --frozen --python 3.12.13
 source .venv/bin/activate
 ```
-For the R script and R-language notebooks, additionally run the R install line under [R Dependencies](#r-dependencies).
 
-**Option B — `conda` (Python + R in one env):**
-```bash
-conda env create -f environment.yml
-conda activate phytomni-fig
-```
+Use a separate environment for optional evaluation dependencies. The figure
+runner uses the activated interpreter and does not synchronize packages, install
+R dependencies, or fall back to another Python. For Python-only reproduction,
+select Python targets from `list`; all-figure execution also requires R.
 
-> **Note:** Both manifests pin `plotly==6.0.1` and `kaleido==0.2.1` (conda: `python-kaleido=0.2.1`). The notebooks use `pio.kaleido.scope.default_format`, which kaleido v1.x removed, so these pins are mandatory.
-
-The remainder of this section describes the individual dependencies in case you prefer to manage them manually.
-
-### Python Dependencies
-```bash
-pip install "pandas>=2.1" matplotlib seaborn numpy openpyxl \
-    "plotly==6.0.1" "kaleido==0.2.1" "nbformat>=4.2.0" ipywidgets \
-    colorlover scipy
-```
-
-> Python ≥ 3.12 is required (matches the pinned manifests). The `kaleido==0.2.1` and `plotly==6.0.1` pins are required because the notebooks use the kaleido v0 `pio.kaleido.scope` API; v1.x removed it. `pandas>=2.1` is the true minimum (the notebooks use `DataFrame.map`, added in 2.1); the environment is verified on pandas 3.0.2.
-
-### R Dependencies
-```bash
-R -e "install.packages(c('tidyverse', 'scales', 'treemapify', 'viridis', 'readxl', 'RColorBrewer', 'rmarkdown'))"
-# ggradar is GitHub-only (not on CRAN), required by extended_data_fig. 6abc.Rmd:
-R -e "install.packages('remotes'); remotes::install_github('ricardo-bion/ggradar')"
-```
-
-### Jupyter Notebook Support
-```bash
-pip install jupyterlab
-# R kernel in Jupyter (required for the R notebooks; installs a kernel named "ir")
-R -e "install.packages(c('IRkernel'))"
-R -e "IRkernel::installspec()"
-```
-
-### R version locking (renv)
-
-`environment.yml` installs R packages via conda-forge. `renv.lock` records the exact versions used when figures were validated (including GitHub `ggradar`). After creating the conda (or system R) environment:
-
-```r
-renv::restore()
-```
-
-Under conda, `renv::restore()` may conflict with the conda R library path — treat it as best-effort (it may fail). When restore is awkward, rely on `environment.yml` for installation; **`renv.lock` remains the authoritative R package fingerprint for reviewers.** The lockfile was snapshotted on R 4.3.3 while `environment.yml` keeps `r-base>=4.0`, so minor R-version drift is possible.
-
-This repo does not ship a Docker image.
-
-> **Conda vs `uv.lock`:** `environment.yml` pins the same major Python package versions as `uv.lock` (pandas 3.0.2, numpy 2.4.4, etc.). Conda may resolve different build strings per platform/Python minor; use `uv sync --frozen` when you need bit-for-bit parity with the committed Python lockfile.
-
-## Reproducing the figures
-
-> **Authoritative target list:** [`reproduce.manifest.yaml`](reproduce.manifest.yaml). The table below is generated; CI fails if it drifts.
-
-Each figure directory is self-contained and reads its data via relative paths, so notebooks run from a fresh clone. **Run everything from the repository root.** (This applies to the figure directories; `AnalystAgent Evaluation/` is an agent-evaluation harness, not a figure — see [Agent evaluation](#agent-evaluation-not-a-figure) below.)
-
-The headless run command is identical for every notebook; define it once:
-```bash
-NBX='jupyter nbconvert --to notebook --execute --inplace'
-```
-(Interactive alternative: launch `jupyter lab`, open the file named in the table, and run all cells.)
-
-### One command
+With R 4.3.3 and its system build dependencies installed, prepare the locked R
+library explicitly. The [CI workflow](.github/workflows/reproduce.yml) lists the
+Linux system packages and verifies every DESCRIPTION version plus the recorded
+ggradar Git commit.
 
 ```bash
-PHYTOMNI_SAVE=1 ./reproduce.sh     # run every figure; artifacts land in each figure's output/
-./reproduce.sh --check             # smoke: run all, print ✓/✘/⊘ summary, non-zero exit on failure
+export R_PROFILE_USER=/dev/null
+export R_LIBS_USER="$PWD/renv/library/R-4.3/x86_64-pc-linux-gnu"
+Rscript --vanilla -e 'source("renv/activate.R"); renv::restore(library=Sys.getenv("R_LIBS_USER"), lockfile="renv.lock", strict=TRUE, prompt=FALSE)'
 ```
-The ED Fig. 6 radar target has an explicit data/toolchain pre-check, so it is reported `⊘` (with the reason) and never fails the run when `PhytoBench-RAG-for_plot.csv`, `ggradar`, or R is missing. Ext. Data 5a and 5b share one notebook but are separate manifest targets: 5a (`run`) can report `✓` because `Phytomni-PaperYear-for_plot.csv` ships in the repo; 5b is `skip_until_data` and reports `⊘` until `Phytomni-DocType-for_plot.csv` lands. The notebook's `have_5b` guard only prevents the shared notebook from aborting when that CSV is absent (5a still renders); runner status is authoritative — check for `extended_data_fig.5b.pdf` in `output/` to confirm 5b actually emitted. Every push is exercised end-to-end by GitHub Actions (see `.github/workflows/reproduce.yml`).
 
-### Reproduction matrix
+Restore failure is a failure, not a reason to silently use another library.
+The runner creates run-local Python/R kernels, binds the explicit R library,
+disables user/site configuration, and does not require global kernel registration.
+
+`conda env create -f environment.yml` is an alternative convenience installation;
+it is not equivalent to the locked reference environment. Interactive Jupyter use
+is also supported: open the source notebook and run all cells with the appropriate
+Python or `ir` kernel. Standalone notebook/script execution saves figures only
+when `PHYTOMNI_SAVE=1`; otherwise it displays inline. Quote paths containing spaces.
+The manifest runner sets the save flag only for figure execution and retains
+executed copies without modifying source notebooks.
+
+## Reproduction matrix
+
+This table is generated from the manifest; do not edit it by hand.
+Update it with `python -m scripts.render_reproduce_matrix --write-readme README.md`.
+Read-only `validate` and CI reject drift.
 
 <!-- BEGIN:REPRODUCE_MATRIX -->
 Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) · *inline* = data is hardcoded in the notebook. Artifacts are written only when `PHYTOMNI_SAVE=1` is set; a default run renders inline and writes nothing.
 
 | Figure | File | Kernel | Input data | Status | Emits (into output/ when PHYTOMNI_SAVE=1) |
 |---|---|---|---|---|---|
-| Fig. 2a-c,g-h (right) | `Fig. 2/fig. 2.ipynb` | `python3` | `PhytoBench-Knowledge-for_plot.tsv` ✓, … (6 files) | `run` | `fig.2a.phytobench-knowledge.bar.pdf` / `fig.2b.phytobench-data.bar.pdf` / `fig.2c.phytobench-analysis.violin.pdf` / … (5 files) |
-| Fig. 2d-f,g-h (left) | `Supplementary Fig. 12-15/supplementary_fig. 12-15.ipynb` | `python3` | `rank_distribution.tsv` ✓, … (13 files) | `run` | `fig.2d.phytobench-gene.percent.bar.pdf` / `fig.2e.phytobench-gene.prob.heatmap.pdf` / `fig.2f.phytobench-gene.score.bar.pdf` / … (5 files) |
-| Fig. 3 | `Fig. 3/fig. 3.ipynb` | `python3` | `PhytoBench-Paper-for_plot.xlsx` ✓ | `run` | `fig.3d.phytobench-paper.line.pdf` / `fig.3e.phytobench-paper.heatmap.pdf` |
+| Fig. 2a-c,g-h (right) | `Fig. 2/fig. 2.ipynb` | `python3` | `PhytoBench-Knowledge-for_plot.tsv` ✓, … (6 files) | `run` | `fig.2a.phytobench-knowledge.bar.pdf` / `fig.2a.phytobench-knowledge.bar.png` / `fig.2b.phytobench-data.bar.pdf` / … (10 files) |
+| Fig. 2d-f,g-h (left) | `Supplementary Fig. 12-15/supplementary_fig. 12-15.ipynb` | `python3` | `rank_distribution.tsv` ✓, … (13 files) | `run` | `fig.2d.phytobench-gene.percent.bar.pdf` / `fig.2d.phytobench-gene.percent.bar.png` / `fig.2e.phytobench-gene.prob.heatmap.pdf` / … (10 files) |
+| Fig. 3 | `Fig. 3/fig. 3.ipynb` | `python3` | `PhytoBench-Paper-for_plot.xlsx` ✓ | `run` | `fig.3d.phytobench-paper.line.pdf` / `fig.3d.phytobench-paper.line.png` / `fig.3e.phytobench-paper.heatmap.pdf` / `fig.3e.phytobench-paper.heatmap.png` |
 | Ext. Data 5a | `Extended Data Fig. 5/extended_data_fig. 5ab.ipynb` | `ir` (R) | `Phytomni-PaperYear-for_plot.csv` ✓ | `run` | `extended_data_fig.5a.pdf` |
-| Ext. Data 5b | `Extended Data Fig. 5/extended_data_fig. 5ab.ipynb` | `ir` (R) | `Phytomni-DocType-for_plot.csv` ⚠ | `skip_until_data` | `extended_data_fig.5b.pdf` |
+| Ext. Data 5b | `Extended Data Fig. 5/extended_data_fig. 5ab.ipynb` | `ir` (R) | `Phytomni-PaperYear-for_plot.csv` ✓ | `run` | `extended_data_fig.5b.pdf` |
 | Ext. Data 5c | `Extended Data Fig. 5/extended_data_fig. 5c.R` | Rscript | `Phytomni-Multiomics-for_plot.txt` ✓ | `run` | `extended_data_fig.5c.png` |
 | Ext. Data 5d | `Extended Data Fig. 5/extended_data_fig. 5d.ipynb` | `python3` | *inline* | `run` | `extended_data_fig.5d.pdf` |
-| Ext. Data 6a, 7a | `Extended Data Fig. 6-7/extended_data_fig. 6abc.ipynb` | `ir` (R) | `PhytoBench-Knowledge-for_plot.xlsx` ✓ | `run` | `extended_data_fig.6a.pdf` / `extended_data_fig.7a.pdf` |
-| Ext. Data 6 radar | `Extended Data Fig. 6-7/extended_data_fig. 6abc.Rmd` | R / `rmarkdown::render` | `PhytoBench-RAG-for_plot.csv` ⚠ | `skip_until_data` | `extended_data_fig.6-radar-figure1.pdf` / `extended_data_fig.6-radar-figure2.pdf` / `extended_data_fig.6-radar-figure3.pdf` / `extended_data_fig.6-radar-figure4.pdf` |
-| Ext. Data 6d,e | `Extended Data Fig. 6-7/extended_data_fig. 6de.ipynb` | `python3` | *inline* | `run` | `extended_data_fig.6d.pdf` / `extended_data_fig.6e.pdf` |
-| Ext. Data 7 | `Extended Data Fig. 6-7/extended_data_fig. 7.ipynb` | `ir` (R) | *inline* | `run` | `extended_data_fig.7.pdf` |
+| Ext. Data 6a | `Extended Data Fig. 6-7/extended_data_fig. 6ab-7ab.ipynb` | `ir` (R) | *inline* | `run` | `extended_data_fig.6a.pdf` |
+| Ext. Data 6b | `Extended Data Fig. 6-7/extended_data_fig. 6ab-7ab.ipynb` | `ir` (R) | *inline* | `run` | `extended_data_fig.6b.pdf` |
+| Ext. Data 6d,e | `Extended Data Fig. 6-7/extended_data_fig. 6de-7de.ipynb` | `python3` | *inline* | `run` | `extended_data_fig.6d.pdf` / `extended_data_fig.6e.pdf` |
+| Ext. Data 7a | `Extended Data Fig. 6-7/extended_data_fig. 6ab-7ab.ipynb` | `ir` (R) | *inline* | `run` | `extended_data_fig.7a.pdf` |
+| Ext. Data 7b | `Extended Data Fig. 6-7/extended_data_fig. 6ab-7ab.ipynb` | `ir` (R) | *inline* | `run` | `extended_data_fig.7b.pdf` |
+| Ext. Data 7d,e | `Extended Data Fig. 6-7/extended_data_fig. 6de-7de.ipynb` | `python3` | *inline* | `run` | `extended_data_fig.7d.pdf` / `extended_data_fig.7e.pdf` |
 | Ext. Data 7c | `Extended Data Fig. 6-7/extended_data_fig. 7c.ipynb` | `python3` | *inline* | `run` | `extended_data_fig.7c.pdf` |
-| Supp. 1 | `Supplementary Fig. 1/supplementary_fig. 1.ipynb` | `python3` | `Phyto-Chatbot-Pretrain.loss.json` ✓, … (4 files) | `run` | `supplementary_fig.1a.chatbot_pretrain_loss.line.pdf` / `supplementary_fig.1b.reasoner_pretrain_loss.line.pdf` / `supplementary_fig.1c.chatbot_sft_loss.line.pdf` / `supplementary_fig.1d.reasoner_sft_loss.line.pdf` |
+| Supp. 1 | `Supplementary Fig. 1/supplementary_fig. 1.ipynb` | `python3` | `Phyto-Chatbot-Pretrain.loss.json` ✓, … (4 files) | `run` | `supplementary_fig.1a.chatbot_pretrain_loss.line.pdf` / `supplementary_fig.1a.chatbot_pretrain_loss.line.png` / `supplementary_fig.1b.reasoner_pretrain_loss.line.pdf` / … (8 files) |
 | Supp. 6 | `Supplementary Fig. 6/supplementary_fig. 6.ipynb` | `ir` (R) | *inline* | `run` | `supplementary_fig.6a.pdf` / `supplementary_fig.6b.pdf` |
 | Supp. 7 | `Supplementary Fig. 7/supplementary_fig. 7.py` | `python3` (script) | `PhytoBench-Data-for_plot.xlsx` ✓ | `run` | `model_accuracy_by_species.pdf` |
-| Supp. 12-15 | `Supplementary Fig. 12-15/supplementary_fig. 12-15.ipynb` | `python3` | `rank_distribution.tsv` ✓, … (13 files) | `run` | `supplementary_fig.12.phytobench-gene.well_studied.percent.bar.pdf` / `supplementary_fig.12.phytobench-gene.well_studied.rice.percent.bar.pdf` / `supplementary_fig.12.phytobench-gene.well_studied.maize.percent.bar.pdf` / … (52 files) |
-| Supp. 16 | `Supplementary Fig. 16/supplementary_fig. 16.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.16a.model.paperbench-mp.line.pdf` / `supplementary_fig.16b.model.paperbench-as.line.pdf` / `supplementary_fig.16c.model.paperbench-cr.line.pdf` / … (5 files) |
+| Supp. 12-15 | `Supplementary Fig. 12-15/supplementary_fig. 12-15.ipynb` | `python3` | `rank_distribution.tsv` ✓, … (13 files) | `run` | `supplementary_fig.12.phytobench-gene.well_studied.percent.bar.pdf` / `supplementary_fig.12.phytobench-gene.well_studied.percent.bar.png` / `supplementary_fig.12.phytobench-gene.well_studied.rice.percent.bar.pdf` / … (104 files) |
+| Supp. 16 | `Supplementary Fig. 16/supplementary_fig. 16.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.16a.model.paperbench-mp.line.pdf` / `supplementary_fig.16a.model.paperbench-mp.line.png` / `supplementary_fig.16b.model.paperbench-as.line.pdf` / … (10 files) |
 | Supp. 19 | `Supplementary Fig. 19/supplementary_fig. 19.ipynb` | `ir` (R) | *inline* | `run` | `supplementary_fig.19.pdf` |
 | Supp. 20 | `Supplementary Fig. 20/supplementary_fig. 20.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.20.pdf` |
 | Supp. 21 | `Supplementary Fig. 21/supplementary_fig. 21.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.21.pdf` |
-| Supp. 26 | `Supplementary Fig. 26/supplementary_fig. 26.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.26.phytobench-review.polar.pdf` |
+| Supp. 26 | `Supplementary Fig. 26/supplementary_fig. 26.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.26.phytobench-review.polar.pdf` / `supplementary_fig.26.phytobench-review.polar.png` |
 <!-- END:REPRODUCE_MATRIX -->
 
-### How to run
+## Run evidence and verification
 
-- **Python notebooks** need only the Python environment from [Environment setup](#environment-setup). Run headlessly with `$NBX "<file>"`, or open the file in `jupyter lab` and run all cells.
-- **R notebooks** (`5ab`, `6abc`, `7`, Supp. 6, Supp. 19; plus the `6abc.Rmd` R Markdown) need the `ir` kernel / an R install — install the kernel once with `R -e "IRkernel::installspec()"`. Without it, `nbconvert` reports `No such kernel`. `extended_data_fig. 7c.ipynb` and `Supplementary Fig. 20` are Python.
-- **The R script** (`5c.R`) runs standalone with `Rscript`; its save (`ggsave`) is gated behind `PHYTOMNI_SAVE` like every other file.
-- **The Python script** (`Supplementary Fig. 7/supplementary_fig. 7.py`) also runs standalone with `python3` (not via `$NBX` — it is a script, not a notebook). It reads `PhytoBench-Data-for_plot.xlsx` by a bare relative path, so run it from inside its directory: `cd "Supplementary Fig. 7" && python3 "supplementary_fig. 7.py"`.
-- **Figure-saving is gated behind `PHYTOMNI_SAVE`.** A default run renders each figure inline and writes nothing. Set `PHYTOMNI_SAVE=1` to emit every figure into that directory's `output/` (gitignored; filenames follow `<figure>.<panel>.pdf`/`.png`). `reproduce.sh` does this for you — see [One command](#one-command) above.
+Each invocation has a unique `logs/reproduce/<run-id>/` directory:
+
+- `shareable/summary.json`: target and execution-unit coverage, timestamps,
+  status/reason codes, source/input/artifact hashes, environment and publication state.
+- `shareable/targets/<target-id>.log`: allowlisted status summaries.
+- `shareable/artifacts/`: only this run's validated, selected, published figures.
+- `work/`, `inputs/`, `raw/`, and `backups/`: local executed copies,
+  diagnostic output and overwritten-file recovery evidence. Do not publish these
+  directories wholesale; raw output may contain local paths or sensitive diagnostics.
+
+Existing output files are not proof of a successful run. Validation decodes fresh
+images/PDFs; visual inspection and scientific comparisons remain separate checks.
+If publication encounters a user edit, it reports a conflict and retains evidence
+instead of overwriting the edit during rollback. Publication is not a global
+multi-file crash-atomic transaction. Clean up only completed run directories after
+checking their reports and backups; never delete another active run's work.
+
+Run the public fast gate and, after R preparation, the required R runtime checks:
+
+```bash
+python -m pytest tests/ -m 'not r_runtime' -q
+python -m pytest tests/ -m r_runtime -q
+```
+
+The private-lineage test is explicitly opt-in and is not required to render public
+figures. Local checks do not establish hosted CI, external service availability,
+full bootstrap convergence, or an externally published release.
+
+## Scope and author-owned reconciliation
+
+The matrix covers currently supplied plotting sources, not every manuscript panel.
+Ext. Data 5a/b share the year CSV and inline disciplinary counts; either selection
+requires the CSV because the source executes as a whole. Ext. Data 6a/b and 7a/b
+share the current benchmark/radar source; 6d/e and 7d/e share the AnalystAgent source.
+
+Ext. Data 6c has no current plotting source. Some supplied AnalystAgent inline
+totals differ from the manuscript's rounded overview. Ext. Data 5d category counts
+sum to 160 while its existing count-label formula scales by 167. These scientific
+discrepancies need author reconciliation; structural cleanup does not replace data
+or recover a retired source to fill a gap.
+
+Fig. 2a retains the manuscript-aligned Phyto-Chatbot values 0.720 and 0.084,
+with both original workbook and aligned values recorded in provenance. Corrected
+source workbooks are needed before a separate scientific update. See the
+[Fig. 2 data dictionary](<Fig. 2/DATA_DICTIONARY.md>) and
+[ranking data dictionary](<Supplementary Fig. 12-15/PhytoBench-Gene-for_plot/DATA_DICTIONARY.md>)
+for units, denominators, scope, missingness and intervals.
+
+Legacy four-model ranking tables remain historical evidence, not active plotting
+inputs. Their removal and publication/archive obligations require an explicit
+provenance decision. Software citation authors, preferred version and citation
+metadata likewise require confirmation; no DOI or data relicensing is inferred.
+
+A local release candidate should contain only verified current-run figures,
+shareable status evidence, individually audited executed sources, and their public
+input/manifest/lock provenance. Audit executed notebook outputs before sharing.
+Do not include private inputs, raw logs, backups, local plans or credentials.
+Local candidate preparation is not publication.
 
 ## Agent evaluation (not a figure)
 
-The open-source Phytomni-Bot runtime used by these evaluations is available
-from the public
-[`Phytomni/Phytomni-Bot`](https://github.com/Phytomni/Phytomni-Bot)
-repository. Four agent-evaluation harnesses live in this repository. They are
-**not** manuscript figure reproduction, and `./reproduce.sh` runs lightweight
-**probes only** for them (see the evaluation summary at the end of a normal
-run). A bare clone without the separately installed Phytomni-Bot package or
-configured external services will show **⊘** with reasons; evaluation **⊘**
-never fails `--check`.
-
 ### AnalystAgent Evaluation
 
-`AnalystAgent Evaluation/evaluation_scripts.ipynb` benchmarks the Phytomni analyst agent over 10 bioinformatics tasks and writes JSON run-logs to `submit_log/` (no PDF/PNG). Beyond the figure environment it requires:
-
-- **`mcp_server_phytomni`** — install from the public
-  [Phytomni-Bot repository](https://github.com/Phytomni/Phytomni-Bot) by
-  following its Quick Start instructions. The package is separate from this
-  figure repository and its manifests.
-- **`huggingface_hub`** — `pip install huggingface_hub`. On first run the notebook auto-downloads benchmark data from <https://huggingface.co/datasets/Phytomni/PhytoBench-Analysis> into `AnalystAgent Evaluation/PhytoBench-Analysis/`.
-- **A configured Phytomni-Bot backend** to which the notebook submits tasks
-  through `retrieve_plan_submit`.
-
-Downloaded data and `submit_log/` are gitignored.
+[AnalystAgent Evaluation/README.md](<AnalystAgent Evaluation/README.md>):
+external Phytomni-Bot runtime, downloaded benchmark data and live agent backend.
 
 ### DataAgent Evaluation
 
-`DataAgent Evaluation/` is a rewrite → NL2SQL pipeline for the Data agent. Scripts read `../data`, `../output`, `../result` by bare relative paths — run them from inside `DataAgent Evaluation/src/`: `exp_rewrite.py` rewrites questions from `../data/PhytoBench-Data.xlsx` into `../output/`, then `exp_nl2sql.py` runs those through an NL2SQL service into `../result/`. Beyond the figure environment it requires:
-
-- **`langchain`, `openai`, `httpx`, `tqdm`, `pyyaml`, `requests`** — none are in this repo's manifests; `pip install` them separately.
-- **A `prompt_template.yaml` in `src/`** — not shipped in the repo; `rewrite.py` loads it at import time, so the scripts fail immediately without it. Supply your own.
-- **Private backends** — LLM endpoint, IAM token service, NL2SQL service URL, and RAG knowledge-search URL are `Change_to_your_*` / `change_to_your_*` placeholders you must fill in (`src/model/config.py`, `src/utils.py`, `src/exp_nl2sql.py`, `src/rag/rag_run.py`, etc.).
-
-The `output/` and `result/` directories it creates are gitignored.
+[DataAgent Evaluation/README.md](<DataAgent Evaluation/README.md>):
+rewrite/NL2SQL pipeline, absent prompt template, private service configuration
+and separate runtime dependencies.
 
 ### Knowledge&ReviewAgent Evaluation
 
-`Knowledge&ReviewAgent Evaluation/` contains CLI evaluators (`evaluation_id.py`, `evaluation_trace.py`) for gene-ID and trace-QA benchmarks. Both require a **`--input` dataset** (`.xlsx`/`.csv`) that is **not shipped in this repo** — supply your own benchmark file. They use pandas/matplotlib (available in the figure Python env) but cannot produce manuscript figures without your input data and model outputs.
+[Knowledge&ReviewAgent Evaluation/README.md](<Knowledge&ReviewAgent Evaluation/README.md>):
+identification, trace and review scorers; parser-only help is offline, but
+model-based scoring has additional dependencies and download requirements.
 
 ### DeepGenomeAgent Evaluation
 
-`DeepGenomeAgent Evaluation/` contains two canonical scoring notebooks. `score_hallucination.ipynb` measures cross-response inconsistency. For each gene and model, it compares three repeated responses over every ordered response pair, records window-level pairwise entailment judgments, clusters mutually entailing responses to calculate normalized semantic entropy, and summarizes structurally complete logs with the primary `mean_directional_contradiction_ratio` and the inclusive-threshold `high_contradiction_gene_fraction`. Neither cross-response consistency nor semantic entropy directly verifies factual truth: a false claim repeated consistently across all three responses can score as consistent.
-
-`DeepGenomeAgent Evaluation/score_plackett_luce.ipynb` converts complete expert rankings into Plackett–Luce log-strengths, Elo-like scores and confidence intervals, and pairwise win probabilities. Its default target set contains five models (`Gemini`, `Grok`, `OpenAI`, `Phytomni`, and `Claude`), while the likelihood implementation supports any configured count of at least two models. The manuscript freezer deliberately uses the fixed five-model public-release schema so that the published figures and their checksums cannot drift with notebook configuration.
-
-The full anonymized scoring attachment is tracked at `DeepGenomeAgent Evaluation/supplementary/Supplementary_Data_Expert_Rankings.tsv`, with its field definitions in `Supplementary_Data_Expert_Rankings_Codebook.tsv`. It contains 600 expert–gene assignments from 120 anonymized experts and 200 genes: each row is one complete, no-tie R1–R5 ranking of the five models. The public `expert_panel_category_map.tsv` records the privacy-reviewed category aggregation used for the panel-composition summary. Row-level expert demographics are not released; only the aggregate panel summary is used by the figure notebook.
-
-The private query workbook, response corpus, hallucination-judgment logs, expert metadata workbook, and private lineage `score.tsv` are not shipped. Exact numeric reproduction of the inconsistency results requires the frozen judgment logs used for the reported run; rerunning a drifting external judge alias can change entailment labels and therefore does not guarantee the same numbers. The checked-in schema-2 ranking aggregates reproduce the reported ranking figures without those private inputs. The compact Claude BERTScore and hallucination tables, together with their non-secret provenance record, are tracked under `Supplementary Fig. 12-15/PhytoBench-Gene-for_plot/frozen/` and remain the source for the five-model BERTScore and hallucination figure tables in `Fig. 2/`.
-
-For an offline repository check, install only the locked base environment and run the scoring contract tests. The Plackett–Luce notebook can also execute without private data:
-
-```bash
-uv sync --frozen
-uv run --no-sync pytest tests/test_deepgenome_scoring_notebooks.py -v
-mkdir -p /tmp/deepgenome-notebook-runs
-uv run --no-sync jupyter nbconvert --to notebook --execute \
-  --output-dir=/tmp/deepgenome-notebook-runs \
-  "DeepGenomeAgent Evaluation/score_plackett_luce.ipynb"
-```
-
-`nbconvert` writes executed copies to `/tmp/deepgenome-notebook-runs/score_plackett_luce.ipynb` and `/tmp/deepgenome-notebook-runs/score_hallucination.ipynb`; the tracked canonical notebooks remain output-free. The same temporary output directory is used in the private-log and live examples below.
-
-Set `DEEPGENOME_SCORE_TSV=/absolute/path/to/score.tsv` to fit a private ranking table. The five default model columns match the public benchmark input; set `DEEPGENOME_MODEL_COLUMNS=Gemini,Claude,Model_X` to supply a different comma-separated set while retaining `Gemini` as the reference model. Set `DEEPGENOME_EXPORT_DIR=/absolute/path/to/export-dir` to opt in to writing the computed aggregate TSV tables; exports are disabled by default and should be directed to a temporary or explicitly managed data directory. If `DEEPGENOME_SCORE_TSV` is unset, the notebook completes its deterministic checks, reports `SKIPPED`, and does not fit or invent private benchmark results.
-
-The manuscript figures do not read private row-level data directly. To rebuild the schema-2 snapshot, combine the tracked anonymized ranking release and public mappings with the private expert metadata and lineage file in a controlled environment:
-
-```bash
-uv run --no-sync python -m scripts.freeze_deepgenome_rankings \
-  --score-tsv \
-  "DeepGenomeAgent Evaluation/supplementary/Supplementary_Data_Expert_Rankings.tsv" \
-  --expert-column AnonymousExpertID \
-  --gene-categories \
-  "Supplementary Fig. 12-15/PhytoBench-Gene-for_plot/gene_categories.tsv" \
-  --expert-metadata /absolute/path/to/expert_metadata.xlsx \
-  --private-lineage-score /absolute/path/to/private/score.tsv \
-  --panel-category-map \
-  "DeepGenomeAgent Evaluation/supplementary/expert_panel_category_map.tsv" \
-  --bootstrap-replicates 10000 \
-  --seed 20260714 \
-  --max-failed-fits 10 \
-  --output-dir \
-  "Supplementary Fig. 12-15/PhytoBench-Gene-for_plot/frozen"
-```
-
-The freezer rejects incomplete rankings and writes exactly 13 tracked inputs: 12 aggregate TSV tables plus `provenance.json`. The snapshot contains rank-distribution, Plackett–Luce score, and pairwise-probability point estimates and 95% confidence intervals; Fleiss-κ, per-gene Kendall W, ordinal-agreement, and top-1-consensus results; expert-panel and assignment summaries; and checksummed provenance. Both the Plackett–Luce and agreement analyses use 10,000 successful bootstrap replicates. Plackett–Luce intervals use the crossed expert–gene percentile analysis, while agreement intervals use a gene-block percentile bootstrap stratified by species and study status.
-
-For Fleiss-κ, an item is one gene×model pair, R1–R5 are the rating categories, and each item has three expert ratings. `fleiss_kappa.tsv` retains all 58 locked scopes: 1 primary overall scope, 12 locked secondary scopes (five species, two study-status groups, and five models), and 45 locked exploratory interaction scopes. Supplementary Fig. 13 displays the overall, five-species, and two-study-status κ estimates; the model-specific and exploratory estimates remain in the complete 58-scope audit table. Kendall W summarizes each gene's three complete rankings across the five models, and the top-1 table classifies each gene as unanimous, two-of-three majority, or all different. The four Supplementary Fig. 13 panels report panel composition and assignment balance, Fleiss-κ, mean Kendall W, and top-1 consensus, respectively.
-
-Panel-composition percentages are explicit about their denominator. The multi-select `Research_domains` and `Study_species` dimensions use all 120 experts, so their category percentages need not sum to 100%; single-select dimensions use nonmissing respondents and report the missing count. Conflict of interest is reported as a self-declaration: all 120 experts selected `No`, so the supported statement is that no conflicts were declared, not that conflicts were independently excluded.
-
-The older four-model `legacy/score*.tsv` files remain only as legacy provenance and are not read by the current plotting path. Fig. 2d-f, the left-hand Fig. 2g-h panels, and all stratified Supplementary Fig. 12-15 panels read the frozen aggregate tables. The left-hand Fig. 2g and Fig. 2h panels reuse the Supplementary Fig. 15 well-studied and uncharacterized Elo score bars on the Fig. 2f y-axis range `[1200, 1700]`. The right-hand Fig. 2g-h panels retain BERTScore precision and internal hallucination rate, respectively, from the tracked five-model metric tables in `Fig. 2/`; their y-axis ranges remain `[0.47, 0.58]` and `[0.1, 0.7]`. The ranking notebook writes the left-hand panels to `Supplementary Fig. 12-15/output/` with `.score.bar` filenames; the Fig. 2 notebook writes the right-hand panels to `Fig. 2/output/`. Generate both notebooks with:
-
-```bash
-mkdir -p /tmp/phytomni-figure-runs
-PHYTOMNI_SAVE=1 uv run --no-sync jupyter nbconvert \
-  --to notebook --execute --output-dir=/tmp/phytomni-figure-runs \
-  "Supplementary Fig. 12-15/supplementary_fig. 12-15.ipynb"
-PHYTOMNI_SAVE=1 uv run --no-sync jupyter nbconvert \
-  --to notebook --execute --output-dir=/tmp/phytomni-figure-runs \
-  "Fig. 2/fig. 2.ipynb"
-```
-
-`Fig. 2a-c` read three tracked, plot-ready TSV files rather than embedded
-arrays. To refresh them from the four private source workbooks, run:
-
-```bash
-uv run --no-sync python -m scripts.freeze_fig2_core_metrics \
-  --knowledge-id /path/to/knowledge-identification.xlsx \
-  --knowledge-trace /path/to/knowledge-trace.xlsx \
-  --data /path/to/data-benchmark.xlsx \
-  --analysis /path/to/analysis-benchmark.xlsx \
-  --output-dir "Fig. 2"
-```
-
-The freezer validates row identifiers, completeness, numeric ranges, and model
-column mappings before writing the TSV files. For Fig. 2c, it retains the 50
-primary benchmark runs (10 scenarios × 5 runs), excludes the 60 cross-species
-extension runs, and verifies that each 0–100 total score equals the sum of the
-planning, tool-selection, parameter-setting, and execution scores (each 0–25).
-The current Fig. 2a contract aligns the Phyto-Chatbot values to the
-20260727 manuscript (`IdentificationAccuracy = 0.720` and
-`TraceBLEU4 = 0.084`) because the private Supplementary Data 4 and 5
-workbooks have not yet been corrected to those reported values. The freezer
-records both the workbook-computed values and the manuscript-aligned values;
-Fig. 2b and Fig. 2c remain derived directly from their private workbooks.
-It also writes
-`PhytoBench-Core-for_plot-provenance.json`, which records source-file hashes,
-row counts, the Fig. 2c scope, metric definitions, model order, and output
-hashes without exposing private source paths.
-
-The hallucination notebook's default execution is offline, but its optional analysis dependencies are installed with the live-evaluation extra. To aggregate already frozen logs without contacting a service, leave live judging disabled and provide only the log directory:
-
-```bash
-uv sync --frozen --extra deepgenome-eval
-mkdir -p /tmp/deepgenome-notebook-runs
-DEEPGENOME_JUDGMENT_DIR=/absolute/path/to/frozen/judgment-logs \
-  uv run --no-sync --extra deepgenome-eval jupyter nbconvert \
-  --to notebook --execute --output-dir=/tmp/deepgenome-notebook-runs \
-  "DeepGenomeAgent Evaluation/score_hallucination.ipynb"
-```
-
-For a new live hallucination run, install the same extra and the NLTK sentence tokenizer, create the judgment-log directory, then explicitly opt in to API requests:
-
-```bash
-uv sync --frozen --extra deepgenome-eval
-uv run --extra deepgenome-eval python -m nltk.downloader punkt_tab
-mkdir -p /absolute/path/to/judgment-logs
-mkdir -p /tmp/deepgenome-notebook-runs
-DEEPGENOME_QUERY_WORKBOOK=/absolute/path/to/queries.xlsx \
-DEEPGENOME_RESPONSE_ROOT=/absolute/path/to/response-corpus \
-DEEPGENOME_JUDGMENT_DIR=/absolute/path/to/judgment-logs \
-DEEPGENOME_API_BASE_URL=https://judge.example/v1 \
-DEEPGENOME_API_KEY=replace-with-private-key \
-DEEPGENOME_JUDGE_MODEL=replace-with-pinned-model \
-DEEPGENOME_RUN_LIVE_JUDGING=1 \
-  uv run --no-sync --extra deepgenome-eval jupyter nbconvert \
-  --to notebook --execute --output-dir=/tmp/deepgenome-notebook-runs \
-  "DeepGenomeAgent Evaluation/score_hallucination.ipynb"
-```
-
-All seven hallucination variables are explicit: `DEEPGENOME_QUERY_WORKBOOK`, `DEEPGENOME_RESPONSE_ROOT`, `DEEPGENOME_JUDGMENT_DIR`, `DEEPGENOME_API_BASE_URL`, `DEEPGENOME_API_KEY`, `DEEPGENOME_JUDGE_MODEL`, and `DEEPGENOME_RUN_LIVE_JUDGING`. With live judging disabled, a missing judgment directory or the absence of valid logs reports `SKIPPED` instead of fabricating a score. When `DEEPGENOME_RUN_LIVE_JUDGING=1`, any unset or nonexistent private input, missing API setting, or unavailable NLTK `punkt_tab` raises an actionable error and fails before constructing the judge client. Each live log records only a sanitized API base URL, judge model, UTC timestamp, relevant package versions, and SHA-256 checksums for the question and ordered responses; it never serializes the API key or URL credentials, query, or fragment.
-
-## Help
-
-Please post in the GitHub issues or contact the authors with any questions about the repository, requests for more data, or additional information about the results.
+[DeepGenomeAgent Evaluation/README.md](<DeepGenomeAgent Evaluation/README.md>):
+ranking/hallucination notebooks, private evaluation inputs, provider configuration,
+and controlled publication updates. Public frozen rendering and independent
+ranking recomputation do not require those private services.

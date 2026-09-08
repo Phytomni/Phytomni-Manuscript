@@ -145,6 +145,22 @@ _KNOWN_ARCHIVE_ANOMALIES = [
 ]
 
 
+def _validate_output_ownership(directory: Path) -> None:
+    ranking_directory = (
+        Path(__file__).resolve().parents[1]
+        / "Supplementary Fig. 12-15"
+        / "PhytoBench-Gene-for_plot"
+        / "frozen"
+    )
+    lexical = Path(os.path.abspath(directory))
+    for candidate in (lexical, lexical.resolve()):
+        if candidate.is_relative_to(ranking_directory):
+            raise ValueError(
+                "Gene-metric outputs cannot be written into the ranking publication. "
+                "Use a separate gene-metric directory."
+            )
+
+
 def sha256_file(path: Path) -> str:
     """Return the SHA-256 digest of *path* without loading it all at once."""
 
@@ -1257,7 +1273,14 @@ def _parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--gene-categories", type=Path, required=True)
     parser.add_argument("--judgment-dir", type=Path)
     parser.add_argument("--hallucination-notebook", type=Path)
-    parser.add_argument("--frozen-dir", type=Path)
+    parser.add_argument(
+        "--frozen-dir",
+        type=Path,
+        help=(
+            "Claude compact-table directory, separate from the ranking publication "
+            "(repository location: Fig. 2/PhytoBench-Gene-metrics-for_plot)."
+        ),
+    )
     parser.add_argument("--figure-dir", type=Path)
     parser.add_argument("--device", default=None)
     parser.add_argument("--batch-size", type=int, default=16)
@@ -1266,6 +1289,9 @@ def _parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
 
 def main(argv: Iterable[str] | None = None) -> int:
     args = _parse_args(argv)
+    for directory in (args.frozen_dir, args.figure_dir):
+        if directory is not None:
+            _validate_output_ownership(directory)
     source = load_source_workbook(args.source_workbook)
     categories = load_gene_categories(args.gene_categories)
     responses = load_claude_archive(args.claude_archive, categories)

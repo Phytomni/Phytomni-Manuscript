@@ -16,10 +16,15 @@ targets:
       - "Fig. 2/PhytoBench-Gene-hallucination-for_plot.tsv"
     expected_artifacts:
       - "Fig. 2/output/fig.2a.phytobench-knowledge.bar.pdf"
+      - "Fig. 2/output/fig.2a.phytobench-knowledge.bar.png"
       - "Fig. 2/output/fig.2b.phytobench-data.bar.pdf"
+      - "Fig. 2/output/fig.2b.phytobench-data.bar.png"
       - "Fig. 2/output/fig.2c.phytobench-analysis.violin.pdf"
+      - "Fig. 2/output/fig.2c.phytobench-analysis.violin.png"
       - "Fig. 2/output/fig.2g.phytobench-gene.well_studied.bar.pdf"
+      - "Fig. 2/output/fig.2g.phytobench-gene.well_studied.bar.png"
       - "Fig. 2/output/fig.2h.phytobench-gene.uncharacterized.bar.pdf"
+      - "Fig. 2/output/fig.2h.phytobench-gene.uncharacterized.bar.png"
 
   - id: fig-2def
     label: Fig. 2d-f,g-h (left)
@@ -44,10 +49,15 @@ targets:
       - "Supplementary Fig. 12-15/PhytoBench-Gene-for_plot/frozen/provenance.json"
     expected_artifacts:
       - "Supplementary Fig. 12-15/output/fig.2d.phytobench-gene.percent.bar.pdf"
+      - "Supplementary Fig. 12-15/output/fig.2d.phytobench-gene.percent.bar.png"
       - "Supplementary Fig. 12-15/output/fig.2e.phytobench-gene.prob.heatmap.pdf"
+      - "Supplementary Fig. 12-15/output/fig.2e.phytobench-gene.prob.heatmap.png"
       - "Supplementary Fig. 12-15/output/fig.2f.phytobench-gene.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/fig.2f.phytobench-gene.score.bar.png"
       - "Supplementary Fig. 12-15/output/fig.2g.phytobench-gene.well_studied.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/fig.2g.phytobench-gene.well_studied.score.bar.png"
       - "Supplementary Fig. 12-15/output/fig.2h.phytobench-gene.uncharacterized.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/fig.2h.phytobench-gene.uncharacterized.score.bar.png"
 
   - id: fig-3
     label: Fig. 3
@@ -60,7 +70,9 @@ targets:
       - "Fig. 3/PhytoBench-Paper-for_plot.xlsx"
     expected_artifacts:
       - "Fig. 3/output/fig.3d.phytobench-paper.line.pdf"
+      - "Fig. 3/output/fig.3d.phytobench-paper.line.png"
       - "Fig. 3/output/fig.3e.phytobench-paper.heatmap.pdf"
+      - "Fig. 3/output/fig.3e.phytobench-paper.heatmap.png"
 
   - id: ext-data-5a
     label: Ext. Data 5a
@@ -82,9 +94,9 @@ targets:
     kind: notebook
     path: "Extended Data Fig. 5/extended_data_fig. 5ab.ipynb"
     kernel: ir
-    status: skip_until_data
+    status: run
     requires_data:
-      - "Extended Data Fig. 5/Phytomni-DocType-for_plot.csv"
+      - "Extended Data Fig. 5/Phytomni-PaperYear-for_plot.csv"
     requires_toolchain:
       - ir
     expected_artifacts:
@@ -115,61 +127,79 @@ targets:
     expected_artifacts:
       - "Extended Data Fig. 5/output/extended_data_fig.5d.pdf"
 
-  - id: ext-data-6abc
-    label: Ext. Data 6a, 7a
+  - id: ext-data-6a
+    label: Ext. Data 6a
     phase: figure
     kind: notebook
-    path: "Extended Data Fig. 6-7/extended_data_fig. 6abc.ipynb"
+    path: "Extended Data Fig. 6-7/extended_data_fig. 6ab-7ab.ipynb"
     kernel: ir
     status: run
-    requires_data:
-      - "Extended Data Fig. 6-7/PhytoBench-Knowledge-for_plot.xlsx"
     requires_toolchain:
       - ir
-    expected_artifacts:
-      - "Extended Data Fig. 6-7/output/extended_data_fig.6a.pdf"
-      - "Extended Data Fig. 6-7/output/extended_data_fig.7a.pdf"
-
-  - id: ext-data-6-radar
-    label: Ext. Data 6 radar
-    phase: figure
-    kind: rmd
-    path: "Extended Data Fig. 6-7/extended_data_fig. 6abc.Rmd"
-    kernel: none
-    status: skip_until_data
-    requires_data:
-      - "Extended Data Fig. 6-7/PhytoBench-RAG-for_plot.csv"
-    requires_toolchain:
-      - Rscript
       - ggradar
     expected_artifacts:
-      - "Extended Data Fig. 6-7/output/extended_data_fig.6-radar-figure1.pdf"
-      - "Extended Data Fig. 6-7/output/extended_data_fig.6-radar-figure2.pdf"
-      - "Extended Data Fig. 6-7/output/extended_data_fig.6-radar-figure3.pdf"
-      - "Extended Data Fig. 6-7/output/extended_data_fig.6-radar-figure4.pdf"
+      - "Extended Data Fig. 6-7/output/extended_data_fig.6a.pdf"
+
+  - id: ext-data-6b
+    label: Ext. Data 6b
+    phase: figure
+    kind: notebook
+    path: "Extended Data Fig. 6-7/extended_data_fig. 6ab-7ab.ipynb"
+    kernel: ir
+    status: run
+    requires_toolchain:
+      - ir
+      - ggradar
+    expected_artifacts:
+      - "Extended Data Fig. 6-7/output/extended_data_fig.6b.pdf"
 
   - id: ext-data-6de
     label: Ext. Data 6d,e
     phase: figure
     kind: notebook
-    path: "Extended Data Fig. 6-7/extended_data_fig. 6de.ipynb"
+    path: "Extended Data Fig. 6-7/extended_data_fig. 6de-7de.ipynb"
     kernel: py
     status: run
     expected_artifacts:
       - "Extended Data Fig. 6-7/output/extended_data_fig.6d.pdf"
       - "Extended Data Fig. 6-7/output/extended_data_fig.6e.pdf"
 
-  - id: ext-data-7
-    label: Ext. Data 7
+  - id: ext-data-7a
+    label: Ext. Data 7a
     phase: figure
     kind: notebook
-    path: "Extended Data Fig. 6-7/extended_data_fig. 7.ipynb"
+    path: "Extended Data Fig. 6-7/extended_data_fig. 6ab-7ab.ipynb"
     kernel: ir
     status: run
     requires_toolchain:
       - ir
+      - ggradar
     expected_artifacts:
-      - "Extended Data Fig. 6-7/output/extended_data_fig.7.pdf"
+      - "Extended Data Fig. 6-7/output/extended_data_fig.7a.pdf"
+
+  - id: ext-data-7b
+    label: Ext. Data 7b
+    phase: figure
+    kind: notebook
+    path: "Extended Data Fig. 6-7/extended_data_fig. 6ab-7ab.ipynb"
+    kernel: ir
+    status: run
+    requires_toolchain:
+      - ir
+      - ggradar
+    expected_artifacts:
+      - "Extended Data Fig. 6-7/output/extended_data_fig.7b.pdf"
+
+  - id: ext-data-7de
+    label: Ext. Data 7d,e
+    phase: figure
+    kind: notebook
+    path: "Extended Data Fig. 6-7/extended_data_fig. 6de-7de.ipynb"
+    kernel: py
+    status: run
+    expected_artifacts:
+      - "Extended Data Fig. 6-7/output/extended_data_fig.7d.pdf"
+      - "Extended Data Fig. 6-7/output/extended_data_fig.7e.pdf"
 
   - id: ext-data-7c
     label: Ext. Data 7c
@@ -195,9 +225,13 @@ targets:
       - "Supplementary Fig. 1/Model-Loss-for_plot/Phyto-Reasoner-SFT.loss.json"
     expected_artifacts:
       - "Supplementary Fig. 1/output/supplementary_fig.1a.chatbot_pretrain_loss.line.pdf"
+      - "Supplementary Fig. 1/output/supplementary_fig.1a.chatbot_pretrain_loss.line.png"
       - "Supplementary Fig. 1/output/supplementary_fig.1b.reasoner_pretrain_loss.line.pdf"
+      - "Supplementary Fig. 1/output/supplementary_fig.1b.reasoner_pretrain_loss.line.png"
       - "Supplementary Fig. 1/output/supplementary_fig.1c.chatbot_sft_loss.line.pdf"
+      - "Supplementary Fig. 1/output/supplementary_fig.1c.chatbot_sft_loss.line.png"
       - "Supplementary Fig. 1/output/supplementary_fig.1d.reasoner_sft_loss.line.pdf"
+      - "Supplementary Fig. 1/output/supplementary_fig.1d.reasoner_sft_loss.line.png"
 
   - id: supp-6
     label: Supp. 6
@@ -247,57 +281,109 @@ targets:
       - "Supplementary Fig. 12-15/PhytoBench-Gene-for_plot/frozen/provenance.json"
     expected_artifacts:
       - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.well_studied.percent.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.well_studied.percent.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.well_studied.rice.percent.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.well_studied.rice.percent.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.well_studied.maize.percent.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.well_studied.maize.percent.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.well_studied.wheat.percent.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.well_studied.wheat.percent.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.well_studied.soybean.percent.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.well_studied.soybean.percent.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.well_studied.arabidopsis.percent.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.well_studied.arabidopsis.percent.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.uncharacterized.percent.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.uncharacterized.percent.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.uncharacterized.rice.percent.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.uncharacterized.rice.percent.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.uncharacterized.maize.percent.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.uncharacterized.maize.percent.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.uncharacterized.wheat.percent.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.uncharacterized.wheat.percent.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.uncharacterized.soybean.percent.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.uncharacterized.soybean.percent.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.uncharacterized.arabidopsis.percent.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.uncharacterized.arabidopsis.percent.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.rice.percent.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.rice.percent.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.maize.percent.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.maize.percent.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.wheat.percent.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.wheat.percent.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.soybean.percent.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.soybean.percent.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.arabidopsis.percent.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.12.phytobench-gene.arabidopsis.percent.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.13.expert-panel-and-agreement.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.13.expert-panel-and-agreement.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.well_studied.prob.heatmap.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.well_studied.prob.heatmap.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.well_studied.rice.prob.heatmap.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.well_studied.rice.prob.heatmap.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.well_studied.maize.prob.heatmap.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.well_studied.maize.prob.heatmap.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.well_studied.wheat.prob.heatmap.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.well_studied.wheat.prob.heatmap.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.well_studied.soybean.prob.heatmap.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.well_studied.soybean.prob.heatmap.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.well_studied.arabidopsis.prob.heatmap.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.well_studied.arabidopsis.prob.heatmap.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.uncharacterized.prob.heatmap.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.uncharacterized.prob.heatmap.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.uncharacterized.rice.prob.heatmap.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.uncharacterized.rice.prob.heatmap.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.uncharacterized.maize.prob.heatmap.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.uncharacterized.maize.prob.heatmap.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.uncharacterized.wheat.prob.heatmap.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.uncharacterized.wheat.prob.heatmap.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.uncharacterized.soybean.prob.heatmap.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.uncharacterized.soybean.prob.heatmap.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.uncharacterized.arabidopsis.prob.heatmap.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.uncharacterized.arabidopsis.prob.heatmap.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.rice.prob.heatmap.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.rice.prob.heatmap.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.maize.prob.heatmap.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.maize.prob.heatmap.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.wheat.prob.heatmap.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.wheat.prob.heatmap.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.soybean.prob.heatmap.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.soybean.prob.heatmap.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.arabidopsis.prob.heatmap.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.14.phytobench-gene.arabidopsis.prob.heatmap.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.well_studied.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.well_studied.score.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.well_studied.rice.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.well_studied.rice.score.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.well_studied.maize.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.well_studied.maize.score.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.well_studied.wheat.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.well_studied.wheat.score.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.well_studied.soybean.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.well_studied.soybean.score.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.well_studied.arabidopsis.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.well_studied.arabidopsis.score.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.uncharacterized.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.uncharacterized.score.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.uncharacterized.rice.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.uncharacterized.rice.score.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.uncharacterized.maize.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.uncharacterized.maize.score.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.uncharacterized.wheat.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.uncharacterized.wheat.score.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.uncharacterized.soybean.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.uncharacterized.soybean.score.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.uncharacterized.arabidopsis.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.uncharacterized.arabidopsis.score.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.rice.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.rice.score.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.maize.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.maize.score.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.wheat.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.wheat.score.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.soybean.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.soybean.score.bar.png"
       - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.arabidopsis.score.bar.pdf"
+      - "Supplementary Fig. 12-15/output/supplementary_fig.15.phytobench-gene.arabidopsis.score.bar.png"
 
   - id: supp-16
     label: Supp. 16
@@ -308,10 +394,15 @@ targets:
     status: run
     expected_artifacts:
       - "Supplementary Fig. 16/output/supplementary_fig.16a.model.paperbench-mp.line.pdf"
+      - "Supplementary Fig. 16/output/supplementary_fig.16a.model.paperbench-mp.line.png"
       - "Supplementary Fig. 16/output/supplementary_fig.16b.model.paperbench-as.line.pdf"
+      - "Supplementary Fig. 16/output/supplementary_fig.16b.model.paperbench-as.line.png"
       - "Supplementary Fig. 16/output/supplementary_fig.16c.model.paperbench-cr.line.pdf"
+      - "Supplementary Fig. 16/output/supplementary_fig.16c.model.paperbench-cr.line.png"
       - "Supplementary Fig. 16/output/supplementary_fig.16d.model.paperbench-ng.line.pdf"
+      - "Supplementary Fig. 16/output/supplementary_fig.16d.model.paperbench-ng.line.png"
       - "Supplementary Fig. 16/output/supplementary_fig.16e.model.paperbench-pc.line.pdf"
+      - "Supplementary Fig. 16/output/supplementary_fig.16e.model.paperbench-pc.line.png"
 
   - id: supp-19
     label: Supp. 19
@@ -353,6 +444,7 @@ targets:
     status: run
     expected_artifacts:
       - "Supplementary Fig. 26/output/supplementary_fig.26.phytobench-review.polar.pdf"
+      - "Supplementary Fig. 26/output/supplementary_fig.26.phytobench-review.polar.png"
 
   - id: eval-analyst
     label: AnalystAgent Evaluation

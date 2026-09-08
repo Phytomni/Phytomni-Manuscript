@@ -1,88 +1,89 @@
-# .github/workflows/reproduce.yml
 name: reproduce-figures
 on: [push, pull_request]
 
-jobs:
-  conda:
-    name: conda env + figures
-    runs-on: ubuntu-latest
-    env:
-      R_PROFILE_USER: ${{ github.workspace }}/.Rprofile
-      RENV_PROJECT: ${{ github.workspace }}
-    defaults:
-      run:
-        shell: bash -el {0}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: conda-incubator/setup-miniconda@v3
-        with:
-          environment-file: environment.yml
-          activate-environment: phytomni-fig
-      # renv.lock fingerprints R package versions; conda supplies r-base + R libs.
-      # Optional restore (best-effort — conda env may already satisfy renv.lock):
-      - name: Restore R library from renv.lock (optional)
-        id: conda_renv_restore
-        continue-on-error: true
-        run: Rscript -e 'renv::restore(prompt=FALSE)'
-      - name: Fall back to conda R library
-        if: steps.conda_renv_restore.outcome == 'failure'
-        run: |
-          echo "RENV_CONFIG_AUTOLOADER_ENABLED=FALSE" >> "$GITHUB_ENV"
-          echo "R_PROFILE_USER=/dev/null" >> "$GITHUB_ENV"
-      - name: Install ggradar (GitHub-only) + register R kernel
-        run: |
-          Rscript -e 'if (!requireNamespace("ggradar", quietly=TRUE)) install.packages("https://github.com/ricardo-bion/ggradar/archive/f99517ae4df2903d3dbd4116af91b24009a5ac93.tar.gz", repos=NULL, type="source")'
-          Rscript -e 'IRkernel::installspec(user = TRUE)'
-      - name: Check README matrix matches manifest
-        run: |
-          python -m scripts.render_reproduce_matrix --write-readme README.md
-          git diff --exit-code README.md
-      - name: Reproduce all figures (smoke)
-        run: bash reproduce.sh --check
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: figures-conda
-          path: '**/output/**'
-          if-no-files-found: ignore
+permissions:
+  contents: read
 
-  uv:
-    name: uv.lock + figures
-    runs-on: ubuntu-latest
-    env:
-      R_PROFILE_USER: ${{ github.workspace }}/.Rprofile
-      RENV_PROJECT: ${{ github.workspace }}
+jobs:
+  checks:
+    name: Public contracts and unit tests
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - name: Sync Python env from committed lock
-        run: uv sync --frozen
-      - name: Check README matrix matches manifest
+        with:
+          python-version: '3.12.13'
+      - name: Prepare locked Python environment
+        run: |
+          uv lock --check
+          uv sync --frozen
+      - name: Validate public inputs and run Python tests
         run: |
           source .venv/bin/activate
-          python -m scripts.render_reproduce_matrix --write-readme README.md
-          git diff --exit-code README.md
+          ./reproduce.sh validate
+          python -m pytest tests/ -m 'not r_runtime' -q
+
+  figures:
+    name: Locked reference environment and fresh figures
+    needs: checks
+    runs-on: ubuntu-24.04
+    env:
+      R_PROFILE_USER: /dev/null
+      RENV_PROJECT: ${{ github.workspace }}
+      R_LIBS_USER: ${{ github.workspace }}/renv/library/R-4.3/x86_64-pc-linux-gnu
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12.13'
+      - name: Prepare locked Python environment
+        run: |
+          uv lock --check
+          uv sync --frozen
       - uses: r-lib/actions/setup-r@v2
         with:
-          r-version: 'release'
-      # renv.lock fingerprints R package versions for the uv CI leg.
-      - name: Restore R library from renv.lock (optional)
-        continue-on-error: true
-        run: Rscript -e 'if (requireNamespace("renv", quietly=TRUE)) renv::restore(prompt=FALSE)'
-      - name: Install R packages + kernel + ggradar
+          r-version: '4.3.3'
+          use-public-rspm: true
+      - name: Install R build and font prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev \
+            libfontconfig1-dev libfreetype6-dev libharfbuzz-dev libfribidi-dev \
+            libjpeg-dev libpng-dev libtiff-dev libzmq3-dev libicu-dev \
+            pandoc fontconfig fonts-dejavu-core
+      - name: Restore and verify exact R package identities
+        run: |
+          Rscript --vanilla - <<'RS'
+          source("renv/activate.R")
+          library_path <- Sys.getenv("R_LIBS_USER")
+          renv::restore(library=library_path, lockfile="renv.lock", strict=TRUE, prompt=FALSE)
+          locked <- renv::lockfile_read("renv.lock")
+          stopifnot(as.character(getRversion()) == locked$R$Version)
+          for (name in names(locked$Packages)) {
+            actual <- packageDescription(name, lib.loc=library_path)
+            stopifnot(identical(actual$Version, locked$Packages[[name]]$Version))
+          }
+          stopifnot(identical(packageDescription("ggradar", lib.loc=library_path)$RemoteSha,
+                              locked$Packages$ggradar$RemoteSha))
+          RS
+          fc-match Arial
+          fc-match 'DejaVu Sans'
+      - name: Check actual R runtime and reproduce all public figures
         run: |
           source .venv/bin/activate
-          Rscript -e 'install.packages(c("renv"), repos="https://cloud.r-project.org")'
-          Rscript -e 'packages <- c("tidyverse","scales","treemapify","viridis","readxl","RColorBrewer","rmarkdown","IRkernel"); missing <- packages[!vapply(packages, requireNamespace, logical(1), quietly=TRUE)]; if (length(missing)) install.packages(missing, repos="https://cloud.r-project.org")'
-          Rscript -e 'if (!requireNamespace("ggradar", quietly=TRUE)) install.packages("https://github.com/ricardo-bion/ggradar/archive/f99517ae4df2903d3dbd4116af91b24009a5ac93.tar.gz", repos=NULL, type="source")'
-          Rscript -e 'IRkernel::installspec(user = TRUE)'
-      - name: Reproduce all figures (smoke) in uv env
-        run: |
-          source .venv/bin/activate
-          bash reproduce.sh --check
+          python -m pytest tests/ -m r_runtime -q
+          ./reproduce.sh run --timeout 600
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: figures-uv
-          path: '**/output/**'
-          if-no-files-found: ignore
+          name: validated-figures
+          path: logs/reproduce/*/shareable/artifacts/**
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: figure-run-evidence
+          path: |
+            logs/reproduce/*/shareable/summary.json
+            logs/reproduce/*/shareable/targets/*.log
+          if-no-files-found: warn

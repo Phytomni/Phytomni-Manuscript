@@ -3,6 +3,7 @@ import asyncio
 import hashlib
 import json
 import re
+import shlex
 import zipfile
 from itertools import permutations
 from pathlib import Path
@@ -213,6 +214,9 @@ def test_hallucination_runtime_concurrency_is_environment_backed(
 def test_hallucination_detector_retries_rate_limits_with_bounded_backoff(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    import sys
+    from types import ModuleType
+
     monkeypatch.delenv("DEEPGENOME_MAX_CONCURRENT", raising=False)
     notebook = load_notebook(HALLUCINATION_NOTEBOOK)
     namespace: dict[str, object] = {"__name__": "notebook_contract_test"}
@@ -222,8 +226,6 @@ def test_hallucination_detector_retries_rate_limits_with_bounded_backoff(
             code_cell_source(HALLUCINATION_NOTEBOOK, "hallucination-detector"),
         ]
     )
-    exec(compile(source, str(HALLUCINATION_NOTEBOOK), "exec"), namespace)
-    namespace["JUDGE_RETRY_BASE_SECONDS"] = 0.0
 
     class RateLimitError(Exception):
         status_code = 429
@@ -252,8 +254,28 @@ def test_hallucination_detector_retries_rate_limits_with_bounded_backoff(
             self.completions = _Completions()
 
     class _Client:
-        def __init__(self) -> None:
+        def __init__(self, *, base_url: str, api_key: str) -> None:
+            assert base_url == "https://judge.example/v1"
+            assert api_key == "test-key"
             self.chat = _Chat()
+
+    def unexpected_tokenization(*args: object, **kwargs: object) -> None:
+        pytest.fail("The retry test must not invoke sentence tokenization")
+
+    delays = []
+
+    async def record_sleep(delay: float) -> None:
+        delays.append(delay)
+
+    # Exercise the notebook's retry loop without optional NLP or SDK imports.
+    nltk_stub = ModuleType("nltk")
+    nltk_stub.sent_tokenize = unexpected_tokenization
+    openai_stub = ModuleType("openai")
+    openai_stub.AsyncOpenAI = _Client
+    monkeypatch.setitem(sys.modules, "nltk", nltk_stub)
+    monkeypatch.setitem(sys.modules, "openai", openai_stub)
+    monkeypatch.setattr(asyncio, "sleep", record_sleep)
+    exec(compile(source, str(HALLUCINATION_NOTEBOOK), "exec"), namespace)
 
     detector_class = namespace["AsyncLongTextHallucinationDetector"]
     detector = detector_class(
@@ -262,7 +284,6 @@ def test_hallucination_detector_retries_rate_limits_with_bounded_backoff(
         model="judge-model",
         max_concurrent=1,
     )
-    detector.client = _Client()
     result = asyncio.run(
         detector.judge_entailment(
             "hypothesis",
@@ -274,6 +295,7 @@ def test_hallucination_detector_retries_rate_limits_with_bounded_backoff(
     )
     assert result == "entailment"
     assert detector.client.chat.completions.calls == 3
+    assert delays == [0.5, 1.0]
     assert "error" not in detector.judgments_log[0]
 
 
@@ -1176,7 +1198,8 @@ def test_deepgenome_manifest_probes_canonical_notebooks() -> None:
 
 
 def test_readme_documents_deepgenome_scoring_contract() -> None:
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    readme = (EVAL_DIR / "README.md").read_text(encoding="utf-8")
+    normalized = " ".join(readme.split())
     for text in [
         "score_hallucination.ipynb",
         "score_plackett_luce.ipynb",
@@ -1187,18 +1210,110 @@ def test_readme_documents_deepgenome_scoring_contract() -> None:
         "DEEPGENOME_SCORE_TSV",
         "fails before constructing the judge client",
     ]:
-        assert text in readme
+        assert text in normalized
 
-    deepgenome_section = readme.split(
-        "### DeepGenomeAgent Evaluation",
-        maxsplit=1,
-    )[1].split("## Help", maxsplit=1)[0]
     output_dir = "/tmp/deepgenome-notebook-runs"
-    assert "--inplace" not in deepgenome_section
-    assert deepgenome_section.count(f"mkdir -p {output_dir}") == 3
-    assert deepgenome_section.count(f"--output-dir={output_dir}") == 3
+    assert "--inplace" not in readme
+    assert readme.count(f"mkdir -p {output_dir}") == 3
+    assert readme.count(f"--output-dir={output_dir}") == 3
     for notebook_name in [
         "score_hallucination.ipynb",
         "score_plackett_luce.ipynb",
     ]:
-        assert f"{output_dir}/{notebook_name}" in deepgenome_section
+        assert f"{output_dir}/{notebook_name}" in readme
+
+
+def test_readme_public_recomputation_example_uses_the_actual_parser(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scripts import recompute_deepgenome_rankings as recompute_module
+
+    guide = (ROOT / "Supplementary Fig. 12-15/PhytoBench-Gene-for_plot/README.md").read_text()
+    commands = [
+        block for block in re.findall(r"```bash\n(.*?)```", guide, re.DOTALL)
+        if "python -m scripts.recompute_deepgenome_rankings" in block
+    ]
+    assert len(commands) == 1
+    tokens = shlex.split(commands[0].replace("\\\n", " "))
+    arguments = tokens[tokens.index("scripts.recompute_deepgenome_rankings") + 1:]
+    observed = []
+
+    def capture_arguments(args):
+        observed.append(args)
+        return True
+
+    monkeypatch.setattr(recompute_module, "recompute", capture_arguments)
+    assert recompute_module.main(arguments) == 0
+    assert len(observed) == 1
+    args = observed[0]
+    assert (args.bootstrap_replicates, args.seed, args.max_failed_fits) == (100, 20260714, 10)
+    assert (ROOT / args.score_tsv).is_file()
+    assert (ROOT / args.gene_categories).is_file()
+    assert (ROOT / args.reference_dir).is_dir()
+    assert args.output_dir == Path("local_exports/ranking-recomputation/preview-001")
+
+
+def test_readme_guides_preserve_public_private_and_figure_boundaries() -> None:
+    evaluation = " ".join((EVAL_DIR / "README.md").read_text().split())
+    figures = " ".join((ROOT / "Fig. 2/README.md").read_text().split())
+    ranking = " ".join((ROOT / "Supplementary Fig. 12-15/PhytoBench-Gene-for_plot/README.md").read_text().split())
+
+    assert "11 numerical and assignment" in evaluation
+    assert "Public recomputation cannot reconstruct individual demographics" in evaluation
+    assert "freeze_fig2_core_metrics" not in evaluation
+    assert "freeze_fig2_core_metrics" in figures
+    assert "50 primary runs" in figures and "60 cross-species" in figures
+    assert "IdentificationAccuracy = 0.720" in figures
+    assert "TraceBLEU4 = 0.084" in figures
+    assert "workbook-computed" in figures and "manuscript-aligned" in figures
+    assert "Applied: false" in ranking
+    assert "obtaining separate authorization" in ranking
+    assert "exactly 11 TSVs plus" in ranking
+    assert "all 12 publication TSVs" in ranking
+    assert "no conflicts were declared" in ranking
+    assert "Individual model responses and hallucination-judgment logs are not inputs" in ranking
+
+
+@pytest.mark.parametrize("relative_path, target_ids", [
+    ("Fig. 2/README.md", ["fig-2", "fig-2def"]),
+    ("Supplementary Fig. 12-15/PhytoBench-Gene-for_plot/README.md", ["fig-2def", "supp-12-15"]),
+])
+def test_readme_figure_examples_use_the_actual_parser(relative_path, target_ids):
+    from scripts.reproduce_cli import parse_request
+
+    guide = (ROOT / relative_path).read_text()
+    examples = [
+        block for block in re.findall(r"```bash\n(.*?)```", guide, re.DOTALL)
+        if "./reproduce.sh " in block
+    ]
+    assert len(examples) == 1
+    lines = examples[0].splitlines()
+    assert lines[:2] == ["uv sync --frozen", "source .venv/bin/activate"]
+    commands = [line for line in lines if line.startswith("./reproduce.sh ")]
+    assert len(commands) == 1
+    manifest = yaml.safe_load((ROOT / "reproduce.manifest.yaml").read_text())
+    request = parse_request(shlex.split(commands[0])[1:], manifest)
+    assert request.command == "run"
+    assert [target["id"] for target in request.targets] == target_ids
+
+
+@pytest.mark.parametrize("relative_path", [
+    "DeepGenomeAgent Evaluation/README.md",
+    "Fig. 2/README.md",
+    "Supplementary Fig. 12-15/PhytoBench-Gene-for_plot/README.md",
+])
+def test_readme_data_and_evaluation_links_resolve(relative_path: str) -> None:
+    path = ROOT / relative_path
+    text = path.read_text()
+    assert not CJK_PATTERN.search(text)
+    links = re.findall(r"\[[^\]]+\]\((?:<([^>]+)>|([^\)]+))\)", text)
+    assert links
+    for angled, plain in links:
+        target, _, fragment = (angled or plain).partition("#")
+        if target and not target.startswith(("https://", "http://")):
+            destination = (path.parent / target).resolve()
+            assert destination.exists(), f"Broken link in {relative_path}: {target}"
+            if fragment:
+                headings = re.findall(r"^#+ (.+)$", destination.read_text(), re.MULTILINE)
+                anchors = [re.sub(r"[^\w\- ]", "", heading.lower()).replace(" ", "-") for heading in headings]
+                assert fragment in anchors, f"Broken section link in {relative_path}: {fragment}"

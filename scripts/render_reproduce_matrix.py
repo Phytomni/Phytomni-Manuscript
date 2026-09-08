@@ -29,8 +29,6 @@ def _format_kernel(target: dict[str, Any]) -> str:
         return "Rscript"
     if kind == "py_script":
         return "`python3` (script)"
-    if kind == "rmd":
-        return "R / `rmarkdown::render`"
     return "—"
 
 
@@ -111,6 +109,18 @@ def write_readme_matrix(readme_path: Path, manifest_path: Path, repo_root: Path)
     readme_text = readme_path.read_text(encoding="utf-8")
     updated = _replace_matrix_block(readme_text, matrix_md)
     readme_path.write_text(updated, encoding="utf-8")
+
+
+def check_readme_matrix(readme_path: Path, manifest: dict[str, Any], repo_root: Path) -> list[str]:
+    """Compare the generated block without writing to README or invoking Git."""
+    try:
+        existing = readme_path.read_text(encoding="utf-8")
+        expected = _replace_matrix_block(existing, render_matrix(manifest, repo_root))
+    except (OSError, UnicodeError, ValueError):
+        return ["README reproduction matrix is missing or malformed"]
+    if expected != existing:
+        return ["README reproduction matrix is stale"]
+    return []
 
 
 def main(argv: list[str] | None = None) -> int:

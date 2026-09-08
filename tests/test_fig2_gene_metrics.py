@@ -11,6 +11,7 @@ import openpyxl
 import pandas as pd
 import pytest
 
+import scripts.freeze_fig2_gene_metrics as gene_metrics
 from scripts.freeze_fig2_gene_metrics import (
     EXPECTED_HISTORICAL_MEANS,
     calculate_claude_bertscore,
@@ -34,6 +35,54 @@ def judge_runtime_environment(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setenv("DEEPGENOME_API_BASE_URL", "https://api.modelarts-maas.com/v2")
     monkeypatch.setenv("DEEPGENOME_JUDGE_MODEL", "deepseek-v3.2")
+
+
+@pytest.mark.parametrize("output_flag", ["--frozen-dir", "--figure-dir"])
+@pytest.mark.parametrize("destination_kind", ["direct", "nested", "symlink"])
+def test_cli_rejects_ranking_output_before_private_io(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    output_flag: str,
+    destination_kind: str,
+) -> None:
+    ranking_dir = (
+        Path(__file__).resolve().parents[1]
+        / "Supplementary Fig. 12-15"
+        / "PhytoBench-Gene-for_plot"
+        / "frozen"
+    )
+    destination = ranking_dir
+    if destination_kind == "nested":
+        destination /= "claude"
+    elif destination_kind == "symlink":
+        destination = tmp_path / "ranking-alias"
+        destination.symlink_to(ranking_dir, target_is_directory=True)
+    before = {
+        path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in ranking_dir.iterdir()
+    }
+
+    def unexpected_io(*args: object, **kwargs: object) -> None:
+        raise AssertionError("Protected output reached private input or model loading")
+
+    for name in (
+        "load_source_workbook", "load_gene_categories", "load_claude_archive",
+        "create_bertscorer", "_publish_transaction",
+    ):
+        monkeypatch.setattr(gene_metrics, name, unexpected_io)
+
+    with pytest.raises(ValueError, match="ranking publication"):
+        gene_metrics.main([
+            "--source-workbook", str(tmp_path / "private.xlsx"),
+            "--claude-archive", str(tmp_path / "private.zip"),
+            "--gene-categories", str(tmp_path / "categories.tsv"),
+            output_flag, str(destination),
+        ])
+
+    assert {
+        path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in ranking_dir.iterdir()
+    } == before
 
 
 @pytest.fixture
@@ -189,6 +238,30 @@ def claude_archive(tmp_path: Path) -> Path:
     path = tmp_path / "Claude.zip"
     _write_archive(path)
     return path
+
+
+@pytest.mark.parametrize("output_location", ["repository", "temporary"])
+def test_cli_allows_independent_gene_metric_output_for_validation(
+    tmp_path: Path,
+    source_workbook: Path,
+    gene_categories: Path,
+    claude_archive: Path,
+    output_location: str,
+) -> None:
+    if output_location == "repository":
+        figure_dir = Path(__file__).resolve().parents[1] / "Fig. 2"
+        frozen_dir = figure_dir / "PhytoBench-Gene-metrics-for_plot"
+    else:
+        figure_dir = tmp_path / "figure"
+        frozen_dir = tmp_path / "metrics"
+    assert gene_metrics.main([
+        "--validate-only",
+        "--source-workbook", str(source_workbook),
+        "--claude-archive", str(claude_archive),
+        "--gene-categories", str(gene_categories),
+        "--frozen-dir", str(frozen_dir),
+        "--figure-dir", str(figure_dir),
+    ]) == 0
 
 
 def test_source_workbook_parses_merged_header_layout(source_workbook: Path) -> None:

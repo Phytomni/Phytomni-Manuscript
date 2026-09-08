@@ -20,6 +20,7 @@ FIGURE_DIR = ROOT / "Supplementary Fig. 12-15"
 DATA_DIR = FIGURE_DIR / "PhytoBench-Gene-for_plot" / "frozen"
 NOTEBOOK = FIGURE_DIR / "supplementary_fig. 12-15.ipynb"
 FIG2_DIR = ROOT / "Fig. 2"
+GENE_METRICS_DIR = FIG2_DIR / "PhytoBench-Gene-metrics-for_plot"
 FIG2_NOTEBOOK = FIG2_DIR / "fig. 2.ipynb"
 FIG2_BERTSCORE = FIG2_DIR / "PhytoBench-Gene-BERTScore-for_plot.tsv"
 MODEL_ORDER = ["Phytomni", "Gemini", "Claude", "OpenAI", "Grok"]
@@ -78,9 +79,6 @@ EXPECTED_CLAUDE_FROZEN_FILES = {
     "PhytoBench-Gene-Claude-hallucination-by-gene.tsv",
     "PhytoBench-Gene-Claude-metrics-provenance.json",
 }
-EXPECTED_FROZEN_FILES = (
-    EXPECTED_RANKING_FROZEN_FILES | EXPECTED_CLAUDE_FROZEN_FILES
-)
 EXPECTED_OUTPUT_SCHEMAS = {
     "rank_distribution": (
         "Scope",
@@ -364,7 +362,11 @@ def test_frozen_tables_are_complete_and_traceable() -> None:
     assert OUTPUT_UNIQUE_KEYS == EXPECTED_OUTPUT_UNIQUE_KEYS
     assert DATA_DIR.is_dir()
     assert {path.name for path in DATA_DIR.iterdir()} == (
-        EXPECTED_FROZEN_FILES
+        EXPECTED_RANKING_FROZEN_FILES
+    )
+    assert GENE_METRICS_DIR.is_dir()
+    assert {path.name for path in GENE_METRICS_DIR.iterdir()} == (
+        EXPECTED_CLAUDE_FROZEN_FILES
     )
 
     tables = {
@@ -396,7 +398,7 @@ def test_frozen_tables_are_complete_and_traceable() -> None:
     assignment = tables["assignment_summary"]
 
     claude_bertscore = pd.read_csv(
-        DATA_DIR / "PhytoBench-Gene-Claude-BERTScore-by-gene.tsv",
+        GENE_METRICS_DIR / "PhytoBench-Gene-Claude-BERTScore-by-gene.tsv",
         sep="\t",
     )
     assert claude_bertscore.columns.tolist() == [
@@ -412,7 +414,7 @@ def test_frozen_tables_are_complete_and_traceable() -> None:
     assert claude_bertscore["BERTScorePrecision"].between(0.0, 1.0).all()
 
     claude_hallucination = pd.read_csv(
-        DATA_DIR / "PhytoBench-Gene-Claude-hallucination-by-gene.tsv",
+        GENE_METRICS_DIR / "PhytoBench-Gene-Claude-hallucination-by-gene.tsv",
         sep="\t",
     )
     assert claude_hallucination.columns.tolist() == [
@@ -433,7 +435,7 @@ def test_frozen_tables_are_complete_and_traceable() -> None:
     ].between(0.0, 1.0).all()
 
     claude_pairs = pd.read_csv(
-        DATA_DIR / "PhytoBench-Gene-Claude-hallucination-pairs.tsv",
+        GENE_METRICS_DIR / "PhytoBench-Gene-Claude-hallucination-pairs.tsv",
         sep="\t",
     )
     assert len(claude_pairs) == 600
@@ -712,7 +714,7 @@ def test_frozen_tables_are_complete_and_traceable() -> None:
     )
 
     claude_provenance_path = (
-        DATA_DIR / "PhytoBench-Gene-Claude-metrics-provenance.json"
+        GENE_METRICS_DIR / "PhytoBench-Gene-Claude-metrics-provenance.json"
     )
     claude_provenance = json.loads(claude_provenance_path.read_text())
     assert claude_provenance["schema_version"] == 1
@@ -752,7 +754,7 @@ def test_frozen_tables_are_complete_and_traceable() -> None:
             "hallucination_pairs_sha256",
         ),
     ):
-        assert hashlib.sha256((DATA_DIR / table_name).read_bytes()).hexdigest() == (
+        assert hashlib.sha256((GENE_METRICS_DIR / table_name).read_bytes()).hexdigest() == (
             claude_provenance["tables"][digest_key]
         )
 
@@ -1230,7 +1232,7 @@ def test_manifest_connects_fig2def_including_fig2g_and_fig2h() -> None:
     }
     assert set(fig2def["requires_data"]) == expected_frozen_inputs
     assert fig2def["label"] == "Fig. 2d-f,g-h (left)"
-    assert set(fig2def["expected_artifacts"]) == {
+    expected_main_pdfs = {
         "Supplementary Fig. 12-15/output/"
         "fig.2d.phytobench-gene.percent.bar.pdf",
         "Supplementary Fig. 12-15/output/"
@@ -1241,6 +1243,10 @@ def test_manifest_connects_fig2def_including_fig2g_and_fig2h() -> None:
         "fig.2g.phytobench-gene.well_studied.score.bar.pdf",
         "Supplementary Fig. 12-15/output/"
         "fig.2h.phytobench-gene.uncharacterized.score.bar.pdf",
+    }
+
+    assert set(fig2def["expected_artifacts"]) == expected_main_pdfs | {
+        path.removesuffix(".pdf") + ".png" for path in expected_main_pdfs
     }
 
     supplementary = targets["supp-12-15"]
@@ -1265,7 +1271,10 @@ def test_manifest_connects_fig2def_including_fig2g_and_fig2h() -> None:
         for scope in STRATIFIED_SCOPES
     )
     assert set(supplementary["expected_artifacts"]) == (
-        expected_supplementary_artifacts
+        expected_supplementary_artifacts | {
+            path.removesuffix(".pdf") + ".png"
+            for path in expected_supplementary_artifacts
+        }
     )
 
     assert "fig-2h" not in targets
@@ -1279,10 +1288,13 @@ def test_manifest_connects_fig2def_including_fig2g_and_fig2h() -> None:
         "Fig. 2/PhytoBench-Gene-BERTScore-for_plot.tsv",
         "Fig. 2/PhytoBench-Gene-hallucination-for_plot.tsv",
     }
-    assert fig2["expected_artifacts"] == [
+    expected_metric_pdfs = {
         "Fig. 2/output/fig.2a.phytobench-knowledge.bar.pdf",
         "Fig. 2/output/fig.2b.phytobench-data.bar.pdf",
         "Fig. 2/output/fig.2c.phytobench-analysis.violin.pdf",
         "Fig. 2/output/fig.2g.phytobench-gene.well_studied.bar.pdf",
         "Fig. 2/output/fig.2h.phytobench-gene.uncharacterized.bar.pdf",
-    ]
+    }
+    assert set(fig2["expected_artifacts"]) == expected_metric_pdfs | {
+        path.removesuffix(".pdf") + ".png" for path in expected_metric_pdfs
+    }
