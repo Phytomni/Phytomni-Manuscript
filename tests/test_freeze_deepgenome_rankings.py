@@ -58,6 +58,19 @@ BOOTSTRAP_CONFIG = BootstrapConfig(
     seed=20260714,
     max_failed_fits=2,
 )
+CHARACTERIZED_NUMERICAL_SHA256 = {
+    "assignment_summary.tsv": "db6f916a723167c2dde473eb32568371af2ed89c0b63a2452393ae4f79f2389d",
+    "fleiss_kappa.tsv": "e9f98ce91652b827c5f9e55df5b9b55e70252f6aca84d7e9f417b01fc0de8823",
+    "kendall_by_gene.tsv": "0270e08d8867270b9fcb3c76f7b3ede63849c6f80db4e8337022c3ac0671d538",
+    "ordinal_agreement_summary.tsv": "b0a2077f579a40437e259e011bbf61f370f3bb3fe70284e5eee88a565029e363",
+    "pl_pairwise.tsv": "a3fd4a456c458084907146b747679ce6a22979ce097bc028e521a9ac4a40626c",
+    "pl_pairwise_ci.tsv": "b3a81f6fe116bb69ff9939153e613ca11a191bfb1ffcb8960e7d48a105423ebe",
+    "pl_scores.tsv": "32437ca000aae38460ef6b804f42a3cb8e5cd14fc1f8e05f0fc248ac7d20ca51",
+    "pl_scores_ci.tsv": "824a3beb4e8bb8a9452239f01121539a08d05a6c4c7dae1f5a2bb080636e3298",
+    "rank_distribution.tsv": "4f10a394c2010cfad859902129e0b0e6a5783f41de3a8bb515109edf57b1e52b",
+    "rank_distribution_ci.tsv": "10c15cf2476091d35fc9a0220b1db624dba8f16f0636533161bfef356d20a673",
+    "top1_consensus.tsv": "ea4de35a4e7eac3885d12e9de71a47580207e085bb7488286c7fbcc11f7937be",
+}
 RANKING_SCOPE_ORDER = (
     "overall",
     *(
@@ -294,6 +307,45 @@ def write_crossed_fixture(
     return score_path, categories_path, metadata_path, category_map_path
 
 
+@pytest.mark.parametrize("shuffle", [False, True])
+def test_public_computation_preserves_characterized_tables_without_private_io(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    shuffle: bool,
+) -> None:
+    score_path, categories_path, _, _ = write_crossed_fixture(tmp_path)
+    source = pd.read_csv(score_path, sep="\t", dtype=str)
+    categories = pd.read_csv(categories_path, sep="\t", dtype=str)
+    if shuffle:
+        source = source.sample(frac=1, random_state=73).reset_index(drop=True)
+        categories = categories.sample(frac=1, random_state=18).reset_index(drop=True)
+
+    def unexpected_io(*args: object, **kwargs: object) -> None:
+        raise AssertionError("Numerical computation attempted file I/O")
+
+    events = []
+    with monkeypatch.context() as guarded:
+        guarded.setattr(pd, "read_excel", unexpected_io)
+        guarded.setattr(Path, "read_bytes", unexpected_io)
+        guarded.setattr(Path, "write_bytes", unexpected_io)
+        tables, diagnostics = freeze_module.compute_ranking_tables(
+            source, categories, BOOTSTRAP_CONFIG,
+            progress=events.append if shuffle else None,
+        )
+    assert bool(events) is shuffle
+    assert "expert_panel_summary" not in tables
+    hashes = {}
+    for name, table in tables.items():
+        filename = freeze_module.OUTPUT_FILENAMES[name]
+        destination = tmp_path / filename
+        freeze_module.write_table(table, destination)
+        hashes[filename] = hashlib.sha256(destination.read_bytes()).hexdigest()
+    assert hashes == CHARACTERIZED_NUMERICAL_SHA256
+    assert diagnostics["plackett_luce"]["SuccessfulReplicates"] == 20
+    assert diagnostics["plackett_luce"]["MonteCarloPrecision"] == {"Applied": False}
+    assert diagnostics["agreement"]["successful_replicates"] == 20
+
+
 def freeze_fixture(tmp_path: Path, output_dir: Path) -> tuple[Path, ...]:
     paths = write_crossed_fixture(tmp_path)
     score_path, categories_path, metadata_path, category_map_path = paths
@@ -336,6 +388,26 @@ def directory_bytes(directory: Path) -> dict[str, bytes]:
         for path in sorted(directory.rglob("*"))
         if path.is_file()
     }
+
+
+def write_current_publication(directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    for path in directory.iterdir():
+        if path.is_file():
+            path.unlink()
+    outputs = {}
+    for name, filename in freeze_module.OUTPUT_FILENAMES.items():
+        payload = ("\t".join(freeze_module.OUTPUT_SCHEMAS[name]) + "\n").encode()
+        (directory / filename).write_bytes(payload)
+        outputs[filename] = hashlib.sha256(payload).hexdigest()
+    (directory / "provenance.json").write_text(
+        json.dumps({
+            "schema_version": 2,
+            "model_columns": list(MODELS),
+            "reference_model": "Gemini",
+            "outputs": outputs,
+        }) + "\n", encoding="utf-8",
+    )
 
 
 def write_legacy_publication(directory: Path) -> None:
@@ -409,7 +481,7 @@ def test_freezer_writes_deterministic_reviewer_tables(tmp_path: Path) -> None:
     first_bytes = {
         path.name: path.read_bytes() for path in sorted(output_dir.iterdir())
     }
-    write_legacy_publication(output_dir)
+    write_current_publication(output_dir)
     freeze_rankings(
         score_path=score_path,
         gene_categories_path=categories_path,
@@ -425,6 +497,11 @@ def test_freezer_writes_deterministic_reviewer_tables(tmp_path: Path) -> None:
     }
 
     assert first_bytes == second_bytes
+    assert {
+        name: hashlib.sha256(payload).hexdigest()
+        for name, payload in first_bytes.items()
+        if name in CHARACTERIZED_NUMERICAL_SHA256
+    } == CHARACTERIZED_NUMERICAL_SHA256
     assert set(first_bytes) == EXPECTED_OUTPUTS
 
     ranks = pd.read_csv(output_dir / "rank_distribution.tsv", sep="\t")
@@ -1184,9 +1261,9 @@ def test_freezer_accepts_an_empty_existing_output_directory(tmp_path: Path) -> N
 
 @pytest.mark.parametrize(
     "mutation",
-    ["header", "provenance", "extra", "nested", "symlink"],
+    ["none", "header", "provenance", "extra", "nested", "symlink"],
 )
-def test_freezer_rejects_fake_schema1_publications_byte_identically(
+def test_freezer_rejects_obsolete_schema1_publications_byte_identically(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     mutation: str,
@@ -1206,7 +1283,7 @@ def test_freezer_rejects_fake_schema1_publications_byte_identically(
         nested = output_dir / "nested"
         nested.mkdir()
         (nested / "sentinel.bin").write_bytes(b"nested\x00bytes")
-    else:
+    elif mutation == "symlink":
         target = tmp_path / "outside.tsv"
         target.write_bytes(b"outside\x00bytes")
         (output_dir / "pl_scores.tsv").unlink()
@@ -1308,7 +1385,7 @@ def test_freezer_restores_one_valid_abandoned_backup_before_input_io(
 ) -> None:
     output_dir = tmp_path / "frozen"
     backup_dir = backup_path(output_dir)
-    write_legacy_publication(backup_dir)
+    write_current_publication(backup_dir)
     previous = directory_bytes(backup_dir)
 
     with pytest.raises(FileNotFoundError):
@@ -1323,8 +1400,8 @@ def test_freezer_cleans_one_valid_abandoned_backup_after_completed_swap(
 ) -> None:
     output_dir = tmp_path / "frozen"
     backup_dir = backup_path(output_dir)
-    write_legacy_publication(output_dir)
-    write_legacy_publication(backup_dir)
+    write_current_publication(output_dir)
+    write_current_publication(backup_dir)
     current = directory_bytes(output_dir)
 
     with pytest.raises(FileNotFoundError):
@@ -1341,17 +1418,17 @@ def test_freezer_rejects_ambiguous_abandoned_backups_before_input_io(
     backup_state: str,
 ) -> None:
     output_dir = tmp_path / "frozen"
-    write_legacy_publication(output_dir)
+    write_current_publication(output_dir)
     first_backup = backup_path(output_dir)
     if backup_state == "unknown":
         first_backup.mkdir()
         (first_backup / "sentinel.bin").write_bytes(b"unknown\x00backup")
     elif backup_state == "multiple":
-        write_legacy_publication(first_backup)
-        write_legacy_publication(backup_path(output_dir, "b" * 32))
+        write_current_publication(first_backup)
+        write_current_publication(backup_path(output_dir, "b" * 32))
     else:
         target = tmp_path / "backup-target"
-        write_legacy_publication(target)
+        write_current_publication(target)
         first_backup.symlink_to(target, target_is_directory=True)
     before_output = directory_bytes(output_dir)
     before_backups = {
@@ -1384,7 +1461,7 @@ def test_successful_install_survives_backup_cleanup_failure_and_recovers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     output_dir = tmp_path / "frozen"
-    write_legacy_publication(output_dir)
+    write_current_publication(output_dir)
     original_cleanup = freeze_module._cleanup_transaction_directory
     failed = False
 
@@ -1444,7 +1521,7 @@ def test_partial_backup_cleanup_isolated_in_tombstone_and_next_freeze_succeeds(
         write_crossed_fixture(tmp_path)
     )
     output_dir = tmp_path / "frozen"
-    write_legacy_publication(output_dir)
+    write_current_publication(output_dir)
     original_unlink = freeze_module.os.unlink
     unlink_calls = 0
 
@@ -1605,7 +1682,7 @@ def test_cleanup_rename_failure_preserves_original_transaction_byte_identically(
 ) -> None:
     output_dir = tmp_path / "frozen"
     backup = tmp_path / f".frozen.backup-{'b' * 32}"
-    write_legacy_publication(backup)
+    write_current_publication(backup)
     before = directory_bytes(backup)
     identity = freeze_module._path_identity(backup)
     original_replace = freeze_module.os.replace
@@ -1634,7 +1711,7 @@ def test_preflight_ignores_historical_cleanup_symlink(
     tmp_path: Path,
 ) -> None:
     output_dir = tmp_path / "frozen"
-    write_legacy_publication(output_dir)
+    write_current_publication(output_dir)
     live = directory_bytes(output_dir)
     target = tmp_path / "historical-cleanup-target"
     target.mkdir()
@@ -1716,7 +1793,7 @@ def test_freezer_transaction_rolls_back_existing_output_on_failure(
         write_crossed_fixture(tmp_path)
     )
     output_dir = tmp_path / "frozen"
-    write_legacy_publication(output_dir)
+    write_current_publication(output_dir)
     previous = directory_bytes(output_dir)
 
     def injected_failure(*args: object, **kwargs: object) -> object:
@@ -1789,7 +1866,7 @@ def test_freezer_rolls_back_when_post_install_validation_fails(
         write_crossed_fixture(tmp_path)
     )
     output_dir = tmp_path / "frozen"
-    write_legacy_publication(output_dir)
+    write_current_publication(output_dir)
     previous = directory_bytes(output_dir)
     original_validate = freeze_module._validate_schema2_publication
 
@@ -1838,7 +1915,7 @@ def test_freezer_rechecks_existing_output_state_immediately_before_swap(
         write_crossed_fixture(tmp_path)
     )
     output_dir = tmp_path / "frozen"
-    write_legacy_publication(output_dir)
+    write_current_publication(output_dir)
     previous = directory_bytes(output_dir)
     saved = tmp_path / "saved-generation"
     foreign_bytes = b"foreign generation\x00bytes"
@@ -1903,7 +1980,7 @@ def test_failed_swap_and_failed_rollback_leave_recoverable_backup(
         write_crossed_fixture(tmp_path)
     )
     output_dir = tmp_path / "frozen"
-    write_legacy_publication(output_dir)
+    write_current_publication(output_dir)
     previous = directory_bytes(output_dir)
     original_replace = freeze_module.os.replace
 
@@ -1963,7 +2040,7 @@ def test_transaction_cleanup_rejects_name_replacement_with_symlink(
     output_dir = tmp_path / "frozen"
     transaction = tmp_path / f".frozen.{kind}-{'c' * 32}"
     if kind == "backup":
-        write_legacy_publication(transaction)
+        write_current_publication(transaction)
     else:
         transaction.mkdir()
         (transaction / "partial.tsv").write_bytes(b"partial\n")

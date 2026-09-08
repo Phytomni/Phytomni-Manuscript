@@ -4,7 +4,7 @@ import hashlib
 from dataclasses import dataclass
 from itertools import combinations
 from pathlib import Path
-from typing import Sequence
+from typing import Callable, Sequence
 
 import numpy as np
 import pandas as pd
@@ -19,6 +19,7 @@ from scripts.release_deepgenome_rankings import (
 
 
 MODULE_SOURCE_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+ProgressObserver = Callable[[dict[str, str | int]], None]
 MODEL_COLUMNS = ("Gemini", "Grok", "OpenAI", "Phytomni", "Claude")
 AGREEMENT_SPECIES = ("Rice", "Maize", "Wheat", "Soybean", "Arabidopsis")
 AGREEMENT_STUDY_STATUSES = ("well_studied", "uncharacterized")
@@ -243,6 +244,23 @@ class BootstrapConfig:
                     f"{name} must be an integer greater than or equal to "
                     f"{minimum}."
                 )
+
+
+def report_progress(
+    observer: ProgressObserver | None,
+    phase: str,
+    successful: int,
+    failed: int,
+    total: int,
+) -> None:
+    if observer is not None:
+        observer({
+            "phase": phase,
+            "attempted": successful + failed,
+            "successful": successful,
+            "failed": failed,
+            "total": total,
+        })
 
 
 def gene_bootstrap_multiplicities(
@@ -1112,6 +1130,8 @@ def bootstrap_agreement(
     frame: pd.DataFrame,
     model_columns: tuple[str, ...] = MODEL_COLUMNS,
     config: BootstrapConfig | None = None,
+    *,
+    progress: ProgressObserver | None = None,
 ) -> dict[str, pd.DataFrame]:
     model_columns = tuple(model_columns)
     config = config or BootstrapConfig()
@@ -1125,6 +1145,7 @@ def bootstrap_agreement(
     ordinal_registry = ordinal_scope_registry()
     point_fleiss = fleiss_point_estimates(frame, registry, model_columns)
     rank_counts = _gene_rank_count_array(frame, genes, model_columns)
+    report_progress(progress, "agreement_bootstrap", 0, 0, config.successful_replicates)
 
     seed_sequence = np.random.SeedSequence(config.seed)
     rng = np.random.default_rng(seed_sequence.spawn(1)[0])
@@ -1147,6 +1168,10 @@ def bootstrap_agreement(
             "Agreement bootstrap exceeded max_failed_fits before reaching "
             "the requested successful replicates."
         )
+    report_progress(
+        progress, "agreement_bootstrap", len(accepted_draws), invalid,
+        config.successful_replicates,
+    )
     while len(accepted_draws) < config.successful_replicates:
         draw = gene_bootstrap_multiplicities(genes, rng).to_numpy(dtype=int)
         kappa, is_valid = _fleiss_bootstrap_values(
@@ -1165,6 +1190,10 @@ def bootstrap_agreement(
                     "Agreement bootstrap exceeded max_failed_fits before "
                     "reaching the requested successful replicates."
                 )
+        report_progress(
+            progress, "agreement_bootstrap", len(accepted_draws), invalid,
+            config.successful_replicates,
+        )
 
     draws = np.vstack(accepted_draws)
     kappas = np.vstack(accepted_kappas)
@@ -2259,6 +2288,8 @@ def bootstrap_plackett_luce_statistics(
     frame: pd.DataFrame,
     model_columns: tuple[str, ...] = MODEL_COLUMNS,
     config: BootstrapConfig | None = None,
+    *,
+    progress: ProgressObserver | None = None,
 ) -> dict[str, pd.DataFrame]:
     """Bootstrap crossed expert/gene uncertainty for the 18 PL scopes."""
     model_columns = tuple(model_columns)
@@ -2339,6 +2370,7 @@ def bootstrap_plackett_luce_statistics(
         if row != column
     ]
 
+    report_progress(progress, "pl_bootstrap", 0, 0, config.successful_replicates)
     while len(score_samples) < config.successful_replicates:
         expert_counts = sample_within_strata(
             experts,
@@ -2441,6 +2473,10 @@ def bootstrap_plackett_luce_statistics(
                     "Crossed ranking bootstrap exceeded max_failed_fits "
                     "before reaching the requested successful replicates."
                 ) from error
+        report_progress(
+            progress, "pl_bootstrap", len(score_samples), failed_fits,
+            config.successful_replicates,
+        )
 
     scores_array = np.stack(score_samples)
     ranks_array = np.stack(rank_samples)

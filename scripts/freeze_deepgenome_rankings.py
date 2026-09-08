@@ -34,6 +34,7 @@ from scripts.deepgenome_ranking_statistics import (
     TOP1_BOOTSTRAP_COLUMNS,
     TOP1_PATTERNS,
     BootstrapConfig,
+    ProgressObserver,
     agreement_scope_registry,
     bootstrap_agreement,
     bootstrap_plackett_luce_statistics,
@@ -42,6 +43,7 @@ from scripts.deepgenome_ranking_statistics import (
     ordinal_scope_registry,
     parse_rankings,
     ranking_scope_registry,
+    report_progress,
     summarize_assignments,
     summarize_expert_panel,
 )
@@ -84,6 +86,10 @@ OUTPUT_FILENAMES = {
     "top1_consensus": "top1_consensus.tsv",
     "expert_panel_summary": "expert_panel_summary.tsv",
     "assignment_summary": "assignment_summary.tsv",
+}
+NUMERICAL_OUTPUT_FILENAMES = {
+    name: filename for name, filename in OUTPUT_FILENAMES.items()
+    if name != "expert_panel_summary"
 }
 OUTPUT_SCHEMAS = {
     "rank_distribution": (
@@ -157,18 +163,6 @@ OUTPUT_SORT_KEYS = {
     ),
     "assignment_summary": ("Scope",),
 }
-LEGACY_OUTPUT_HEADERS = {
-    "rank_distribution.tsv": (
-        "Scope\tStudyStatus\tSpecies\tModel\tRank\tCount\tFraction\tN\n"
-    ).encode(),
-    "pl_scores.tsv": (
-        "Scope\tStudyStatus\tSpecies\tModel\tElo\tElo_L\tElo_U\tN\n"
-    ).encode(),
-    "pl_pairwise.tsv": (
-        "Scope\tStudyStatus\tSpecies\tRowModel\tColumnModel\tProbability\tN\n"
-    ).encode(),
-}
-LEGACY_OUTPUT_FILENAMES = {*LEGACY_OUTPUT_HEADERS, "provenance.json"}
 TRANSACTION_SUFFIX_PATTERN = r"[0-9a-f]{32}"
 DIRECTORY_OPEN_FLAGS = (
     os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
@@ -375,6 +369,8 @@ def scope_frames(frame: pd.DataFrame) -> list[tuple[str, str, str, pd.DataFrame]
 def point_estimate_tables(
     frame: pd.DataFrame,
     model_columns: tuple[str, ...],
+    *,
+    progress: ProgressObserver | None = None,
 ) -> dict[str, pd.DataFrame]:
     if REFERENCE_MODEL not in model_columns:
         raise ValueError(
@@ -384,7 +380,8 @@ def point_estimate_tables(
     rank_records: list[dict[str, Any]] = []
     score_records: list[dict[str, Any]] = []
     pairwise_records: list[dict[str, Any]] = []
-    for scope, study_status, species, subset in scope_frames(frame):
+    scopes = scope_frames(frame)
+    for scope_index, (scope, study_status, species, subset) in enumerate(scopes):
         rankings, skipped = parse_rankings(subset, model_columns)
         if skipped:
             raise ValueError(
@@ -447,6 +444,7 @@ def point_estimate_tables(
                         "N": row_count,
                     }
                 )
+        report_progress(progress, "point_estimates", scope_index + 1, 0, len(scopes))
     return {
         "rank_distribution": pd.DataFrame(rank_records),
         "pl_scores": pd.DataFrame(score_records),
@@ -469,7 +467,7 @@ def _json_safe(value: object) -> object:
 def canonicalize_output_table(
     name: str,
     frame: pd.DataFrame,
-    category_map: pd.DataFrame,
+    category_map: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     expected_schema = OUTPUT_SCHEMAS[name]
     if tuple(frame.columns) != tuple(expected_schema):
@@ -490,7 +488,6 @@ def canonicalize_output_table(
         )
     )
     ordinal_scopes = tuple(scope.scope_id for scope in ordinal_scope_registry())
-    dimensions = tuple(category_map["Dimension"].drop_duplicates())
     ordered_values: dict[str, tuple[object, ...]] = {
         "Model": MODEL_COLUMNS,
         "RowModel": MODEL_COLUMNS,
@@ -499,8 +496,11 @@ def canonicalize_output_table(
         "IntervalAnalysis": PL_INTERVAL_ANALYSES,
         "Species": AGREEMENT_SPECIES,
         "Top1AgreementPattern": TOP1_PATTERNS,
-        "Dimension": dimensions,
     }
+    if name == "expert_panel_summary":
+        if category_map is None:
+            raise ValueError("Panel output ordering requires its public category map.")
+        ordered_values["Dimension"] = tuple(category_map["Dimension"].drop_duplicates())
     if "Scope" in frame.columns:
         ordered_values["Scope"] = ranking_scopes
     if "ScopeID" in frame.columns:
@@ -531,15 +531,18 @@ def canonicalize_output_table(
     )
 
 
-def write_table(frame: pd.DataFrame, path: Path) -> None:
-    frame.to_csv(
-        path,
+def table_bytes(frame: pd.DataFrame) -> bytes:
+    return frame.to_csv(
         sep="\t",
         index=False,
         na_rep="",
         float_format="%.15g",
         lineterminator="\n",
-    )
+    ).encode("utf-8")
+
+
+def write_table(frame: pd.DataFrame, path: Path) -> None:
+    path.write_bytes(table_bytes(frame))
 
 
 def _pl_failure_reason_code(reason: object) -> str:
@@ -580,6 +583,62 @@ def public_pl_diagnostics(diagnostics: dict[str, object]) -> dict[str, object]:
             diagnostics.get("MonteCarloPrecision", {"Applied": False})
         ),
     }
+
+
+def prepare_public_rankings(
+    source: pd.DataFrame,
+    categories: pd.DataFrame,
+) -> pd.DataFrame:
+    validate_public_ranking_release(source)
+    score_frame = source.rename(columns={"AnonymousExpertID": "Expert"})
+    validate_score_frame(score_frame, MODEL_COLUMNS)
+    return attach_gene_categories(score_frame, categories)
+
+
+def compute_ranking_tables(
+    source: pd.DataFrame,
+    categories: pd.DataFrame,
+    config: BootstrapConfig | None = None,
+    *,
+    progress: ProgressObserver | None = None,
+) -> tuple[dict[str, pd.DataFrame], dict[str, object]]:
+    """Compute the eleven public tables without private inputs or file writes."""
+    config = config or BootstrapConfig()
+    categorized = prepare_public_rankings(source, categories)
+    assignment = summarize_assignments(categorized, MODEL_COLUMNS)
+    categorized = canonicalize_analysis_frame(categorized)
+    tables = point_estimate_tables(categorized, MODEL_COLUMNS, progress=progress)
+    pl_bootstrap = bootstrap_plackett_luce_statistics(
+        categorized, MODEL_COLUMNS, config, progress=progress,
+    )
+    agreement = bootstrap_agreement(categorized, MODEL_COLUMNS, config, progress=progress)
+    tables.update(pl_bootstrap)
+    tables.update({
+        "fleiss_kappa": agreement["fleiss_kappa"],
+        "kendall_by_gene": gene_ordinal_agreement(categorized, MODEL_COLUMNS),
+        "ordinal_agreement_summary": agreement["ordinal_summary"],
+        "top1_consensus": agreement["top1_consensus"],
+        "assignment_summary": assignment,
+    })
+    if set(tables) != set(NUMERICAL_OUTPUT_FILENAMES):
+        raise RuntimeError("The computation did not construct all numerical tables.")
+    tables = {
+        name: canonicalize_output_table(name, tables[name])
+        for name in NUMERICAL_OUTPUT_FILENAMES
+    }
+    fleiss_first = agreement["fleiss_kappa"].iloc[0]
+    diagnostics = {
+        "plackett_luce": public_pl_diagnostics(
+            pl_bootstrap["pl_scores_ci"].attrs.get("bootstrap_diagnostics", {})
+        ),
+        "agreement": {
+            "attempted_replicates": int(fleiss_first["BootstrapAttempted"]),
+            "successful_replicates": int(fleiss_first["BootstrapReplicates"]),
+            "invalid_replicates": int(fleiss_first["BootstrapInvalid"]),
+            "seed_stream": fleiss_first["SeedStream"],
+        },
+    }
+    return tables, diagnostics
 
 
 def _lexical_absolute(path: Path) -> Path:
@@ -679,14 +738,6 @@ def _first_line(path: Path) -> bytes:
         raise ValueError("A frozen publication table cannot be read.") from error
 
 
-def _validate_legacy_publication(directory: Path) -> None:
-    provenance = _load_publication_provenance(directory)
-    _require_canonical_publication_identity(provenance, 1)
-    for filename, expected_header in LEGACY_OUTPUT_HEADERS.items():
-        if _first_line(directory / filename) != expected_header:
-            raise ValueError("A legacy frozen table has an invalid schema.")
-
-
 def _validate_schema2_publication(directory: Path) -> None:
     provenance = _load_publication_provenance(directory)
     _require_canonical_publication_identity(provenance, 2)
@@ -715,9 +766,6 @@ def _validate_replaceable_publication(directory: Path) -> str:
     names = {entry.name for entry in entries}
     if not names:
         return "empty"
-    if names == LEGACY_OUTPUT_FILENAMES:
-        _validate_legacy_publication(directory)
-        return "schema1"
     expected_schema2 = {*OUTPUT_FILENAMES.values(), "provenance.json"}
     if names == expected_schema2:
         _validate_schema2_publication(directory)
@@ -1101,16 +1149,12 @@ def freeze_rankings(
         sep="\t",
         dtype=str,
     )
-    validate_public_ranking_release(source)
-    score_frame = source.rename(columns={"AnonymousExpertID": "Expert"})
-    validate_score_frame(score_frame, model_columns)
-
     categories = pd.read_csv(
         BytesIO(input_snapshots["gene_categories"]),
         sep="\t",
         dtype=str,
     )
-    categorized = attach_gene_categories(score_frame, categories)
+    categorized = prepare_public_rankings(source, categories)
     metadata = pd.read_excel(
         BytesIO(input_snapshots["expert_metadata"]),
         dtype=object,
@@ -1144,42 +1188,12 @@ def freeze_rankings(
             "Expert metadata and the public ranking release must have equal "
             "aggregate panel sizes by species."
         )
-    assignment = summarize_assignments(categorized, model_columns)
-    categorized = canonicalize_analysis_frame(categorized)
-
-    tables = point_estimate_tables(categorized, model_columns)
-    pl_bootstrap = bootstrap_plackett_luce_statistics(
-        categorized,
-        model_columns,
-        config,
-    )
-    agreement = bootstrap_agreement(categorized, model_columns, config)
-    tables.update(pl_bootstrap)
-    tables.update(
-        {
-            "fleiss_kappa": agreement["fleiss_kappa"],
-            "kendall_by_gene": gene_ordinal_agreement(
-                categorized,
-                model_columns,
-            ),
-            "ordinal_agreement_summary": agreement["ordinal_summary"],
-            "top1_consensus": agreement["top1_consensus"],
-            "expert_panel_summary": panel,
-            "assignment_summary": assignment,
-        }
+    tables, diagnostics = compute_ranking_tables(source, categories, config)
+    tables["expert_panel_summary"] = canonicalize_output_table(
+        "expert_panel_summary", panel, category_map,
     )
     if set(tables) != set(OUTPUT_FILENAMES):
         raise RuntimeError("The freezer did not construct the complete output set.")
-    tables = {
-        name: canonicalize_output_table(name, table, category_map)
-        for name, table in tables.items()
-    }
-
-    pl_diagnostics = pl_bootstrap["pl_scores_ci"].attrs.get(
-        "bootstrap_diagnostics",
-        {},
-    )
-    fleiss_first = agreement["fleiss_kappa"].iloc[0]
     provenance = {
         "schema_version": 2,
         "reporting_matrix_status": "locked_before_final_bootstrap_reanalysis",
@@ -1190,8 +1204,8 @@ def freeze_rankings(
         "pilot_kappa_values_viewed": True,
         "agreement_item_definition": "Species + Gene + Model",
         "agreement_categories": ["R1", "R2", "R3", "R4", "R5"],
-        "fleiss_scope_count": len(agreement["fleiss_kappa"]),
-        "ordinal_scope_count": len(agreement["ordinal_summary"]),
+        "fleiss_scope_count": len(tables["fleiss_kappa"]),
+        "ordinal_scope_count": len(tables["ordinal_agreement_summary"]),
         "model_columns": list(model_columns),
         "reference_model": REFERENCE_MODEL,
         "bootstrap": {
@@ -1201,19 +1215,7 @@ def freeze_rankings(
             "primary_pl_interval": "crossed_expert_gene_percentile",
             "agreement_interval": "stratified_gene_block_percentile",
         },
-        "bootstrap_diagnostics": {
-            "plackett_luce": public_pl_diagnostics(pl_diagnostics),
-            "agreement": {
-                "attempted_replicates": int(
-                    fleiss_first["BootstrapAttempted"]
-                ),
-                "successful_replicates": int(
-                    fleiss_first["BootstrapReplicates"]
-                ),
-                "invalid_replicates": int(fleiss_first["BootstrapInvalid"]),
-                "seed_stream": fleiss_first["SeedStream"],
-            },
-        },
+        "bootstrap_diagnostics": diagnostics,
         "inputs": input_records,
     }
     for _ in range(16):

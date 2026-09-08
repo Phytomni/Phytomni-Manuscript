@@ -2206,3 +2206,69 @@ def test_crossed_bootstrap_attaches_nonblocking_production_qc(
         }
         assert "threshold" not in str(precision).casefold()
         assert "passed" not in str(precision).casefold()
+
+
+@pytest.mark.parametrize("function_name", ["bootstrap_agreement", "bootstrap_plackett_luce_statistics"])
+def test_progress_observer_preserves_bootstrap_results(
+    crossed_fixture: pd.DataFrame,
+    function_name: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    function = getattr(ranking_statistics, function_name)
+    config = BootstrapConfig(successful_replicates=3, seed=20260714, max_failed_fits=2)
+    calls = []
+    for name in ("gene_bootstrap_multiplicities", "sample_within_strata", "_bootstrap_pl_fit"):
+        original = getattr(ranking_statistics, name)
+
+        def counted(*args, _name=name, _original=original, **kwargs):
+            result = _original(*args, **kwargs)
+            if _name != "_bootstrap_pl_fit":
+                calls.append((_name, np.asarray(result).tobytes()))
+            else:
+                calls.append((_name,))
+            return result
+
+        monkeypatch.setattr(ranking_statistics, name, counted)
+    expected = function(crossed_fixture, MODEL_COLUMNS, config)
+    expected_calls = calls.copy()
+    calls.clear()
+    events = []
+    actual = function(crossed_fixture, MODEL_COLUMNS, config, progress=events.append)
+    assert calls == expected_calls
+    assert expected.keys() == actual.keys()
+    for key in expected:
+        pd.testing.assert_frame_equal(actual[key], expected[key], check_exact=True)
+        assert actual[key].attrs == expected[key].attrs
+        assert actual[key].to_csv(index=False) == expected[key].to_csv(index=False)
+    assert events
+    assert events[-1]["successful"] == 3
+    for event in events:
+        assert set(event) == {"phase", "attempted", "successful", "failed", "total"}
+        assert event["attempted"] == event["successful"] + event["failed"]
+        assert event["total"] == 3
+
+
+def test_progress_observer_failure_is_not_a_failed_pl_fit_or_retry(
+    crossed_fixture: pd.DataFrame,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_fit = ranking_statistics._bootstrap_pl_fit
+    fits = 0
+
+    def fit(*args: object, **kwargs: object) -> object:
+        nonlocal fits
+        fits += 1
+        return original_fit(*args, **kwargs)
+
+    def fail_after_one_success(event: dict[str, object]) -> None:
+        if event["successful"] == 1:
+            raise RuntimeError("observer failed after accepted replicate")
+
+    monkeypatch.setattr(ranking_statistics, "_bootstrap_pl_fit", fit)
+    with pytest.raises(RuntimeError, match="observer failed after accepted replicate"):
+        ranking_statistics.bootstrap_plackett_luce_statistics(
+            crossed_fixture, MODEL_COLUMNS,
+            BootstrapConfig(successful_replicates=3, seed=20260714, max_failed_fits=2),
+            progress=fail_after_one_success,
+        )
+    assert fits == 18 * len(ranking_statistics.PL_INTERVAL_ANALYSES)
