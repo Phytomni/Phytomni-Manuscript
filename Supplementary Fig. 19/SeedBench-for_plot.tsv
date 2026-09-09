@@ -1,0 +1,33 @@
+Task	Metric	Model	Score	N
+QA-1	Accuracy	Phyto-Reasoner	0.7447	235
+QA-1	Accuracy	GPT-5	0.7021	235
+QA-1	Accuracy	o3	0.7021	235
+QA-1	Accuracy	Gemini-2.5-Pro	0.7021	235
+QA-1	Accuracy	Claude-Opus-4.1	0.6979	235
+QA-1	Accuracy	DeepSeek-R1	0.6851	235
+QA-1	Accuracy	DeepSeek-V3	0.6766	235
+QA-1	Accuracy	Grok-3-Beta	0.6298	235
+QA-2	Macro-F1	Phyto-Reasoner	0.8403	218
+QA-2	Macro-F1	GPT-5	0.7807	218
+QA-2	Macro-F1	o3	0.7602	218
+QA-2	Macro-F1	Gemini-2.5-Pro	0.7612	218
+QA-2	Macro-F1	Claude-Opus-4.1	0.7679	218
+QA-2	Macro-F1	DeepSeek-R1	0.7471	218
+QA-2	Macro-F1	DeepSeek-V3	0.7591	218
+QA-2	Macro-F1	Grok-3-Beta	0.755	218
+QA-3	ROUGE-L F1	Phyto-Reasoner	0.415	269
+QA-3	ROUGE-L F1	GPT-5	0.3776	269
+QA-3	ROUGE-L F1	o3	0.3816	269
+QA-3	ROUGE-L F1	Gemini-2.5-Pro	0.3586	269
+QA-3	ROUGE-L F1	Claude-Opus-4.1	0.371	269
+QA-3	ROUGE-L F1	DeepSeek-R1	0.3112	269
+QA-3	ROUGE-L F1	DeepSeek-V3	0.3149	269
+QA-3	ROUGE-L F1	Grok-3-Beta	0.2575	269
+QA-4	ROUGE-L F1	Phyto-Reasoner	0.4202	277
+QA-4	ROUGE-L F1	GPT-5	0.2095	277
+QA-4	ROUGE-L F1	o3	0.203	277
+QA-4	ROUGE-L F1	Gemini-2.5-Pro	0.1681	277
+QA-4	ROUGE-L F1	Claude-Opus-4.1	0.2497	277
+QA-4	ROUGE-L F1	DeepSeek-R1	0.258	277
+QA-4	ROUGE-L F1	DeepSeek-V3	0.3478	277
+QA-4	ROUGE-L F1	Grok-3-Beta	0.0487	277

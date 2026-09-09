@@ -1,0 +1,164 @@
+{
+  "metric_definitions": {
+    "QA-1": "Accuracy; supplied summary values retained unchanged without reevaluation.",
+    "QA-2": "Macro-F1; harmonic mean of sample-averaged precision and sample-averaged recall, not the mean of per-item F1. Supplied summary values retained unchanged without reevaluation.",
+    "QA-3": "Arithmetic mean of all existing per-item ROUGE-L F1 logs, including zeros; equal weights, no filtering or reevaluation.",
+    "QA-4": "Arithmetic mean of all existing per-item ROUGE-L F1 logs, including zeros; equal weights, no filtering or reevaluation."
+  },
+  "model_order": [
+    "Phyto-Reasoner",
+    "GPT-5",
+    "o3",
+    "Gemini-2.5-Pro",
+    "Claude-Opus-4.1",
+    "DeepSeek-R1",
+    "DeepSeek-V3",
+    "Grok-3-Beta"
+  ],
+  "outputs": {
+    "SeedBench-for_plot.tsv": "6d8b87f46bc8a322769377545a875d74bcd8771e1edfd7ae3bb8a9bcd4041f97"
+  },
+  "rouge_aggregation": {
+    "QA-3": {
+      "Claude-Opus-4.1": {
+        "mean_unrounded": 0.37102428624535316,
+        "zero_count": 120
+      },
+      "DeepSeek-R1": {
+        "mean_unrounded": 0.3111675278810409,
+        "zero_count": 145
+      },
+      "DeepSeek-V3": {
+        "mean_unrounded": 0.3149254423791822,
+        "zero_count": 130
+      },
+      "GPT-5": {
+        "mean_unrounded": 0.3776044721189591,
+        "zero_count": 115
+      },
+      "Gemini-2.5-Pro": {
+        "mean_unrounded": 0.3586482267657992,
+        "zero_count": 122
+      },
+      "Grok-3-Beta": {
+        "mean_unrounded": 0.2574690594795539,
+        "zero_count": 64
+      },
+      "Phyto-Reasoner": {
+        "mean_unrounded": 0.4149861040892194,
+        "zero_count": 113
+      },
+      "o3": {
+        "mean_unrounded": 0.38159736802973976,
+        "zero_count": 116
+      }
+    },
+    "QA-4": {
+      "Claude-Opus-4.1": {
+        "mean_unrounded": 0.24973000361010833,
+        "zero_count": 30
+      },
+      "DeepSeek-R1": {
+        "mean_unrounded": 0.25796456678700364,
+        "zero_count": 46
+      },
+      "DeepSeek-V3": {
+        "mean_unrounded": 0.3478079422382671,
+        "zero_count": 25
+      },
+      "GPT-5": {
+        "mean_unrounded": 0.20945009747292417,
+        "zero_count": 39
+      },
+      "Gemini-2.5-Pro": {
+        "mean_unrounded": 0.16809523104693141,
+        "zero_count": 55
+      },
+      "Grok-3-Beta": {
+        "mean_unrounded": 0.04873995667870036,
+        "zero_count": 3
+      },
+      "Phyto-Reasoner": {
+        "mean_unrounded": 0.42020870397111915,
+        "zero_count": 12
+      },
+      "o3": {
+        "mean_unrounded": 0.20299741155234657,
+        "zero_count": 66
+      }
+    }
+  },
+  "schema_version": 1,
+  "source_columns": {
+    "Claude-Opus-4.1": {
+      "detail_header": "Claude-Opus-4.1",
+      "judgment_column": "S",
+      "summary_column": "G",
+      "summary_header": "Claude Opus 4.1"
+    },
+    "DeepSeek-R1": {
+      "detail_header": "DeepSeek-R1",
+      "judgment_column": "U",
+      "summary_column": "H",
+      "summary_header": "DeepSeek-R1"
+    },
+    "DeepSeek-V3": {
+      "detail_header": "DeepSeek-V3",
+      "judgment_column": "W",
+      "summary_column": "I",
+      "summary_header": "DeepSeek-V3"
+    },
+    "GPT-5": {
+      "detail_header": "GPT-5",
+      "judgment_column": "M",
+      "summary_column": "D",
+      "summary_header": "GPT-5"
+    },
+    "Gemini-2.5-Pro": {
+      "detail_header": "Gemini-2.5-pro",
+      "judgment_column": "Q",
+      "summary_column": "F",
+      "summary_header": "Gemini 2.5 Pro"
+    },
+    "Grok-3-Beta": {
+      "detail_header": "Grok-3-Beta",
+      "judgment_column": "Y",
+      "summary_column": "J",
+      "summary_header": "Grok-3-Beta"
+    },
+    "Phyto-Reasoner": {
+      "detail_header": "Phyto_Reasoner",
+      "judgment_column": "K",
+      "summary_column": "C",
+      "summary_header": "Phyto-Reasoner"
+    },
+    "o3": {
+      "detail_header": "o3",
+      "judgment_column": "O",
+      "summary_column": "E",
+      "summary_header": "o3"
+    }
+  },
+  "source_rows": {
+    "QA-1": 235,
+    "QA-2": 218,
+    "QA-3": 269,
+    "QA-4": 277
+  },
+  "source_sha256": "8c565f8161e48e35a73f96df681648f547ddeb3b6d20d5e36c5153051d611437",
+  "summary_reconciliation": {
+    "absolute_tolerance": 1e-12,
+    "decimal_places": 4,
+    "rounding": "Round the complete arithmetic mean to four decimals, preserving the supplied summary/plot precision.",
+    "tasks": [
+      "QA-3",
+      "QA-4"
+    ]
+  },
+  "task_order": [
+    "QA-1",
+    "QA-2",
+    "QA-3",
+    "QA-4"
+  ]
+}

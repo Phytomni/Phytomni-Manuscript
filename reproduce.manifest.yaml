@@ -412,6 +412,9 @@ targets:
     kernel: ir
     requires_toolchain: [ir]
     status: run
+    requires_data:
+      - "Supplementary Fig. 19/SeedBench-for_plot.tsv"
+      - "Supplementary Fig. 19/SeedBench-for_plot-provenance.json"
     expected_artifacts:
       - "Supplementary Fig. 19/output/supplementary_fig.19.pdf"
 
