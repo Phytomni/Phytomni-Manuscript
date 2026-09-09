@@ -61,10 +61,7 @@ SOURCE_COLUMNS = {
         "knowledge_identification": ("Phyto-Chatbot (hybrid + rerank)",),
         "knowledge_trace": ("Phyto-Chatbot (semantic)",),
         "data": ("Phyto-Chatbot (Knowledge Agent)",),
-        "analysis": (
-            "Phyto-ChatBot (Knowledge Agent)",
-            "Phyto-ChatBot (Konwledge Agent)",
-        ),
+        "analysis": ("Phyto-ChatBot (Knowledge Agent)",),
     },
     "GPT-5": {
         "knowledge_identification": ("GPT-5",),
@@ -85,8 +82,8 @@ SOURCE_COLUMNS = {
         "analysis": ("Gemini-2.5-Pro",),
     },
     "Claude-Opus-4.1": {
-        "knowledge_identification": ("Claude-4.1-Opus",),
-        "knowledge_trace": ("Claude-4.1-Opus",),
+        "knowledge_identification": ("Claude-Opus-4.1",),
+        "knowledge_trace": ("Claude-Opus-4.1",),
         "data": ("Claude-Opus-4.1",),
         "analysis": ("Claude-Opus-4.1",),
     },
@@ -448,8 +445,10 @@ def freeze_core_metrics(
         "manuscript_alignment": {
             **FIG2A_MANUSCRIPT_SOURCE,
             "reason": (
-                "The private Supplementary Data 4 and 5 workbooks have "
-                "not yet been corrected to the manuscript values."
+                "Preserve the accepted manuscript values. The reviewed "
+                "Supplementary Data 4 now matches identification accuracy; "
+                "the Supplementary Data 5 Trace BLEU-4 discrepancy remains "
+                "unresolved."
             ),
             "overrides": alignment_overrides,
         },

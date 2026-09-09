@@ -11,7 +11,7 @@
       "Phyto-Chatbot": {
         "IdentificationAccuracy": {
           "manuscript_value": 0.72,
-          "source_workbook_value": 0.6328571428571429
+          "source_workbook_value": 0.72
         },
         "TraceBLEU4": {
           "manuscript_value": 0.084,
@@ -20,7 +20,7 @@
       }
     },
     "panel": "Fig. 2a",
-    "reason": "The private Supplementary Data 4 and 5 workbooks have not yet been corrected to the manuscript values.",
+    "reason": "Preserve the accepted manuscript values. The reviewed Supplementary Data 4 now matches identification accuracy; the Supplementary Data 5 Trace BLEU-4 discrepancy remains unresolved.",
     "source_document": "2025-11-31329A-Z_Article_File-20260727.working.md",
     "source_sha256": "2e25c9e62d396c22ef764f8f70cccfdb143617de0f73361de80f95e4613ec964"
   },
@@ -46,7 +46,7 @@
     "Deepseek-R1"
   ],
   "outputs": {
-    "PhytoBench-Analysis-for_plot.tsv": "c41579c58703642ba952cef7c26d7d762497eab303b2d63ba038fe9bc306381f",
+    "PhytoBench-Analysis-for_plot.tsv": "0f02348ca24f98e1d7ec68b41edc7a7ad80237cac3ec646ac3ad2d09f8e874ae",
     "PhytoBench-Data-for_plot.tsv": "e424793c32ac16d09beef630be901405481b062f0ee511153595e45310f9aa1c",
     "PhytoBench-Knowledge-for_plot.tsv": "4fd6de8f5805ad507efdd4ab3e7de7c0a4966f8f58a0ef717d6702b56acd2b45"
   },
@@ -60,10 +60,10 @@
         "Claude-Opus-4.1"
       ],
       "knowledge_identification": [
-        "Claude-4.1-Opus"
+        "Claude-Opus-4.1"
       ],
       "knowledge_trace": [
-        "Claude-4.1-Opus"
+        "Claude-Opus-4.1"
       ]
     },
     "Deepseek-R1": {
@@ -138,8 +138,7 @@
     },
     "Phyto-Chatbot": {
       "analysis": [
-        "Phyto-ChatBot (Knowledge Agent)",
-        "Phyto-ChatBot (Konwledge Agent)"
+        "Phyto-ChatBot (Knowledge Agent)"
       ],
       "data": [
         "Phyto-Chatbot (Knowledge Agent)"
@@ -187,9 +186,9 @@
     "knowledge_trace": 300
   },
   "source_sha256": {
-    "analysis": "313fccd974c68cdc7c563d402ffef819fb993a8fce148c38deb81743e05c2875",
-    "data": "7591249becea41c8ffdb70566732de6024ea486fa192016ab67d2fcf606b2edd",
-    "knowledge_identification": "16ad4f7c00ecd0b29187842df5e864d21c9966b418cd5731816bd62542c357ee",
-    "knowledge_trace": "7ba4bbfb37c9b7e6c44cc93af2545dd74e024581e37df11a29a662c539c42495"
+    "analysis": "dce421abdb09befe1ab2a31996ef92767cec8d781b65a3e93571f793b87084e3",
+    "data": "e2d00973b135db2b4f05da9a16d11eb34824511e518c3dec0c21638a729a0386",
+    "knowledge_identification": "621bc9013703c276e21b2028105dfc1e67b0042d7fd7f1d34d452ac139beaf03",
+    "knowledge_trace": "a34ee003b177c7012b7f225caabf794a1758f2de67f3f0c394add793851726fc"
   }
 }

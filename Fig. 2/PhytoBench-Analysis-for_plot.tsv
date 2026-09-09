@@ -1,9 +1,9 @@
 Task	Species	Rep	ObservationID	Model	DisplayLabel	PlanScore	ToolScore	ParameterScore	RateScore	TotalScore
-Transcriptomics	Oryza_sativa	rep1	Transcriptomics|Oryza_sativa|rep1	Phyto-Reasoner	Phyto-Reasoner	17	18	24	12.5	71.5
-Transcriptomics	Oryza_sativa	rep2	Transcriptomics|Oryza_sativa|rep2	Phyto-Reasoner	Phyto-Reasoner	18	16	23	6.25	63.25
-Transcriptomics	Oryza_sativa	rep3	Transcriptomics|Oryza_sativa|rep3	Phyto-Reasoner	Phyto-Reasoner	16	15	24	12.5	67.5
-Transcriptomics	Oryza_sativa	rep4	Transcriptomics|Oryza_sativa|rep4	Phyto-Reasoner	Phyto-Reasoner	17	18	24	6.25	65.25
-Transcriptomics	Oryza_sativa	rep5	Transcriptomics|Oryza_sativa|rep5	Phyto-Reasoner	Phyto-Reasoner	17	18	22	12.5	69.5
+Transcriptomics	Oryza_sativa	rep1	Transcriptomics|Oryza_sativa|rep1	Phyto-Reasoner	Phyto-Reasoner	19	20	24	12.5	75.5
+Transcriptomics	Oryza_sativa	rep2	Transcriptomics|Oryza_sativa|rep2	Phyto-Reasoner	Phyto-Reasoner	20	21	23	6.25	70.25
+Transcriptomics	Oryza_sativa	rep3	Transcriptomics|Oryza_sativa|rep3	Phyto-Reasoner	Phyto-Reasoner	19	22	24	12.5	77.5
+Transcriptomics	Oryza_sativa	rep4	Transcriptomics|Oryza_sativa|rep4	Phyto-Reasoner	Phyto-Reasoner	19	21	24	6.25	70.25
+Transcriptomics	Oryza_sativa	rep5	Transcriptomics|Oryza_sativa|rep5	Phyto-Reasoner	Phyto-Reasoner	19	21	22	12.5	74.5
 Proteomics	Oryza_sativa	rep1	Proteomics|Oryza_sativa|rep1	Phyto-Reasoner	Phyto-Reasoner	20	20	23	6.25	69.25
 Proteomics	Oryza_sativa	rep2	Proteomics|Oryza_sativa|rep2	Phyto-Reasoner	Phyto-Reasoner	20	20	22	12.5	74.5
 Proteomics	Oryza_sativa	rep3	Proteomics|Oryza_sativa|rep3	Phyto-Reasoner	Phyto-Reasoner	20	20	22	12.5	74.5

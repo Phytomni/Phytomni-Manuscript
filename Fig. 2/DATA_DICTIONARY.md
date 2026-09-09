@@ -17,8 +17,11 @@ authority. Raw workbooks, model responses, and judge logs remain private.
 label, including Claude Research. The Analysis table contains 50 primary rice
 observations per model (10 scenarios x 5 repeats; 450 model-observation rows
 across nine models), excluding the 60 cross-species observations per model.
-The main panel shows each of the four component dimensions; a component is not
-a percentage or the 0-100 total. Identifiers, expected columns, model mappings,
+The main panel is a violin plot of the per-run 0-100 composite score, not four
+separate component plots. Because all four components have the same 25-point
+maximum, `TotalScore = 100 * mean(component / 25)` equals their sum. A raw
+component mean remains on the 0-25 scale. The mean line summarizes the 50
+per-run totals for each model. Identifiers, expected columns, model mappings,
 and valid numerical ranges are checked by the corresponding freezer and tests.
 Missing required observations are errors, not zero scores.
 
@@ -57,10 +60,12 @@ expert preference or an Elo score.
 `PhytoBench-Core-for_plot-provenance.json` records private workbook hashes,
 row counts, scope, metric definitions, model order, and output hashes without
 private paths. Fig. 2a deliberately retains the manuscript-aligned Phyto-Chatbot
-values 0.720 (identification) and 0.084 (Trace BLEU-4). The current source-workbook
-means differ; both computed and aligned values remain documented. Correcting
-the source workbooks and accepting a scientific refresh is a separate author
-decision. Do not silently replace aligned values during repository cleanup.
+values 0.720 (identification) and 0.084 (Trace BLEU-4). Reviewed Supplementary
+Data 4 agrees with the identification value; Supplementary Data 5 still yields
+0.06023096459723756 for Trace BLEU-4. Both computed and aligned values remain
+documented. Resolving the remaining discrepancy and accepting a scientific
+refresh is a separate author decision. Do not silently replace aligned values
+during repository cleanup.
 
 Elo, ranking distributions, pairwise probabilities, and expert agreement are
 owned by the [ranking aggregate dictionary](<../Supplementary Fig. 12-15/PhytoBench-Gene-for_plot/DATA_DICTIONARY.md>).

@@ -38,18 +38,22 @@ Fig. 2a-c read `PhytoBench-Knowledge-for_plot.tsv`,
 than embedded arrays. Their field definitions are in the
 [metric dictionary](DATA_DICTIONARY.md).
 
-The Fig. 2c source contains 50 primary runs (10 scenarios × 5 runs), excluding
-the 60 cross-species extension runs. The panel reports the four component
-dimensions: planning, tool selection, parameter setting, and execution. Each
-component is scored from 0 to 25; the recorded 0–100 total must equal their sum.
+The Fig. 2c source contains 50 primary runs (10 scenarios × 5 runs) per model,
+excluding the 60 cross-species extension runs. The violin plot shows the
+distribution of per-run composite scores, with an embedded box and mean line.
+Planning, tool selection, parameter setting, and execution are each scored from
+0 to 25. The recorded 0–100 total is their sum, equivalently the mean of the
+four normalized component scores multiplied by 100. The components remain in
+the input table but are not plotted separately.
 
 Fig. 2a deliberately aligns the Phyto-Chatbot values to the 20260727 manuscript:
-`IdentificationAccuracy = 0.720` and `TraceBLEU4 = 0.084`. The private
-Supplementary Data 4 and 5 workbooks have not yet been corrected to those
-reported values. The freezer preserves both the workbook-computed and
-manuscript-aligned values; do not replace the aligned values with current
-workbook means during a repository cleanup. Fig. 2b and Fig. 2c remain derived
-directly from their private workbooks.
+`IdentificationAccuracy = 0.720` and `TraceBLEU4 = 0.084`. The reviewed
+Supplementary Data 4 now agrees with 0.720; Supplementary Data 5 still gives
+Trace BLEU-4 = 0.06023096459723756, whose discrepancy remains unresolved.
+The freezer preserves both the workbook-computed and manuscript-aligned
+values; do not replace the aligned values with current workbook means during
+a repository cleanup. Fig. 2b and Fig. 2c remain derived directly from their
+private workbooks.
 
 Only for an authorized source-data refresh, provide the four private workbooks:
 
@@ -67,6 +71,8 @@ column mappings, and the primary Analysis cohort. It writes the three TSVs and
 `PhytoBench-Core-for_plot-provenance.json`, recording source-file and output
 hashes, row counts, scope, metric definitions, and model order without exposing
 private source paths. This mutating refresh is not part of figure reproduction.
+The reviewed source headers use `Claude-Opus-4.1` and, for Analysis,
+`Phyto-ChatBot (Knowledge Agent)`; retired spelling aliases are not accepted.
 
 ## Gene-metric data ownership
 

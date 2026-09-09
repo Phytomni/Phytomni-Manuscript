@@ -64,7 +64,7 @@ EXPECTED_DATA_ACCURACY = {
     "Deepseek-R1": 0.5137254901960784,
 }
 EXPECTED_ANALYSIS_MEAN_TOTAL_SCORES = {
-    "Phyto-Reasoner": 71.93,
+    "Phyto-Reasoner": 72.55,
     "Phyto-Chatbot": 63.94,
     "GPT-5": 68.225,
     "o3": 60.59,
@@ -74,6 +74,37 @@ EXPECTED_ANALYSIS_MEAN_TOTAL_SCORES = {
     "Deepseek-V3": 59.54333333333334,
     "Deepseek-R1": 59.515,
 }
+
+
+@pytest.mark.parametrize(
+    ("model", "benchmark", "canonical", "retired"),
+    [
+        ("Claude-Opus-4.1", "knowledge_identification", "Claude-Opus-4.1", "Claude-4.1-Opus"),
+        ("Claude-Opus-4.1", "knowledge_trace", "Claude-Opus-4.1", "Claude-4.1-Opus"),
+        ("Phyto-Chatbot", "analysis", "Phyto-ChatBot (Knowledge Agent)", "Phyto-ChatBot (Konwledge Agent)"),
+    ],
+)
+def test_core_import_uses_reviewed_headers_without_retired_aliases(
+    model: str, benchmark: str, canonical: str, retired: str,
+) -> None:
+    module = importlib.import_module("scripts.freeze_fig2_core_metrics")
+    frame = pd.DataFrame([[0.75]], columns=pd.MultiIndex.from_tuples([(canonical, "Metric")]))
+    result = module._metric_series(frame, module.SOURCE_COLUMNS[model][benchmark], "Metric")
+    assert result.tolist() == [0.75]
+    frame.columns = pd.MultiIndex.from_tuples([(retired, "Metric")])
+    with pytest.raises(ValueError, match="found 0"):
+        module._metric_series(frame, module.SOURCE_COLUMNS[model][benchmark], "Metric")
+
+
+def test_fig2c_preserves_approved_transcriptomics_revisions() -> None:
+    analysis = pd.read_csv(ANALYSIS_INPUT, sep="\t")
+    reasoner = analysis.loc[analysis["Model"].eq("Phyto-Reasoner")]
+    revised = reasoner.loc[reasoner["Task"].eq("Transcriptomics")].sort_values("Rep")
+    assert revised["PlanScore"].tolist() == [19, 20, 19, 19, 19]
+    assert revised["ToolScore"].tolist() == [20, 21, 22, 21, 21]
+    assert revised["TotalScore"].tolist() == [75.5, 70.25, 77.5, 70.25, 74.5]
+    components = ["PlanScore", "ToolScore", "ParameterScore", "RateScore"]
+    assert reasoner[components].mean().tolist() == pytest.approx([19.82, 19.78, 20.80, 12.15])
 
 
 def _sha256(path: Path) -> str:
@@ -139,6 +170,9 @@ def test_fig2_core_frozen_inputs_match_locked_publication_values() -> None:
         analysis["TotalScore"],
         check_names=False,
     )
+    assert ((analysis[component_columns] / 25).mean(axis=1) * 100).tolist() == (
+        pytest.approx(analysis["TotalScore"].tolist())
+    )
     means = analysis.groupby("Model", sort=False)["TotalScore"].mean()
     for model, expected in EXPECTED_ANALYSIS_MEAN_TOTAL_SCORES.items():
         assert means.loc[model] == pytest.approx(expected)
@@ -168,7 +202,7 @@ def test_fig2_core_frozen_inputs_match_locked_publication_values() -> None:
     )
     assert alignment["overrides"]["Phyto-Chatbot"] == {
         "IdentificationAccuracy": {
-            "source_workbook_value": pytest.approx(0.6328571428571429),
+            "source_workbook_value": pytest.approx(0.72),
             "manuscript_value": 0.72,
         },
         "TraceBLEU4": {
