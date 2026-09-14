@@ -1,0 +1,9 @@
+Model	Total	Correct	Incorrect	Partial	Not_attempted	Attempted	Hallucination_rate	Hallucination_rate_percent
+Phyto-Reasoner	10	7	2	1	0	10	0.6666666666666666	67
+Claude-Opus-4.1	10	4	4	1	1	9	0.6666666666666666	67
+GPT-5	10	6	3	0	1	9	0.75	75
+DeepSeek-V3	10	6	3	0	1	9	0.75	75
+o3	10	6	4	0	0	10	1.0	100
+Grok-3-Beta	10	7	3	0	0	10	1.0	100
+Gemini-2.5-Pro	10	5	5	0	0	10	1.0	100
+DeepSeek-R1	10	6	4	0	0	10	1.0	100

@@ -1,0 +1,21 @@
+{
+  "source_file": "Supplementary Data 24.xlsx",
+  "source_sha256": "d29546b4ec774fb50237d311b0225820c3f4e0311ea1f77fdec0f17ce2cd3ce6",
+  "source_sheet": "Supplementary Data-aa-omic",
+  "source_scope": "Rows 3-10 of the author-supplied aggregate workbook",
+  "derivation": "Hallucination rate = Incorrect / (Incorrect + Partial + Not_attempted). The displayed percentage is the rate multiplied by 100 and rounded to the nearest whole percent.",
+  "row_count": 8,
+  "columns": [
+    "Model",
+    "Total",
+    "Correct",
+    "Incorrect",
+    "Partial",
+    "Not_attempted",
+    "Attempted",
+    "Hallucination_rate",
+    "Hallucination_rate_percent"
+  ],
+  "input_sha256": "8aca8055d188d4f93627fb7f3102570d8e6d9795fc3d1f9a53eed3c9ee977bab",
+  "notes": "The source workbook is maintained outside this repository. This frozen table contains only aggregate counts and derived rates needed to reproduce Supplementary Fig. 19b; it contains no prompts, responses, or credentials."
+}

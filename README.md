@@ -146,7 +146,7 @@ Legend: ✓ = data ships in the repo · ⚠ = data pending (you must supply it) 
 | Supp. 7 | `Supplementary Fig. 7/supplementary_fig. 7.py` | `python3` (script) | `PhytoBench-Data-for_plot.xlsx` ✓ | `run` | `model_accuracy_by_species.pdf` |
 | Supp. 12-15 | `Supplementary Fig. 12-15/supplementary_fig. 12-15.ipynb` | `python3` | `rank_distribution.tsv` ✓, … (13 files) | `run` | `supplementary_fig.12.phytobench-gene.well_studied.percent.bar.pdf` / `supplementary_fig.12.phytobench-gene.well_studied.percent.bar.png` / `supplementary_fig.12.phytobench-gene.well_studied.rice.percent.bar.pdf` / … (104 files) |
 | Supp. 16 | `Supplementary Fig. 16/supplementary_fig. 16.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.16a.model.paperbench-mp.line.pdf` / `supplementary_fig.16a.model.paperbench-mp.line.png` / `supplementary_fig.16b.model.paperbench-as.line.pdf` / … (10 files) |
-| Supp. 19 | `Supplementary Fig. 19/supplementary_fig. 19.ipynb` | `ir` (R) | `SeedBench-for_plot.tsv` ✓, `SeedBench-for_plot-provenance.json` ✓ | `run` | `supplementary_fig.19.pdf` |
+| Supp. 19 | `Supplementary Fig. 19/supplementary_fig. 19.ipynb` | `ir` (R) | `SeedBench-for_plot.tsv` ✓, … (4 files) | `run` | `supplementary_fig.19.pdf` / `supplementary_fig.19b.pdf` |
 | Supp. 20 | `Supplementary Fig. 20/supplementary_fig. 20.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.20.pdf` |
 | Supp. 21 | `Supplementary Fig. 21/supplementary_fig. 21.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.21.pdf` |
 | Supp. 26 | `Supplementary Fig. 26/supplementary_fig. 26.ipynb` | `python3` | *inline* | `run` | `supplementary_fig.26.phytobench-review.polar.pdf` / `supplementary_fig.26.phytobench-review.polar.png` |

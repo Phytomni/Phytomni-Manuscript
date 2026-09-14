@@ -415,8 +415,11 @@ targets:
     requires_data:
       - "Supplementary Fig. 19/SeedBench-for_plot.tsv"
       - "Supplementary Fig. 19/SeedBench-for_plot-provenance.json"
+      - "Supplementary Fig. 19/AA-Omniscience-for_plot.tsv"
+      - "Supplementary Fig. 19/AA-Omniscience-for_plot-provenance.json"
     expected_artifacts:
       - "Supplementary Fig. 19/output/supplementary_fig.19.pdf"
+      - "Supplementary Fig. 19/output/supplementary_fig.19b.pdf"
 
   - id: supp-20
     label: Supp. 20

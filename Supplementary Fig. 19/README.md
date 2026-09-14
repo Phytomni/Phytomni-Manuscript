@@ -1,10 +1,11 @@
-# Supplementary Fig. 19: SeedBench inputs
+# Supplementary Fig. 19: external benchmark inputs
 
-The notebook renders the four SeedBench task summaries, corresponding to panel
-a in the current manuscript caption. It does not render the AA-Omniscience
-hallucination panel. The existing `output/supplementary_fig.19.pdf` basename,
-four task facets, eight-model colors and order, 0-1 axis, and 14 x 8 inch size
-are preserved. Display spellings use `o3` and `Claude-Opus-4.1`.
+The notebook renders the four SeedBench task summaries (panel a) and the
+AA-Omniscience hallucination-rate comparison (panel b). The existing
+`output/supplementary_fig.19.pdf` basename, four task facets, eight-model colors
+and order, 0-1 axis, and 14 x 8 inch size are preserved. Panel b is written to
+`output/supplementary_fig.19b.pdf`. Display spellings use `o3` and
+`Claude-Opus-4.1`.
 
 ## Reproduce the figure
 
@@ -16,8 +17,8 @@ R library. Then run from the repository root:
 ./reproduce.sh run --target supp-19 --timeout 600
 ```
 
-The safe runner reads the frozen files below and writes a fresh PDF to
-`output/`. It does not need the private workbook, an API key, or an evaluator.
+The safe runner reads the frozen files below and writes fresh PDFs to
+`output/`. It does not need an API key or an evaluator.
 Tracked notebooks retain no executed outputs. The executable input/output
 contract is [reproduce.manifest.yaml](../reproduce.manifest.yaml).
 
@@ -69,3 +70,17 @@ It does not repair the workbook. Missing or inconsistent inputs fail rather
 than silently changing cohorts or falling back to historical inline values.
 Future source changes require both the workbook summary and frozen publication
 inputs to be reconciled before figure regeneration.
+
+## AA-Omniscience frozen data dictionary
+
+`AA-Omniscience-for_plot.tsv` contains one row per evaluated model and the
+aggregate counts used to derive panel b. The hallucination rate is
+`Incorrect / (Incorrect + Partial + Not_attempted)`, matching the manuscript
+definition. The displayed percentage is rounded to the nearest whole percent
+only for the figure label. `Total`, `Attempted`, and the three outcome counts
+are retained so the denominator is auditable.
+
+`AA-Omniscience-for_plot-provenance.json` records the author-supplied source
+workbook name, SHA-256, source sheet, derivation formula, and frozen-table
+hash. The source workbook is outside Git; no prompts, responses, or credentials
+are copied into this repository.

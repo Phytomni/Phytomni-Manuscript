@@ -89,6 +89,7 @@ def test_notebook_sources_and_outputs_use_0717_numbers() -> None:
         ),
         "Supplementary Fig. 19/supplementary_fig. 19.ipynb": (
             "supplementary_fig.19.pdf",
+            "supplementary_fig.19b.pdf",
         ),
         "Supplementary Fig. 20/supplementary_fig. 20.ipynb": (
             "supplementary_fig.20.pdf",

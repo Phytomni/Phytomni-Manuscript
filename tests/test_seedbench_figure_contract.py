@@ -41,7 +41,8 @@ def test_seedbench_notebook_reads_frozen_data_and_preserves_plot_geometry():
     assert '0.4061' not in code and '0.4589' not in code
     assert 'Claude-4.1-Opus' not in code and '"O3"' not in code
     for token in ['geom_bar(', 'ncol = 4', 'limits = c(0, 1)',
-                  'width = 14, height = 8', 'output/supplementary_fig.19.pdf']:
+                  'width = 14, height = 8', 'output/supplementary_fig.19.pdf',
+                  'AA-Omniscience-for_plot.tsv', 'output/supplementary_fig.19b.pdf']:
         assert token in code
     for color in ['#1e72b2', '#F2C6DE', '#F29C9A', '#E59E65', '#D6BA9E',
                   '#9C9A9C', '#4D9489', '#96CDA0']:
@@ -50,12 +51,38 @@ def test_seedbench_notebook_reads_frozen_data_and_preserves_plot_geometry():
                for c in notebook.cells if c.cell_type == 'code')
 
 
+def test_aa_omniscience_frozen_table_reconciles_rates_and_manifest() -> None:
+    table = pd.read_csv(FIGURE / 'AA-Omniscience-for_plot.tsv', sep='\t')
+    assert table.shape == (8, 9)
+    assert table.Model.tolist() == [
+        'Phyto-Reasoner', 'Claude-Opus-4.1', 'GPT-5', 'DeepSeek-V3',
+        'o3', 'Grok-3-Beta', 'Gemini-2.5-Pro', 'DeepSeek-R1']
+    expected = table.Incorrect / (table.Incorrect + table.Partial + table.Not_attempted)
+    assert table.Hallucination_rate.tolist() == pytest.approx(expected.tolist(), abs=1e-12)
+    assert table.Hallucination_rate_percent.tolist() == [67, 67, 75, 75, 100, 100, 100, 100]
+    manifest = yaml.safe_load((ROOT / 'reproduce.manifest.yaml').read_text())
+    target = next(t for t in manifest['targets'] if t['id'] == 'supp-19')
+    assert target['requires_data'] == [
+        'Supplementary Fig. 19/SeedBench-for_plot.tsv',
+        'Supplementary Fig. 19/SeedBench-for_plot-provenance.json',
+        'Supplementary Fig. 19/AA-Omniscience-for_plot.tsv',
+        'Supplementary Fig. 19/AA-Omniscience-for_plot-provenance.json']
+    assert target['expected_artifacts'] == [
+        'Supplementary Fig. 19/output/supplementary_fig.19.pdf',
+        'Supplementary Fig. 19/output/supplementary_fig.19b.pdf']
+    provenance = json.loads((FIGURE / 'AA-Omniscience-for_plot-provenance.json').read_text())
+    assert provenance['source_sha256'] == 'd29546b4ec774fb50237d311b0225820c3f4e0311ea1f77fdec0f17ce2cd3ce6'
+    assert provenance['input_sha256'] == hashlib.sha256((FIGURE / 'AA-Omniscience-for_plot.tsv').read_bytes()).hexdigest()
+
+
 def test_seedbench_manifest_requires_frozen_table_and_provenance():
     manifest = yaml.safe_load((ROOT / 'reproduce.manifest.yaml').read_text())
     target = next(t for t in manifest['targets'] if t['id'] == 'supp-19')
     assert target['requires_data'] == [
         'Supplementary Fig. 19/SeedBench-for_plot.tsv',
         'Supplementary Fig. 19/SeedBench-for_plot-provenance.json',
+        'Supplementary Fig. 19/AA-Omniscience-for_plot.tsv',
+        'Supplementary Fig. 19/AA-Omniscience-for_plot-provenance.json',
     ]
     provenance = (FIGURE / 'SeedBench-for_plot-provenance.json').read_text()
     assert hashlib.sha256((FIGURE / 'SeedBench-for_plot.tsv').read_bytes()).hexdigest() in provenance
