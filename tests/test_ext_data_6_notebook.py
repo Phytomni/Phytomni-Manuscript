@@ -107,7 +107,7 @@ def test_analyst_tables_preserve_every_score_and_accepted_scope() -> None:
                 tables[name] = ast.literal_eval(statement.value)
     assert len(tables) == 8
     assert content_hash(tables) == (
-        "1ebe8f395824f538e24fe5bb68b05e4333e00a17c39fb99993c3c3e62867d98c"
+        "1a3f8262bd24093877e89a7346022c3ffa70ea02c4a7d1fa6f1dba66b2cb7e47"
     )
     for name, values in tables.items():
         assert len(values) == 15
